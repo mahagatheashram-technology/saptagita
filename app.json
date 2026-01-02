@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "sapta-gita-temp",
-    "slug": "sapta-gita-temp",
+    "name": "sapta-gita",
+    "slug": "sapta-gita",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "saptagitatemp",
-    "userInterfaceStyle": "automatic",
+    "scheme": "saptagita",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
