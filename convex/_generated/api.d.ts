@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as dailySets from "../dailySets.js";
+import type * as streaks from "../streaks.js";
+import type * as users from "../users.js";
 import type * as verses from "../verses.js";
 
 import type {
@@ -17,6 +20,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  dailySets: typeof dailySets;
+  streaks: typeof streaks;
+  users: typeof users;
   verses: typeof verses;
 }>;
 
