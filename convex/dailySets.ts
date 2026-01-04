@@ -6,10 +6,14 @@ import { internal } from "./_generated/api";
 const DAILY_VERSE_COUNT = 7;
 const TOTAL_VERSES = 701;
 
-// Helper: Get today's date string in user's timezone
+// Helper: Get today's date string in user's timezone with fallback to UTC if invalid
 function getTodayDateString(timezone: string): string {
   const now = new Date();
-  return now.toLocaleDateString("en-CA", { timeZone: timezone }); // Returns YYYY-MM-DD
+  try {
+    return now.toLocaleDateString("en-CA", { timeZone: timezone }); // Returns YYYY-MM-DD
+  } catch {
+    return now.toLocaleDateString("en-CA", { timeZone: "UTC" });
+  }
 }
 
 // Helper: Get ordered verses (could be cached/optimized later)
@@ -107,6 +111,12 @@ export const getTodaySet = mutation({
   },
 });
 
+type StreakUpdate = {
+  currentStreak: number;
+  longestStreak: number;
+  isNewRecord: boolean;
+};
+
 // Mark a verse as read
 export const markVerseRead = mutation({
   args: {
@@ -114,7 +124,16 @@ export const markVerseRead = mutation({
     dailySetId: v.id("dailySets"),
     verseId: v.id("verses"),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    alreadyRead: boolean;
+    versesRead: number;
+    totalVerses: number;
+    isComplete: boolean;
+    streakUpdate: StreakUpdate | null;
+  }> => {
     // Check if already read
     const existingRead = await ctx.db
       .query("readEvents")
@@ -122,8 +141,25 @@ export const markVerseRead = mutation({
       .filter((q) => q.eq(q.field("verseId"), args.verseId))
       .first();
 
+    // Check if all verses in the set are now read
+    const dailySet = await ctx.db.get(args.dailySetId);
+    if (!dailySet) throw new Error("Daily set not found");
+
     if (existingRead) {
-      return { alreadyRead: true };
+      const readEvents = await ctx.db
+        .query("readEvents")
+        .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
+        .collect();
+
+      const isComplete = readEvents.length >= dailySet.verseIds.length;
+
+      return {
+        alreadyRead: true,
+        versesRead: readEvents.length,
+        totalVerses: dailySet.verseIds.length,
+        isComplete,
+        streakUpdate: null,
+      };
     }
 
     // Create read event
@@ -134,16 +170,13 @@ export const markVerseRead = mutation({
       readAt: Date.now(),
     });
 
-    // Check if all verses in the set are now read
-    const dailySet = await ctx.db.get(args.dailySetId);
-    if (!dailySet) throw new Error("Daily set not found");
-
     const allReadEvents = await ctx.db
       .query("readEvents")
       .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
       .collect();
 
     const isComplete = allReadEvents.length >= dailySet.verseIds.length;
+    let streakUpdate: StreakUpdate | null = null;
 
     if (isComplete && !dailySet.completedAt) {
       // Mark set as complete
@@ -151,8 +184,8 @@ export const markVerseRead = mutation({
         completedAt: Date.now(),
       });
 
-      // Update streak
-      await ctx.runMutation(
+      // Update streak and capture result for UI
+      streakUpdate = await ctx.runMutation(
         internal.streaks.updateStreakOnCompletionInternal,
         { userId: args.userId }
       );
@@ -163,6 +196,7 @@ export const markVerseRead = mutation({
       versesRead: allReadEvents.length,
       totalVerses: dailySet.verseIds.length,
       isComplete,
+      streakUpdate,
     };
   },
 });
@@ -197,4 +231,3 @@ export const getTodayProgress = query({
     };
   },
 });
-

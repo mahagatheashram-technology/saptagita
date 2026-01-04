@@ -5,6 +5,15 @@ import { Id } from "@/convex/_generated/dataModel";
 
 export function useTodayReading(userId: Id<"users"> | null) {
   const [isInitialized, setIsInitialized] = useState(false);
+  const [streakInfo, setStreakInfo] = useState<{
+    currentStreak: number;
+    longestStreak: number;
+    isNewRecord: boolean;
+  }>({
+    currentStreak: 0,
+    longestStreak: 0,
+    isNewRecord: false,
+  });
   
   const getTodaySet = useMutation(api.dailySets.getTodaySet);
   const markVerseRead = useMutation(api.dailySets.markVerseRead);
@@ -22,11 +31,27 @@ export function useTodayReading(userId: Id<"users"> | null) {
     isComplete: boolean;
   } | null>(null);
 
+  // Sync streak info from server query (resets record flag)
+  useEffect(() => {
+    if (streak) {
+      setStreakInfo((prev) => ({
+        currentStreak: streak.currentStreak,
+        longestStreak: streak.longestStreak,
+        isNewRecord: prev.isNewRecord,
+      }));
+    }
+  }, [streak]);
+
   // Initialize today's set
   useEffect(() => {
     if (!userId) {
       setIsInitialized(false);
       setTodayData(null);
+      setStreakInfo({
+        currentStreak: 0,
+        longestStreak: 0,
+        isNewRecord: false,
+      });
       return;
     }
 
@@ -35,6 +60,7 @@ export function useTodayReading(userId: Id<"users"> | null) {
         .then((data) => {
           setTodayData(data);
           setIsInitialized(true);
+          setStreakInfo((prev) => ({ ...prev, isNewRecord: false }));
         })
         .catch((error) => {
           console.error("Failed to get today set:", error);
@@ -60,6 +86,10 @@ export function useTodayReading(userId: Id<"users"> | null) {
         verseId: verseToMark._id,
       });
 
+      if (result?.alreadyRead) {
+        return;
+      }
+
       // Update local state
       setTodayData((prev) => {
         if (!prev) return prev;
@@ -69,6 +99,14 @@ export function useTodayReading(userId: Id<"users"> | null) {
           isComplete: result.isComplete,
         };
       });
+
+      if (result?.streakUpdate) {
+        setStreakInfo({
+          currentStreak: result.streakUpdate.currentStreak,
+          longestStreak: result.streakUpdate.longestStreak,
+          isNewRecord: result.streakUpdate.isNewRecord,
+        });
+      }
     } catch (error) {
       console.error("Failed to mark verse as read:", error);
     }
@@ -81,8 +119,8 @@ export function useTodayReading(userId: Id<"users"> | null) {
     isLoading: !isInitialized,
     handleSwipeRight,
     dailySetId: todayData?.dailySet?._id,
-    currentStreak: streak?.currentStreak ?? 0,
-    longestStreak: streak?.longestStreak ?? 0,
+    currentStreak: streakInfo.currentStreak,
+    longestStreak: streakInfo.longestStreak,
+    isNewRecord: streakInfo.isNewRecord,
   };
 }
-

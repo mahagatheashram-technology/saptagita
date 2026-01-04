@@ -2,17 +2,25 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-// Helper: Get today's date string in user's timezone
+// Helper: Get today's date string in user's timezone with fallback to UTC if invalid
 function getTodayDateString(timezone: string): string {
   const now = new Date();
-  return now.toLocaleDateString("en-CA", { timeZone: timezone }); // YYYY-MM-DD
+  try {
+    return now.toLocaleDateString("en-CA", { timeZone: timezone }); // YYYY-MM-DD
+  } catch {
+    return now.toLocaleDateString("en-CA", { timeZone: "UTC" });
+  }
 }
 
-// Helper: Get yesterday's date string in user's timezone
+// Helper: Get yesterday's date string in user's timezone with fallback to UTC if invalid
 function getYesterdayDateString(timezone: string): string {
   const now = new Date();
   now.setDate(now.getDate() - 1);
-  return now.toLocaleDateString("en-CA", { timeZone: timezone });
+  try {
+    return now.toLocaleDateString("en-CA", { timeZone: timezone });
+  } catch {
+    return now.toLocaleDateString("en-CA", { timeZone: "UTC" });
+  }
 }
 
 // Get user's streak data
@@ -236,4 +244,3 @@ export const checkAndUpdateStreak = mutation({
     };
   },
 });
-

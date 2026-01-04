@@ -9,6 +9,7 @@
  */
 
 import type * as dailySets from "../dailySets.js";
+import type * as debug from "../debug.js";
 import type * as streaks from "../streaks.js";
 import type * as users from "../users.js";
 import type * as verses from "../verses.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   dailySets: typeof dailySets;
+  debug: typeof debug;
   streaks: typeof streaks;
   users: typeof users;
   verses: typeof verses;

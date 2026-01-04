@@ -4,8 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { CardStack } from "@/components/verses/CardStack";
-import { TodayHeader } from "@/components/today/TodayHeader";
-import { SwipeHint } from "@/components/today/SwipeHint";
+import {
+  TodayHeader,
+  SwipeHint,
+  CompletionScreen,
+} from "@/components/today";
 import { useTodayReading } from "@/lib/hooks/useTodayReading";
 import * as Haptics from "expo-haptics";
 import { Id } from "@/convex/_generated/dataModel";
@@ -36,6 +39,8 @@ export default function TodayScreen() {
     handleSwipeRight: markAsRead,
     dailySetId,
     currentStreak,
+    longestStreak,
+    isNewRecord,
   } = useTodayReading(userId);
   
   // Check and update streak on app open
@@ -70,22 +75,12 @@ export default function TodayScreen() {
   // Completion state
   if (isComplete || currentIndex >= DAILY_VERSE_COUNT) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
-        <View className="items-center">
-          <Text className="text-6xl mb-6">🎉</Text>
-          <Text className="text-3xl font-bold text-secondary mb-3 text-center">
-            Day Complete!
-          </Text>
-          <Text className="text-lg text-textSecondary text-center mb-8">
-            You've read all 7 verses today.{"\n"}Come back tomorrow for more wisdom.
-          </Text>
-          
-          <View className="flex-row items-center bg-orange-50 px-6 py-3 rounded-full">
-            <Text className="text-primary text-lg font-semibold">
-              🔥 Streak updated!
-            </Text>
-          </View>
-        </View>
+      <SafeAreaView className="flex-1 bg-background">
+        <CompletionScreen
+          currentStreak={currentStreak}
+          longestStreak={longestStreak}
+          isNewRecord={isNewRecord}
+        />
       </SafeAreaView>
     );
   }
