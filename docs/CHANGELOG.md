@@ -2,6 +2,166 @@
 
 > **Instructions:** Agent appends to this file after completing each task. Most recent entries at top.
 
+## Task 3.1: Clerk Auth Integration
+**Date:** 2026-01-04  
+**Status:** ✅ Complete
+
+### What Was Built
+- Added Clerk provider with secure token cache, auth-gated navigation, and sign-in/sign-up screens covering Apple, Google, and email OTP.
+- Synced authenticated users into Convex via new `useCurrentUser` hook and server mutation; removed reliance on test user across Today/Bookmarks/Profile/Bucket screens.
+- Added env placeholders for Clerk keys and Convex JWT issuer plus auth config for Convex.
+
+### Files Created
+- `.env.local`, `convex/.env.local` - Clerk key and issuer placeholders
+- `convex/auth.config.ts` - Clerk JWT provider config
+- `components/auth/*` - Auth header and Apple/Google/Email buttons
+- `app/sign-in.tsx`, `app/sign-up.tsx` - Auth flows
+- `lib/hooks/useCurrentUser.ts` - Sync Clerk user to Convex
+
+### Files Modified
+- `app/_layout.tsx` - Clerk provider + auth gating and token cache
+- `package.json` - Add `expo-secure-store` for token storage
+- `app/(tabs)/index.tsx` - Use real user for Today flow
+- `app/(tabs)/bookmarks.tsx` - Use real user for buckets
+- `app/bucket/[id].tsx` - Use real user for bucket detail
+- `app/(tabs)/profile.tsx` - Sign out + dev panel gated to dev builds
+- `convex/users.ts` - Add auth-based user creation helper/mutation
+
+### Issues Resolved
+- App now routes unauthenticated users to Clerk sign-in, supports OAuth/OTP, and persists sessions while syncing users into Convex without test-user hacks.
+
+## Deferred / Archived
+
+### Task 2.4: Private Notes (Deferred)
+- Notes feature is paused; related code and schema were removed. Refer to `docs/SPEC_DOC_0.md` for the intended schema/functions/UI when ready to reintroduce.
+
+## Task 2.2: Bookmark Buckets CRUD
+**Date:** 2026-01-04
+**Status:** ✅ Complete
+
+### What Was Built
+- Added Convex schema tables for bookmark buckets and bookmarks with indexes for user/bucket/verse lookups.
+- Implemented server-side CRUD for buckets (create, rename, delete with cascade) and bookmarks (quick default bucket toggle, add/remove to specific buckets, membership queries).
+- Updated Today swipe action drawer to perform real quick bookmark toggles and open a bucket picker modal.
+- Added bucket picker modal to add/remove a verse across buckets and create new buckets inline.
+- Built Bookmarks tab UI to view buckets with counts, create buckets, rename/delete non-default buckets, and placeholder navigation to bucket detail (Task 2.3).
+
+### Files Created
+- `convex/bookmarks.ts` - Bucket and bookmark mutations/queries
+- `components/bookmarks/BucketPickerModal.tsx` - Add/remove verse to buckets, create inline
+- `components/bookmarks/BucketCard.tsx` - Bucket list tiles
+- `components/bookmarks/index.ts` - Bookmark component exports
+- `lib/hooks/useBookmarkBuckets.ts` - Helper for bucket queries
+
+### Files Modified
+- `convex/schema.ts` - Added bookmarkBuckets and bookmarks tables with indexes
+- `app/(tabs)/index.tsx` - Quick bookmark toggle + bucket picker wiring on swipe-left drawer
+- `components/verses/ActionDrawer.tsx` - Await action callbacks
+- `app/(tabs)/bookmarks.tsx` - Bucket management UI (list/create/rename/delete)
+- `convex/_generated/api.d.ts` - Expose bookmarks module for TS
+
+### Issues Resolved
+- Users can now manage buckets, save/remove verses, and organize via picker and Bookmarks tab; default "Saved" bucket is auto-created.
+
+---
+
+## Task 2.3: Bucket Detail & Bookmark Management
+**Date:** 2026-01-04  
+**Status:** ✅ Complete
+
+### What Was Built
+- Bucket detail screen (`app/bucket/[id].tsx`) showing bucket header, counts, empty states, and scrollable verse list.
+- Bookmark detail bottom sheet with remove, move-to-bucket, and share actions.
+- Bookmark row component for bucket lists and navigation from Bookmarks tab into bucket detail.
+- Emoji-aware bucket picker supports moving a bookmark between buckets.
+
+### Files Created
+- `app/bucket/[id].tsx` - Bucket detail screen
+- `components/bookmarks/BookmarkRow.tsx` - Verse row for buckets
+- `components/bookmarks/BookmarkDetailSheet.tsx` - Bottom sheet with bookmark actions
+
+### Files Modified
+- `convex/bookmarks.ts` - Add bucket lookup, moveBookmark, and enhanced joins
+- `components/bookmarks/BucketPickerModal.tsx` - Support move mode and icons
+- `components/bookmarks/BucketCard.tsx` - Render emoji icons
+- `app/(tabs)/bookmarks.tsx` - Navigate to bucket detail, emoji pickers scrollable
+- `components/bookmarks/index.ts` - Export new components
+- `app/bucket/[id].tsx` - Hide default header, use normalized emoji/name in bucket detail
+- `convex/bookmarks.ts` - Normalize default icons for older buckets
+
+### Issues Resolved
+- Users can now open a bucket to browse saved verses, share/remove/move them, and choose target buckets without UI clipping.
+- Fixed inconsistent bucket emojis between list and detail, and removed route placeholders from bucket detail header.
+
+---
+
+## Task 2.2 UI Polish: Bucket Picker & Icons
+**Date:** 2026-01-04  
+**Status:** ✅ Complete
+
+### What Was Built
+- Added emoji icon selection for bookmark buckets (both create and rename) and stored the icon in Convex schema/functions.
+- Improved bucket picker and Bookmarks tab UI spacing: horizontal emoji scrollers to prevent overflow, padded inputs so text and controls don’t clip, and better action buttons.
+- Bucket picker avatars now show the chosen emoji; defaults fall back to bookmark/folder icons.
+
+### Files Modified
+- `convex/schema.ts` - Store optional bucket `icon`
+- `convex/bookmarks.ts` - Accept/save icon on create/rename; default bucket icon
+- `components/bookmarks/BucketPickerModal.tsx` - Emoji avatar display and creation flow padding
+- `components/bookmarks/BucketCard.tsx` - Render emoji icons for buckets
+- `app/(tabs)/bookmarks.tsx` - Emoji selectors (scrollable), padding fixes, icon support on create/rename
+
+### Issues Resolved
+- Bucket icons were clipped/overflowing; inputs and controls were getting cut off. UI now scrolls and pads properly with emoji support.
+
+---
+
+## Task 2.1: Swipe Left Action Drawer
+**Date:** 2026-01-04
+**Status:** ✅ Complete
+
+### What Was Built
+- Added iOS-style action drawer that appears when swiping left on a verse card, with haptic feedback and dimmed backdrop.
+- Drawer lists Bookmark, Add to Bucket, Add Note, and Share actions; non-share actions show a "Coming Soon" alert placeholder.
+- Share action opens the native share sheet populated with the verse reference and content.
+- Left swipes now spring the card back to center while opening the drawer (card is not dismissed).
+
+### Files Created
+- `components/verses/ActionDrawer.tsx` - Bottom sheet UI for verse actions
+
+### Files Modified
+- `app/(tabs)/index.tsx` - Wire swipe-left to open ActionDrawer, handle placeholders and sharing
+- `components/verses/SwipeableCard.tsx` - Ensure left swipe springs back and invokes callback
+- `package.json` / `package-lock.json` - Add `@gorhom/bottom-sheet` dependency
+
+### Issues Resolved
+- Swipe left now surfaces actionable options instead of doing nothing, preparing for upcoming bookmark/note flows.
+
+---
+
+## Task 1.7: Completion Screen
+**Date:** 2026-01-04
+**Status:** ✅ Complete
+
+### What Was Built
+- Animated completion experience with springing checkmark, staggered text, flame wiggle, and success haptic.
+- Streak card shows current streak, longest streak, and new-record badge with contextual encouragement.
+- Today screen now renders the new CompletionScreen after finishing all 7 verses.
+- Streak updates returned from Convex when a day completes so the client can display record status immediately.
+
+### Files Created
+- `components/today/CompletionScreen.tsx` - Animated completion UI
+
+### Files Modified
+- `app/(tabs)/index.tsx` - Use CompletionScreen and pass streak data
+- `lib/hooks/useTodayReading.ts` - Surface longest streak and new-record flag from mark-as-read flow
+- `convex/dailySets.ts` - Return streak update info when a day completes
+- `components/today/index.ts` - Export CompletionScreen
+- `docs/PROJECT_STATUS.md` - Mark Task 1.7/Phase 1 complete and advance to Phase 2
+
+### Issues Resolved
+- Completion screen now rewards daily completion with streak visibility and record celebration, supporting habit formation.
+
 ---
 
 ## Task 1.6: Streak Logic Dev Tools
@@ -24,31 +184,6 @@
 
 ### Issues Resolved
 - Can test streak increments/resets and daily set rollover without waiting for real days; easier reproduction of rollover bugs.
-
----
-
-## Task 1.7: Completion Screen Polish
-**Date:** 2026-01-04
-**Status:** ✅ Complete
-
-### What Was Built
-- Animated completion experience with springing checkmark, staggered text, flame wiggle, and success haptic.
-- Streak card shows current streak, longest streak, and new-record badge with contextual encouragement.
-- Today screen now renders the new CompletionScreen after finishing all 7 verses.
-- Streak updates returned from Convex when a day completes so the client can display record status immediately.
-
-### Files Created
-- `components/today/CompletionScreen.tsx` - Animated completion UI
-
-### Files Modified
-- `app/(tabs)/index.tsx` - Use CompletionScreen and pass streak data
-- `lib/hooks/useTodayReading.ts` - Surface longest streak and new-record flag from mark-as-read flow
-- `convex/dailySets.ts` - Return streak update info when a day completes
-- `components/today/index.ts` - Export CompletionScreen
-- `docs/PROJECT_STATUS.md` - Mark Task 1.7/Phase 1 complete and advance to Phase 2
-
-### Issues Resolved
-- Completion screen now rewards daily completion with streak visibility and record celebration, supporting habit formation.
 
 ---
 

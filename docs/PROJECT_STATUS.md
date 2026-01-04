@@ -2,9 +2,28 @@
 
 > **Instructions:** This file is the primary context document. Always include when starting a new chat session.
 
+## Development Workflow (Summary)
+
+- **T3 Chat** (orchestrator):
+  - Designs phases and tasks
+  - Produces detailed prompts for the repo-aware agent
+  - Reviews results and defines next steps
+
+- **Cursor / repo-aware agent** (implementer):
+  - Receives full task prompts from T3 Chat
+  - Edits the codebase and runs checks
+  - Updates `docs/PROJECT_STATUS.md`, `docs/CHANGELOG.md`, and `docs/ARCHITECTURE.md` as instructed
+
+- **Human developer**:
+  - Bridges T3 Chat and Cursor
+  - Runs the app and tests behavior
+  - Reports back to T3 Chat using each task’s report template
+
+For the full process description, see `docs/PROCESS.md`.
+
 ## Current State
-- **Phase:** 2 (Bookmarks & Notes) — Phase 1 complete
-- **Current Task:** Phase 2 - Task 2.1
+- **Phase:** 3 (Auth & Profile)
+- **Current Task:** 3.2 (Profile Tab)
 - **Last Updated:** 2026-01-04
 - **App Status:** Runnable, core reading flow working
 
@@ -12,21 +31,31 @@
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 1.1 | Project Setup (Expo + Convex + Clerk + NativeWind) | ✅ Complete |
-| 1.2 | Dataset Import (701 verses seeded) | ✅ Complete |
-| 1.2.1 | NativeWind Fix + Force Light Mode | ✅ Complete |
-| 1.3 | Today Tab UI (Card Stack) | ✅ Complete |
+| 1.1 | Project Setup | ✅ Complete |
+| 1.2 | Dataset Import | ✅ Complete |
+| 1.2.1 | NativeWind Fix | ✅ Complete |
+| 1.3 | Today Tab UI | ✅ Complete |
 | 1.4 | Swipe Interactions | ✅ Complete |
-| 1.5 | Daily Set Generation & Persistence | ✅ Complete |
+| 1.5 | Daily Set Generation | ✅ Complete |
 | 1.6 | Streak Logic | ✅ Complete |
-| 1.7 | Completion Screen Polish | ✅ Complete |
+| 1.6.1 | Dev Testing Tools | ✅ Complete |
+| 1.7 | Completion Screen | ✅ Complete |
+
+## Phase 2: Bookmarks & Notes
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 2.1 | Swipe Left Action Drawer | ✅ Complete |
+| 2.2 | Bookmark Buckets CRUD | ✅ Complete |
+| 2.3 | Bucket Detail & Bookmark Management | ✅ Complete |
+| 2.4 | Private Notes per Verse | ⏸ Deferred |
 
 ## Future Phases (Not Started)
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| 2 | Bookmarks & Notes | ⏳ In Progress |
-| 3 | Auth & Profile | ⬜ |
+| 2 | Bookmarks & Notes | ✅ (Notes deferred) |
+| 3 | Auth & Profile | ⏳ In Progress |
 | 4 | Communities & Leaderboards | ⬜ |
 | 5 | Polish & Launch | ⬜ |
 
@@ -50,10 +79,10 @@
 | verses | 701 Bhagavad Gita verses | ✅ Seeded |
 | dailySets | Daily 7-verse assignments | ✅ Implemented |
 | readEvents | Track which verses read | ✅ Implemented |
-| streaks | Streak tracking | ⏳ Task 1.6 |
-| bookmarkBuckets | Bookmark folders | ⬜ Phase 2 |
-| bookmarks | Saved verses | ⬜ Phase 2 |
-| notes | Private reflections | ⬜ Phase 2 |
+| streaks | Streak tracking | ✅ Implemented |
+| bookmarkBuckets | Bookmark folders | ✅ Implemented |
+| bookmarks | Saved verses | ✅ Implemented |
+| notes | Private reflections | ⬜ Deferred |
 | communities | Groups | ⬜ Phase 4 |
 | communityMembers | Group membership | ⬜ Phase 4 |
 | comments | Verse comments | ⬜ Phase 4 |
@@ -67,10 +96,13 @@ Verified: all listed paths exist in the repo.
 ### App Screens
 - `app/(tabs)/index.tsx` - Today screen (main reading view)
 - `app/(tabs)/leaderboards.tsx` - Placeholder
-- `app/(tabs)/bookmarks.tsx` - Placeholder
+- `app/(tabs)/bookmarks.tsx` - Bucket list and management (Phase 2)
+- `app/bucket/[id].tsx` - Bucket detail with bookmark list and actions
 - `app/(tabs)/community.tsx` - Placeholder
 - `app/(tabs)/profile.tsx` - Dev tools panel (temporary)
 - `app/_layout.tsx` - Root layout with providers
+- `app/sign-in.tsx` - Clerk sign-in screen
+- `app/sign-up.tsx` - Clerk sign-up screen
 
 ### Components
 - `components/verses/SwipeableCard.tsx` - Card with gesture handling
@@ -82,6 +114,13 @@ Verified: all listed paths exist in the repo.
 - `components/today/index.ts` - Today component exports
 - `components/today/CompletionScreen.tsx` - Animated completion UI with streak badge
 - `components/dev/DevPanel.tsx` - Dev-only streak/daily-set testing UI
+- `components/bookmarks/BucketPickerModal.tsx` - Modal to add/remove verse in buckets
+- `components/bookmarks/BucketCard.tsx` - Bucket list tile
+- `components/bookmarks/index.ts` - Bookmark component exports
+- `components/bookmarks/BookmarkRow.tsx` - Row layout for verses in a bucket
+- `components/bookmarks/BookmarkDetailSheet.tsx` - Bottom sheet with bookmark actions
+- `components/verses/ActionDrawer.tsx` - Action sheet for swipe-left
+- `components/auth/` - Buttons and layout for Clerk sign-in (Apple/Google/Email)
 
 ### Backend (Convex)
 - `convex/schema.ts` - Database schema
@@ -90,9 +129,13 @@ Verified: all listed paths exist in the repo.
 - `convex/dailySets.ts` - Daily set generation & read tracking
 - `convex/streaks.ts` - Streak tracking logic
 - `convex/debug.ts` - Dev-only mutations for streak/daily-set testing
+- `convex/bookmarks.ts` - Bookmark buckets and bookmark CRUD
+- `convex/auth.config.ts` - Clerk JWT issuer configuration
 
 ### Hooks
 - `lib/hooks/useTodayReading.ts` - Main hook for Today screen
+- `lib/hooks/useBookmarkBuckets.ts` - Helper for bucket queries
+- `lib/hooks/useCurrentUser.ts` - Sync Clerk user to Convex user record
 
 ### Data
 - `data/gita.json` - All 701 verses (static JSON)
@@ -102,7 +145,7 @@ Verified: all listed paths exist in the repo.
 1. **Verse Order:** Sequential (Chapter 1 Verse 1 → 1.2 → ... → 18.78)
 2. **Daily Count:** Fixed at 7 verses per day
 3. **Swipe Right:** Mark as read, advance to next card
-4. **Swipe Left:** Show options drawer (not yet implemented, springs back)
+4. **Swipe Left:** Show action drawer for bookmark/bucket/share
 5. **Light Mode:** Forced light mode regardless of device settings
 6. **Test User:** Using hardcoded test user for development (real auth in Phase 3)
 7. **Timezone:** Day boundary based on user's local timezone
@@ -114,9 +157,14 @@ Verified: all listed paths exist in the repo.
 - ✅ 5-tab navigation (Today, Leaderboards, Bookmarks, Community, Profile)
 - ✅ Today tab shows 7 verse cards in a stack
 - ✅ Swipe right dismisses card and advances
-- ✅ Swipe left springs back (placeholder for options)
+- ✅ Swipe left opens action drawer with share/bookmark/bucket options and springs back
 - ✅ Progress dots update as cards are read
 - ✅ Completion screen shows after 7 verses
+- ✅ Default "Saved" bucket auto-creates; buckets can be created/renamed/deleted; quick bookmark toggles saved state
+- ✅ Bucket emoji icons selectable; picker/input layouts no longer clip or overflow
+- ✅ Bucket detail shows saved verses with share/move/remove actions and empty states
+- ✅ Bucket emojis persist across views; bucket detail header uses custom title (no route placeholders)
+- ✅ Clerk auth (Apple/Google/email) with protected routes and Convex user sync
 - ✅ Haptic feedback on swipe
 - ✅ Visual indicators (green checkmark right, orange ellipsis left)
 - ✅ Progress persists across app restart
@@ -125,6 +173,10 @@ Verified: all listed paths exist in the repo.
 ## Known Issues / Blockers
 
 - Streak/day rollover issue: after midnight on day 3, the app shows the day as completed with no verses visible (streak display inconsistent). Dev panel includes controls to reproduce (simulate next/missed day).
+
+## Deferred / Revisit Later
+
+- **Task 2.4: Private Notes per Verse** — deferred. Previous implementation removed due to flow issues; specs remain in `docs/SPEC_DOC_0.md` (notes schema, per-verse note UX). Reintroduce by re-adding notes table/functions and note UI when ready.
 
 ## Environment
 

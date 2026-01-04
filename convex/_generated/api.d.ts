@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as bookmarks from "../bookmarks.js";
 import type * as dailySets from "../dailySets.js";
 import type * as debug from "../debug.js";
 import type * as streaks from "../streaks.js";
@@ -21,6 +22,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  bookmarks: typeof bookmarks;
   dailySets: typeof dailySets;
   debug: typeof debug;
   streaks: typeof streaks;

@@ -76,15 +76,9 @@ export function SwipeableCard({
       // Swipe LEFT - More options (animate but keep card)
       else if (event.translationX < -SWIPE_THRESHOLD) {
         runOnJS(onSwipeLeft)();
-        translateX.value = withSequence(
-          withTiming(-SCREEN_WIDTH - 100, { duration: 300 }),
-          withTiming(0, { duration: 300 })
-        );
-        rotation.value = withSequence(
-          withTiming(-20, { duration: 300 }),
-          withTiming(0, { duration: 300 })
-        );
-        translateY.value = withTiming(0, { duration: 300 });
+        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+        rotation.value = withSpring(0, { damping: 15, stiffness: 150 });
       }
       // Return to center
       else {

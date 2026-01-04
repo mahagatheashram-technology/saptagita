@@ -51,4 +51,23 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("byUser", ["userId"]),
+  bookmarkBuckets: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+    icon: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_name", ["userId", "name"]),
+  bookmarks: defineTable({
+    userId: v.id("users"),
+    verseId: v.id("verses"),
+    bucketId: v.id("bookmarkBuckets"),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_bucket", ["bucketId"])
+    .index("by_user_verse", ["userId", "verseId"])
+    .index("by_bucket_verse", ["bucketId", "verseId"]),
 });
