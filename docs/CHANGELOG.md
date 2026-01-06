@@ -2,6 +2,24 @@
 
 > **Instructions:** Agent appends to this file after completing each task. Most recent entries at top.
 
+## Task 3.1: Clerk Auth Integration (Stabilized)
+**Date:** 2026-01-04  
+**Status:** ✅ Complete
+
+### What Was Built
+- Finalized Clerk auth routing with sign-in/sign-up screens (Google + email OTP) and protected navigation.
+- Synced Clerk sessions into Convex with stable user creation and account-aware loading states.
+- Added sign-out UI and dev-only gating for the DevPanel.
+
+### Files Modified
+- `app/_layout.tsx` - Auth routing and provider wiring stabilization
+- `app/sign-in.tsx`, `app/sign-up.tsx` - Auth screens updated to Google + email
+- `lib/hooks/useCurrentUser.ts` - Error logging and sync stability
+- `app/(tabs)/index.tsx`, `app/(tabs)/profile.tsx` - User sync error handling and sign out
+
+### Issues Resolved
+- Prevented auth routing loops and clarified sign-in flow; app now reaches tabs after successful Clerk session.
+
 ## Task 3.1: Clerk Auth Integration
 **Date:** 2026-01-04  
 **Status:** ✅ Complete

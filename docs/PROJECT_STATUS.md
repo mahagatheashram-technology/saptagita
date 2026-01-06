@@ -50,6 +50,13 @@ For the full process description, see `docs/PROCESS.md`.
 | 2.3 | Bucket Detail & Bookmark Management | ✅ Complete |
 | 2.4 | Private Notes per Verse | ⏸ Deferred |
 
+## Phase 3: Auth & Profile
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 3.1 | Clerk Auth Integration | ✅ Complete |
+| 3.2 | Profile Tab | ⬜ Not Started |
+
 ## Future Phases (Not Started)
 
 | Phase | Focus | Status |
@@ -64,7 +71,7 @@ For the full process description, see `docs/PROCESS.md`.
 - **Language:** TypeScript (strict mode)
 - **Navigation:** Expo Router (tab-based)
 - **Backend:** Convex (database + serverless functions)
-- **Auth:** Clerk (placeholder/test user for now)
+- **Auth:** Clerk (Google + email OTP; Apple optional)
 - **Styling:** NativeWind (Tailwind CSS for RN)
 - **Gestures:** react-native-gesture-handler
 - **Animations:** react-native-reanimated
@@ -99,7 +106,7 @@ Verified: all listed paths exist in the repo.
 - `app/(tabs)/bookmarks.tsx` - Bucket list and management (Phase 2)
 - `app/bucket/[id].tsx` - Bucket detail with bookmark list and actions
 - `app/(tabs)/community.tsx` - Placeholder
-- `app/(tabs)/profile.tsx` - Dev tools panel (temporary)
+- `app/(tabs)/profile.tsx` - Profile info + sign out (dev panel in dev builds)
 - `app/_layout.tsx` - Root layout with providers
 - `app/sign-in.tsx` - Clerk sign-in screen
 - `app/sign-up.tsx` - Clerk sign-up screen
@@ -120,7 +127,7 @@ Verified: all listed paths exist in the repo.
 - `components/bookmarks/BookmarkRow.tsx` - Row layout for verses in a bucket
 - `components/bookmarks/BookmarkDetailSheet.tsx` - Bottom sheet with bookmark actions
 - `components/verses/ActionDrawer.tsx` - Action sheet for swipe-left
-- `components/auth/` - Buttons and layout for Clerk sign-in (Apple/Google/Email)
+- `components/auth/` - Buttons and layout for Clerk sign-in (Google/Email; Apple optional)
 
 ### Backend (Convex)
 - `convex/schema.ts` - Database schema
@@ -147,9 +154,9 @@ Verified: all listed paths exist in the repo.
 3. **Swipe Right:** Mark as read, advance to next card
 4. **Swipe Left:** Show action drawer for bookmark/bucket/share
 5. **Light Mode:** Forced light mode regardless of device settings
-6. **Test User:** Using hardcoded test user for development (real auth in Phase 3)
+6. **Auth:** Clerk for sign-in (Google + email OTP; Apple optional)
 7. **Timezone:** Day boundary based on user's local timezone
-8. **Dev Tools:** Profile tab temporarily hosts dev panel with debug mutations for streak/daily-set testing
+8. **Dev Tools:** Profile tab shows dev panel only in dev builds
 
 ## Current Working Features
 
@@ -164,7 +171,8 @@ Verified: all listed paths exist in the repo.
 - ✅ Bucket emoji icons selectable; picker/input layouts no longer clip or overflow
 - ✅ Bucket detail shows saved verses with share/move/remove actions and empty states
 - ✅ Bucket emojis persist across views; bucket detail header uses custom title (no route placeholders)
-- ✅ Clerk auth (Apple/Google/email) with protected routes and Convex user sync
+- ✅ Clerk auth (Google/email) with protected routes and Convex user sync
+- ✅ Profile screen shows account info and sign out
 - ✅ Haptic feedback on swipe
 - ✅ Visual indicators (green checkmark right, orange ellipsis left)
 - ✅ Progress persists across app restart
