@@ -5,9 +5,10 @@ import { Id } from "@/convex/_generated/dataModel";
 
 interface DevPanelProps {
   userId: Id<"users"> | null;
+  embedded?: boolean;
 }
 
-export function DevPanel({ userId }: DevPanelProps) {
+export function DevPanel({ userId, embedded = false }: DevPanelProps) {
   // Queries
   const debugState = useQuery(
     api.debug.getDebugState,
@@ -56,8 +57,8 @@ export function DevPanel({ userId }: DevPanelProps) {
     );
   };
 
-  return (
-    <ScrollView className="flex-1 bg-background p-4">
+  const content = (
+    <>
       <Text className="text-2xl font-bold text-secondary mb-4">🛠 Dev Tools</Text>
 
       {/* Current State */}
@@ -152,8 +153,14 @@ export function DevPanel({ userId }: DevPanelProps) {
           6. Go to Today tab → streak should reset to 0
         </Text>
       </View>
-    </ScrollView>
+    </>
   );
+
+  if (embedded) {
+    return <View className="bg-background p-4">{content}</View>;
+  }
+
+  return <ScrollView className="flex-1 bg-background p-4">{content}</ScrollView>;
 }
 
 function DevButton({

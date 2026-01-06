@@ -11,10 +11,13 @@ export default function SignUpScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="flex-1 px-6 justify-center">
-        <AuthHeader title="Join Sapta Gita" subtitle="Create your account to save progress across devices." />
+        <AuthHeader
+          title="Join Sapta Gita"
+          subtitle="Create your account to save progress across devices."
+        />
 
         <View className="space-y-3">
-          <GoogleSignInButton label="Sign up with Google" />
+          <GoogleSignInButton />
           <EmailSignIn />
         </View>
 

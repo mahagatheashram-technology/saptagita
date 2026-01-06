@@ -2,6 +2,85 @@
 
 > **Instructions:** Agent appends to this file after completing each task. Most recent entries at top.
 
+## Task 4.1: Social Tab with Global Leaderboard
+**Date:** 2026-01-05  
+**Status:** ✅ Complete
+
+### What Was Built
+- Combined Leaderboards and Communities into a single Social tab with Global/Communities toggle header.
+- Implemented global leaderboard query (top 50 by streak with tie-breaker) plus loading/empty states, medal styling, and current-user highlighting.
+- Added pinned rank card when the user sits outside the top 50 and placeholder Communities dropdown copy.
+- Updated tab bar to four tabs (Today, Social, Bookmarks, Profile) and removed the old placeholder tabs.
+
+### Files Created
+- `app/(tabs)/social.tsx` - Social tab screen with leaderboard/placeholder views
+- `components/social/LeaderboardHeader.tsx`
+- `components/social/LeaderboardRow.tsx`
+- `components/social/GlobalLeaderboard.tsx`
+- `components/social/UserRankCard.tsx`
+- `components/social/index.ts`
+
+### Files Modified
+- `app/(tabs)/_layout.tsx` - Replace Leaderboards/Community tabs with Social tab/icon
+- `convex/streaks.ts` - Add `getGlobalLeaderboard` query with ranking + optional current user
+- `docs/PROJECT_STATUS.md` - Phase 4 status, key files, navigation updates
+- `docs/ARCHITECTURE.MD` - Folder structure now lists Social tab
+
+### Files Removed
+- `app/(tabs)/leaderboards.tsx` - Placeholder tab removed
+- `app/(tabs)/community.tsx` - Placeholder tab removed
+
+## Task 3.2.1: Profile Tab UI Fixes
+**Date:** 2026-01-05  
+**Status:** ✅ Complete
+
+### What Was Built
+- Improved reading calendar readability with larger cells, day numbers, and today highlight with press-for-status.
+- Fixed time picker visibility by forcing light spinner styling and text color on iOS/Android.
+- Added display-name edit modal hooked to Convex update mutation; relaxed dev auth guard for reminder/name updates.
+
+### Files Modified
+- `components/profile/ReadingCalendar.tsx` - Larger cells, borders, day numbers, today outline, press status
+- `components/profile/SettingsSection.tsx` - Styled time picker for visibility
+- `components/profile/ProfileHeader.tsx` - Edit name UI/modal
+- `app/(tabs)/profile.tsx` - Wire name update state/handler
+- `convex/users.ts` - Relaxed auth guard and added display name update support
+- `types/datetimepicker.d.ts` - Picker prop typings for styling
+
+### Issues Resolved
+- Profile tab UI is now clearer (calendar/time picker) and allows editing display name without failing mutations during dev.
+
+## Task 3.2: Profile Tab
+**Date:** 2026-01-05  
+**Status:** ✅ Complete
+
+### What Was Built
+- Full profile experience with header, streak stats, and 12-week reading calendar.
+- Settings section for reminder time (stored in userState) and reading mode placeholder.
+- Account section with sign-out and delete-account flow (Convex purge + Clerk delete).
+- DevPanel kept visible at the bottom for development, with an embedded layout option.
+
+### Files Created
+- `components/profile/ProfileHeader.tsx`
+- `components/profile/StreakStatsCard.tsx`
+- `components/profile/ReadingCalendar.tsx`
+- `components/profile/SettingsSection.tsx`
+- `components/profile/AccountSection.tsx`
+- `components/profile/index.ts`
+- `types/datetimepicker.d.ts`
+
+### Files Modified
+- `app/(tabs)/profile.tsx` - Compose new profile layout and always-show DevPanel
+- `components/dev/DevPanel.tsx` - Support embedded rendering
+- `convex/users.ts` - Add reminder time update, user state query, and deleteUserData
+- `convex/streaks.ts` - Add streak stats query with total completed days
+- `convex/dailySets.ts` - Add reading history query
+- `convex/schema.ts` - Add reminderTime to userState
+- `package.json` - Add datetime picker dependency
+
+### Issues Resolved
+- Profile tab now surfaces meaningful progress insights and account controls instead of a minimal placeholder.
+
 ## Task 3.1: Clerk Auth Integration (Stabilized)
 **Date:** 2026-01-04  
 **Status:** ✅ Complete

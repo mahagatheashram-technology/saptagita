@@ -231,3 +231,35 @@ export const getTodayProgress = query({
     };
   },
 });
+
+export const getReadingHistory = query({
+  args: { userId: v.id("users"), days: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    const days = args.days ?? 90;
+    const timezone = user.timezone || "UTC";
+    const today = new Date();
+    const targetDates = new Set<string>();
+
+    for (let i = 0; i < days; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const localDate = date.toLocaleDateString("en-CA", { timeZone: timezone });
+      targetDates.add(localDate);
+    }
+
+    const completedSets = await ctx.db
+      .query("dailySets")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.neq(q.field("completedAt"), null))
+      .collect();
+
+    const completedDates = completedSets
+      .map((set) => set.localDate)
+      .filter((localDate) => targetDates.has(localDate));
+
+    return { completedDates };
+  },
+});

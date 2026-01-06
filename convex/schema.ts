@@ -24,6 +24,7 @@ export default defineSchema({
     sequentialPointer: v.number(),
     lastDailyDate: v.string(), // YYYY-MM-DD format
     currentDailySetId: v.union(v.id("dailySets"), v.null()),
+    reminderTime: v.optional(v.string()), // "HH:mm" 24h
   })
     .index("byUser", ["userId"]),
   dailySets: defineTable({

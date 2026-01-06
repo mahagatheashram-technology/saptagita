@@ -1,0 +1,189 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  Alert,
+  Modal,
+  Platform,
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
+
+interface SettingsSectionProps {
+  userId: Id<"users">;
+  reminderTime?: string | null;
+  mode?: string | null;
+}
+
+function toStorageTime(date: Date) {
+  return date.toLocaleTimeString("en-GB", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function toDisplayTime(value?: string | null) {
+  if (!value) return "Not set";
+  const [hour, minute] = value.split(":").map(Number);
+  const date = new Date();
+  date.setHours(hour || 0, minute || 0, 0, 0);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function toDate(value?: string | null) {
+  const date = new Date();
+  if (!value) return date;
+  const [hour, minute] = value.split(":").map(Number);
+  date.setHours(hour || 0, minute || 0, 0, 0);
+  return date;
+}
+
+export function SettingsSection({
+  userId,
+  reminderTime,
+  mode,
+}: SettingsSectionProps) {
+  const [showPicker, setShowPicker] = useState(false);
+  const [localReminderTime, setLocalReminderTime] = useState(reminderTime ?? null);
+  const [pickerValue, setPickerValue] = useState<Date>(() =>
+    toDate(reminderTime)
+  );
+  const updateReminderTime = useMutation(api.users.updateReminderTime);
+
+  useEffect(() => {
+    setLocalReminderTime(reminderTime ?? null);
+  }, [reminderTime]);
+
+  const displayTime = useMemo(
+    () => toDisplayTime(localReminderTime),
+    [localReminderTime]
+  );
+  const modeLabel = mode === "random" ? "Random" : "Sequential";
+
+  const saveReminderTime = async (date: Date) => {
+    const nextTime = toStorageTime(date);
+    setLocalReminderTime(nextTime);
+    try {
+      await updateReminderTime({ userId, reminderTime: nextTime });
+    } catch (error) {
+      Alert.alert("Save failed", "Could not update reminder time.");
+    }
+  };
+
+  const handleTimePress = () => {
+    const initialValue = toDate(localReminderTime);
+    setPickerValue(initialValue);
+    setShowPicker(true);
+  };
+
+  const handleTimeChange = (_event: any, selected?: Date) => {
+    if (!selected) {
+      if (Platform.OS === "android") {
+        setShowPicker(false);
+      }
+      return;
+    }
+
+    if (Platform.OS === "android") {
+      setShowPicker(false);
+      saveReminderTime(selected);
+      return;
+    }
+
+    setPickerValue(selected);
+  };
+
+  const handleTimeDone = () => {
+    setShowPicker(false);
+    saveReminderTime(pickerValue);
+  };
+
+  return (
+    <View className="bg-surface rounded-xl p-4 shadow-sm">
+      <Text className="text-base font-semibold text-secondary mb-3">Settings</Text>
+
+      <Pressable
+        onPress={handleTimePress}
+        className="flex-row items-center justify-between py-3"
+      >
+        <View>
+          <Text className="text-sm text-textSecondary">Daily Reminder</Text>
+          <Text className="text-base font-semibold text-textPrimary">
+            {displayTime}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#718096" />
+      </Pressable>
+
+      <View className="h-px bg-[#EDF2F7]" />
+
+      <Pressable
+        onPress={() =>
+          Alert.alert(
+            "Random mode",
+            "Random mode coming soon. Stay tuned!"
+          )
+        }
+        className="flex-row items-center justify-between py-3"
+      >
+        <View>
+          <Text className="text-sm text-textSecondary">Reading Mode</Text>
+          <Text className="text-base font-semibold text-textPrimary">
+            {modeLabel}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#718096" />
+      </Pressable>
+
+      {showPicker && Platform.OS === "ios" ? (
+        <Modal transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
+          <View className="flex-1 items-center justify-center bg-black/40 px-6">
+            <View className="bg-surface rounded-xl p-4 w-full">
+              <Text className="text-base font-semibold text-secondary mb-3">
+                Select reminder time
+              </Text>
+              <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12 }}>
+                <DateTimePicker
+                  value={pickerValue}
+                  mode="time"
+                  display="spinner"
+                  onChange={handleTimeChange}
+                  textColor="#2D3748"
+                  themeVariant="light"
+                  style={{ backgroundColor: "#FFFFFF" }}
+                />
+              </View>
+              <Pressable
+                onPress={handleTimeDone}
+                className="mt-4 bg-primary rounded-lg py-2 items-center"
+              >
+                <Text className="text-white font-semibold">Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      ) : null}
+
+      {showPicker && Platform.OS === "android" ? (
+        <View style={{ backgroundColor: "#FFFFFF" }}>
+          <DateTimePicker
+            value={pickerValue}
+            mode="time"
+            display="spinner"
+            onChange={handleTimeChange}
+            themeVariant="light"
+            textColor="#2D3748"
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}

@@ -1,7 +1,7 @@
 # Sapta Gita - Architecture Reference
 
 > **Instructions:** Technical reference document. Include when agent needs detailed context about structure, schema, or patterns.
-Last Updated: 2026-01-04
+Last Updated: 2026-01-05
 
 ---
 
@@ -22,10 +22,9 @@ sapta-gita/
     │   ├── (tabs)/
     │   │   ├── _layout.tsx
     │   │   ├── bookmarks.tsx
-    │   │   ├── community.tsx
     │   │   ├── index.tsx
-    │   │   ├── leaderboards.tsx
-    │   │   └── profile.tsx
+    │   │   ├── profile.tsx
+    │   │   └── social.tsx
     │   ├── +html.tsx
     │   ├── +not-found.tsx
     │   ├── _layout.tsx
@@ -136,6 +135,7 @@ export default defineSchema({
     sequentialPointer: v.number(),
     lastDailyDate: v.string(), // YYYY-MM-DD format
     currentDailySetId: v.union(v.id("dailySets"), v.null()),
+    reminderTime: v.optional(v.string()), // "HH:mm" 24h
   })
     .index("byUser", ["userId"]),
   dailySets: defineTable({

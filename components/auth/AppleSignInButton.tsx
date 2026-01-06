@@ -1,41 +1,51 @@
-import { Alert, Pressable, Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Text, TouchableOpacity } from "react-native";
 import { useOAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 
 interface AppleSignInButtonProps {
-  label?: string;
+  onSuccess?: () => void;
+  onError?: (error: Error) => void;
 }
 
 export function AppleSignInButton({
-  label = "Continue with Apple",
+  onSuccess,
+  onError,
 }: AppleSignInButtonProps) {
-  const { startOAuthFlow, isLoading } = useOAuth({
-    strategy: "oauth_apple",
-  });
+  const { startOAuthFlow } = useOAuth({ strategy: "oauth_apple" });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onPress = async () => {
+  const handlePress = async () => {
     try {
+      setIsLoading(true);
       const { createdSessionId, setActive } = await startOAuthFlow();
-      if (createdSessionId) {
-        await setActive?.({ session: createdSessionId });
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        onSuccess?.();
       }
-    } catch (error: any) {
-      Alert.alert("Apple Sign In failed", String(error?.message ?? error));
+    } catch (error) {
+      onError?.(error as Error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <Pressable
-      onPress={onPress}
+    <TouchableOpacity
+      onPress={handlePress}
       disabled={isLoading}
-      className="bg-black rounded-xl py-3 px-4 flex-row items-center justify-center active:opacity-80"
+      className="flex-row items-center justify-center bg-black py-3 px-4 rounded-lg"
     >
-      <View className="w-5 h-5 mr-2 items-center justify-center">
-        <Ionicons name="logo-apple" size={18} color="#FFFFFF" />
-      </View>
-      <Text className="text-white font-semibold text-base">
-        {isLoading ? "Starting..." : label}
-      </Text>
-    </Pressable>
+      {isLoading ? (
+        <ActivityIndicator color="white" />
+      ) : (
+        <>
+          <Ionicons name="logo-apple" size={20} color="white" />
+          <Text className="text-white font-semibold ml-2">
+            Continue with Apple
+          </Text>
+        </>
+      )}
+    </TouchableOpacity>
   );
 }

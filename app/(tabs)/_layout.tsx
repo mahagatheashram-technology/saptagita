@@ -12,14 +12,11 @@ export default function TabLayout() {
             case 'index':
               iconName = 'book';
               break;
-            case 'leaderboards':
-              iconName = 'bar-chart';
+            case 'social':
+              iconName = 'people';
               break;
             case 'bookmarks':
               iconName = 'bookmark';
-              break;
-            case 'community':
-              iconName = 'people';
               break;
             case 'profile':
               iconName = 'person';
@@ -36,9 +33,8 @@ export default function TabLayout() {
       })}
     >
       <Tabs.Screen name="index" options={{ title: 'Today' }} />
-      <Tabs.Screen name="leaderboards" options={{ title: 'Leaderboards' }} />
+      <Tabs.Screen name="social" options={{ title: 'Social' }} />
       <Tabs.Screen name="bookmarks" options={{ title: 'Bookmarks' }} />
-      <Tabs.Screen name="community" options={{ title: 'Community' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );

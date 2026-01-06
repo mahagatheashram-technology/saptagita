@@ -22,10 +22,10 @@
 For the full process description, see `docs/PROCESS.md`.
 
 ## Current State
-- **Phase:** 3 (Auth & Profile)
-- **Current Task:** 3.2 (Profile Tab)
-- **Last Updated:** 2026-01-04
-- **App Status:** Runnable, core reading flow working
+- **Phase:** 4 (Communities & Leaderboards)
+- **Current Task:** 4.1 (Social Tab with Global Leaderboard) ✅ Complete
+- **Last Updated:** 2026-01-05
+- **App Status:** Runnable, core reading flow working; Social tab live with global leaderboard
 
 ## Phase 1: Reading Loop
 
@@ -55,15 +55,20 @@ For the full process description, see `docs/PROCESS.md`.
 | Task | Description | Status |
 |------|-------------|--------|
 | 3.1 | Clerk Auth Integration | ✅ Complete |
-| 3.2 | Profile Tab | ⬜ Not Started |
+| 3.2 | Profile Tab | ✅ Complete |
+| 3.2.1 | Profile Tab UI Fixes | ✅ Complete |
+
+## Phase 4: Communities & Leaderboards
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 4.1 | Social Tab with Global Leaderboard | ✅ Complete |
+| 4.2 | Communities (join/create, feeds, leaderboards) | ⬜ Not Started |
 
 ## Future Phases (Not Started)
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| 2 | Bookmarks & Notes | ✅ (Notes deferred) |
-| 3 | Auth & Profile | ⏳ In Progress |
-| 4 | Communities & Leaderboards | ⬜ |
 | 5 | Polish & Launch | ⬜ |
 
 ## Tech Stack
@@ -102,10 +107,9 @@ Verified: all listed paths exist in the repo.
 
 ### App Screens
 - `app/(tabs)/index.tsx` - Today screen (main reading view)
-- `app/(tabs)/leaderboards.tsx` - Placeholder
+- `app/(tabs)/social.tsx` - Social tab with global leaderboard (communities placeholder)
 - `app/(tabs)/bookmarks.tsx` - Bucket list and management (Phase 2)
 - `app/bucket/[id].tsx` - Bucket detail with bookmark list and actions
-- `app/(tabs)/community.tsx` - Placeholder
 - `app/(tabs)/profile.tsx` - Profile info + sign out (dev panel in dev builds)
 - `app/_layout.tsx` - Root layout with providers
 - `app/sign-in.tsx` - Clerk sign-in screen
@@ -120,6 +124,7 @@ Verified: all listed paths exist in the repo.
 - `components/today/SwipeHint.tsx` - Swipe instructions
 - `components/today/index.ts` - Today component exports
 - `components/today/CompletionScreen.tsx` - Animated completion UI with streak badge
+- `components/social/*` - Social tab header, leaderboard list, and user rank card
 - `components/dev/DevPanel.tsx` - Dev-only streak/daily-set testing UI
 - `components/bookmarks/BucketPickerModal.tsx` - Modal to add/remove verse in buckets
 - `components/bookmarks/BucketCard.tsx` - Bucket list tile
@@ -156,12 +161,13 @@ Verified: all listed paths exist in the repo.
 5. **Light Mode:** Forced light mode regardless of device settings
 6. **Auth:** Clerk for sign-in (Google + email OTP; Apple optional)
 7. **Timezone:** Day boundary based on user's local timezone
-8. **Dev Tools:** Profile tab shows dev panel only in dev builds
+8. **Dev Tools:** Profile tab shows DevPanel in all builds for now; remove before production
 
 ## Current Working Features
 
 - ✅ App launches without crashes
-- ✅ 5-tab navigation (Today, Leaderboards, Bookmarks, Community, Profile)
+- ✅ 4-tab navigation (Today, Social, Bookmarks, Profile)
+- ✅ Social tab with global leaderboard (top 50, user highlight, pinned rank card)
 - ✅ Today tab shows 7 verse cards in a stack
 - ✅ Swipe right dismisses card and advances
 - ✅ Swipe left opens action drawer with share/bookmark/bucket options and springs back
@@ -173,6 +179,10 @@ Verified: all listed paths exist in the repo.
 - ✅ Bucket emojis persist across views; bucket detail header uses custom title (no route placeholders)
 - ✅ Clerk auth (Google/email) with protected routes and Convex user sync
 - ✅ Profile screen shows account info and sign out
+- ✅ Profile tab includes streak stats, reading calendar, and settings
+- ✅ Reminder time stored in userState with time picker UI
+- ✅ Profile tab readability polish (calendar labels, time picker visibility, edit display name)
+- ✅ Account deletion purges Convex data and Clerk account
 - ✅ Haptic feedback on swipe
 - ✅ Visual indicators (green checkmark right, orange ellipsis left)
 - ✅ Progress persists across app restart

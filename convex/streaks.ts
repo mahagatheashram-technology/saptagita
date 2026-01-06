@@ -44,6 +44,28 @@ export const getStreak = query({
   },
 });
 
+export const getStreakStats = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const streak = await ctx.db
+      .query("streaks")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+
+    const completedSets = await ctx.db
+      .query("dailySets")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.neq(q.field("completedAt"), null))
+      .collect();
+
+    return {
+      currentStreak: streak?.currentStreak ?? 0,
+      longestStreak: streak?.longestStreak ?? 0,
+      totalCompletedDays: completedSets.length,
+    };
+  },
+});
+
 // Internal mutation: Update streak when day is completed
 // Called when user finishes all 7 verses
 export const updateStreakOnCompletionInternal = internalMutation({
@@ -241,6 +263,54 @@ export const checkAndUpdateStreak = mutation({
       currentStreak: 0,
       longestStreak: streakRecord.longestStreak,
       needsReset: true,
+    };
+  },
+});
+
+export const getGlobalLeaderboard = query({
+  args: { userId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    const streaks = await ctx.db.query("streaks").collect();
+
+    if (streaks.length === 0) {
+      return { top50: [], currentUser: null, totalUsers: 0 };
+    }
+
+    const leaderboard = await Promise.all(
+      streaks.map(async (streak) => {
+        const user = await ctx.db.get(streak.userId);
+        return {
+          userId: streak.userId,
+          displayName: user?.displayName ?? "Anonymous",
+          avatarUrl: user?.avatarUrl ?? "",
+          currentStreak: streak.currentStreak,
+          lastCompletedLocalDate: streak.lastCompletedLocalDate,
+        };
+      })
+    );
+
+    leaderboard.sort((a, b) => {
+      if (b.currentStreak !== a.currentStreak) {
+        return b.currentStreak - a.currentStreak;
+      }
+      const aDate = a.lastCompletedLocalDate ?? "";
+      const bDate = b.lastCompletedLocalDate ?? "";
+      return bDate.localeCompare(aDate);
+    });
+
+    const ranked = leaderboard.map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
+
+    const currentUser = args.userId
+      ? ranked.find((entry) => entry.userId === args.userId) ?? null
+      : null;
+
+    return {
+      top50: ranked.slice(0, 50),
+      currentUser,
+      totalUsers: ranked.length,
     };
   },
 });
