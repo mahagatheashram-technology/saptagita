@@ -187,7 +187,7 @@ export const markVerseRead = mutation({
       // Update streak and capture result for UI
       streakUpdate = await ctx.runMutation(
         internal.streaks.updateStreakOnCompletionInternal,
-        { userId: args.userId }
+        { userId: args.userId, localDate: dailySet.localDate }
       );
     }
 

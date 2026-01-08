@@ -2,12 +2,27 @@ import { View, Text, Pressable, ScrollView, Alert } from "react-native";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { getScheduledNotificationSummaries, sendTestNotification } from "@/lib/notifications";
 
 interface DevPanelProps {
   userId: Id<"users"> | null;
   embedded?: boolean;
 }
 
+/**
+ * TIMEZONE TESTING GUIDE
+ *
+ * Use the DevPanel actions to sanity-check streaks across timezones:
+ * 1. Change the device/simulator timezone to the target zone.
+ * 2. Force Complete Today, then Simulate Next Day or Missed Day to mimic boundaries.
+ * 3. Reopen the Today tab and confirm the daily set/streak line up with the local date shown in DevPanel.
+ *
+ * Test matrix:
+ * - [ ] UTC+12: complete at 11pm local, streak counts for that local date.
+ * - [ ] UTC-8: complete near midnight, no early rollover.
+ * - [ ] Travel: create set in origin TZ, switch device TZ, ensure progress persists.
+ * - [ ] DST forward/backward: day remains a single calendar date.
+ */
 export function DevPanel({ userId, embedded = false }: DevPanelProps) {
   // Queries
   const debugState = useQuery(
@@ -122,6 +137,25 @@ export function DevPanel({ userId, embedded = false }: DevPanelProps) {
             handleAction(() => simulateNextDay({ userId }), "Next Day")
           }
           color="bg-primary"
+        />
+
+        <DevButton
+          title="🔔 Send Test Notification"
+          subtitle="Trigger an immediate local notification"
+          onPress={() => handleAction(() => sendTestNotification(), "Test Notification")}
+          color="bg-indigo-500"
+        />
+
+        <DevButton
+          title="🗓 View Scheduled Notifications"
+          subtitle="Inspect scheduled IDs and times"
+          onPress={() =>
+            handleAction(async () => {
+              const summaries = await getScheduledNotificationSummaries();
+              return summaries;
+            }, "Scheduled Notifications")
+          }
+          color="bg-slate-500"
         />
 
         <DevButton

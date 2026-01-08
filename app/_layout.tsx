@@ -1,4 +1,12 @@
 import { convex } from "@/lib/convex";
+import {
+  cancelDailyReminder,
+  getReminderPreference,
+  getStoredReminderTime,
+  isDailyReminderScheduled,
+  requestNotificationPermissions,
+  scheduleDailyReminder,
+} from "@/lib/notifications";
 import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -6,8 +14,9 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { useFonts } from "expo-font";
-import { Redirect, Stack, usePathname } from "expo-router";
+import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import "react-native-gesture-handler";
@@ -74,6 +83,7 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
         >
           <ClerkLoaded>
             <ConvexAuthSync />
+            <NotificationEffects />
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
               <ThemeProvider value={DefaultTheme}>
                 <AuthStack />
@@ -112,10 +122,57 @@ function ConvexAuthSync() {
   return null;
 }
 
+function NotificationEffects() {
+  const { isSignedIn } = useAuth();
+
+  useEffect(() => {
+    if (!isSignedIn) return;
+
+    const setupNotifications = async () => {
+      try {
+        const enabled = await getReminderPreference();
+        if (!enabled) {
+          await cancelDailyReminder();
+          return;
+        }
+
+        const granted = await requestNotificationPermissions();
+        if (!granted) return;
+
+        const alreadyScheduled = await isDailyReminderScheduled();
+        if (!alreadyScheduled) {
+          const storedTime = await getStoredReminderTime();
+          const [storedHour, storedMinute] = (storedTime ?? "20:00")
+            .split(":")
+            .map((v: string) => Number(v) || 0);
+          await scheduleDailyReminder(storedHour, storedMinute);
+        }
+      } catch (error) {
+        console.log("Notification setup failed", error);
+      }
+    };
+
+    setupNotifications();
+  }, [isSignedIn]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      () => {
+        router.replace("/(tabs)");
+      }
+    );
+
+    return () => subscription.remove();
+  }, []);
+
+  return null;
+}
+
 function AuthStack() {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
   const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
+  const isWelcomeRoute = pathname === "/welcome";
 
   if (!isLoaded) {
     return (
@@ -126,11 +183,11 @@ function AuthStack() {
     );
   }
 
-  if (!isSignedIn && !isAuthRoute) {
-    return <Redirect href="/sign-in" />;
+  if (!isSignedIn && !isAuthRoute && !isWelcomeRoute) {
+    return <Redirect href="/welcome" />;
   }
 
-  if (isSignedIn && isAuthRoute) {
+  if (isSignedIn && (isAuthRoute || isWelcomeRoute)) {
     return <Redirect href="/" />;
   }
 
@@ -141,6 +198,7 @@ function AuthStack() {
       <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+      <Stack.Screen name="welcome" options={{ headerShown: false }} />
     </Stack>
   );
 }

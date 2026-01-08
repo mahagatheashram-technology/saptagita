@@ -112,6 +112,7 @@ export default function ProfileScreen() {
   }
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || "";
+  const isDevUser = email === "ynithinsameer@gmail.com";
 
   const handleUpdateName = async (nextName: string) => {
     if (!user) return;
@@ -178,15 +179,25 @@ export default function ProfileScreen() {
           isDeleting={isDeleting}
         />
 
-        <View className="mt-6 mb-3">
-          <View className="h-px bg-[#E2E8F0] mb-3" />
-          <Text className="text-xs font-semibold tracking-wide text-textSecondary">
-            Developer Tools
-          </Text>
-        </View>
+        {isDevUser && (
+          <>
+            <View className="mt-6 mb-3">
+              <View className="h-px bg-[#E2E8F0] mb-3" />
+              <Text className="text-xs font-semibold tracking-wide text-textSecondary">
+                Developer Tools
+              </Text>
+            </View>
 
-        {/* TODO: Remove DevPanel before production release. */}
-        <DevPanel userId={user._id} embedded />
+            <View className="bg-yellow-100 p-2 rounded-lg mb-3">
+              <Text className="text-yellow-800 text-center text-xs">
+                🛠️ Dev Mode Active
+              </Text>
+            </View>
+
+            {/* TODO: Remove DevPanel before production release. */}
+            <DevPanel userId={user._id} embedded />
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

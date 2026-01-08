@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 // ============================================
 // DEV ONLY - Remove before production
@@ -187,40 +188,13 @@ export const forceCompleteToday = mutation({
       });
     }
 
-    // Update streak
-    const user = await ctx.db.get(args.userId);
-    const timezone = user?.timezone || "UTC";
-    const todayDate = getTodayDateString(timezone);
+    // Update streak anchored to the set's local date to avoid misattribution across midnights
+    await ctx.runMutation(internal.streaks.updateStreakOnCompletionInternal, {
+      userId: args.userId,
+      localDate: dailySet.localDate,
+    });
 
-    let streakRecord = await ctx.db
-      .query("streaks")
-      .withIndex("byUser", (q) => q.eq("userId", args.userId))
-      .first();
-
-    if (!streakRecord) {
-      await ctx.db.insert("streaks", {
-        userId: args.userId,
-        currentStreak: 1,
-        longestStreak: 1,
-        lastCompletedLocalDate: todayDate,
-        updatedAt: Date.now(),
-      });
-    } else if (streakRecord.lastCompletedLocalDate !== todayDate) {
-      const yesterdayDate = getYesterdayDateString(timezone);
-      const newStreak =
-        streakRecord.lastCompletedLocalDate === yesterdayDate
-          ? streakRecord.currentStreak + 1
-          : 1;
-
-      await ctx.db.patch(streakRecord._id, {
-        currentStreak: newStreak,
-        longestStreak: Math.max(newStreak, streakRecord.longestStreak),
-        lastCompletedLocalDate: todayDate,
-        updatedAt: Date.now(),
-      });
-    }
-
-    streakRecord = await ctx.db
+    const streakRecord = await ctx.db
       .query("streaks")
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
       .first();
@@ -296,10 +270,6 @@ export const resetUserProgress = mutation({
 });
 
 // Helper functions
-function getTodayDateString(timezone: string): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: timezone });
-}
-
 function getYesterdayDateString(timezone: string): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);

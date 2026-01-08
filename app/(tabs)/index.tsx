@@ -17,6 +17,7 @@ import { ActionDrawer } from "@/components/verses/ActionDrawer";
 import { BucketPickerModal } from "@/components/bookmarks";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
+import { clearBadge } from "@/lib/notifications";
 
 const DAILY_VERSE_COUNT = 7;
 
@@ -50,6 +51,10 @@ export default function TodayScreen() {
   
   // Check and update streak on app open
   const checkStreak = useMutation(api.streaks.checkAndUpdateStreak);
+
+  useEffect(() => {
+    clearBadge().catch(console.error);
+  }, []);
   
   useEffect(() => {
     if (userId) {

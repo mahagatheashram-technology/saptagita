@@ -22,6 +22,13 @@ function getYesterdayDateString(timezone: string): string {
   }
 }
 
+// Helper: Move one day back from a stored local date string (YYYY-MM-DD)
+function getPreviousLocalDate(localDate: string): string {
+  const date = new Date(`${localDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().split("T")[0];
+}
+
 // Get user's streak data
 export const getStreak = query({
   args: { userId: v.id("users") },
@@ -68,15 +75,17 @@ export const getStreakStats = query({
 // Internal mutation: Update streak when day is completed
 // Called when user finishes all 7 verses
 export const updateStreakOnCompletionInternal = internalMutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), localDate: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Get user for timezone
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
 
     const timezone = user.timezone || "UTC";
-    const todayDate = getTodayDateString(timezone);
-    const yesterdayDate = getYesterdayDateString(timezone);
+    // Anchor streak updates to the daily set's local date to avoid timezone drift
+    const completionLocalDate =
+      args.localDate ?? getTodayDateString(timezone);
+    const previousLocalDate = getPreviousLocalDate(completionLocalDate);
 
     // Get current streak record
     const streakRecord = await ctx.db
@@ -90,14 +99,14 @@ export const updateStreakOnCompletionInternal = internalMutation({
         userId: args.userId,
         currentStreak: 1,
         longestStreak: 1,
-        lastCompletedLocalDate: todayDate,
+        lastCompletedLocalDate: completionLocalDate,
         updatedAt: Date.now(),
       });
       return { currentStreak: 1, longestStreak: 1, isNewRecord: true };
     }
 
     // Already completed today - no change
-    if (streakRecord.lastCompletedLocalDate === todayDate) {
+    if (streakRecord.lastCompletedLocalDate === completionLocalDate) {
       return {
         currentStreak: streakRecord.currentStreak,
         longestStreak: streakRecord.longestStreak,
@@ -110,7 +119,7 @@ export const updateStreakOnCompletionInternal = internalMutation({
     let isNewRecord = false;
 
     // Check if this continues the streak (completed yesterday)
-    if (streakRecord.lastCompletedLocalDate === yesterdayDate) {
+    if (streakRecord.lastCompletedLocalDate === previousLocalDate) {
       // Streak continues!
       newCurrentStreak = streakRecord.currentStreak + 1;
     } else {
@@ -130,7 +139,7 @@ export const updateStreakOnCompletionInternal = internalMutation({
     await ctx.db.patch(streakRecord._id, {
       currentStreak: newCurrentStreak,
       longestStreak: newLongestStreak,
-      lastCompletedLocalDate: todayDate,
+      lastCompletedLocalDate: completionLocalDate,
       updatedAt: Date.now(),
     });
 
@@ -145,15 +154,16 @@ export const updateStreakOnCompletionInternal = internalMutation({
 // Public mutation: Update streak when day is completed
 // Called when user finishes all 7 verses
 export const updateStreakOnCompletion = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), localDate: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Get user for timezone
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
 
     const timezone = user.timezone || "UTC";
-    const todayDate = getTodayDateString(timezone);
-    const yesterdayDate = getYesterdayDateString(timezone);
+    const completionLocalDate =
+      args.localDate ?? getTodayDateString(timezone);
+    const previousLocalDate = getPreviousLocalDate(completionLocalDate);
 
     // Get current streak record
     const streakRecord = await ctx.db
@@ -167,14 +177,14 @@ export const updateStreakOnCompletion = mutation({
         userId: args.userId,
         currentStreak: 1,
         longestStreak: 1,
-        lastCompletedLocalDate: todayDate,
+        lastCompletedLocalDate: completionLocalDate,
         updatedAt: Date.now(),
       });
       return { currentStreak: 1, longestStreak: 1, isNewRecord: true };
     }
 
     // Already completed today - no change
-    if (streakRecord.lastCompletedLocalDate === todayDate) {
+    if (streakRecord.lastCompletedLocalDate === completionLocalDate) {
       return {
         currentStreak: streakRecord.currentStreak,
         longestStreak: streakRecord.longestStreak,
@@ -187,7 +197,7 @@ export const updateStreakOnCompletion = mutation({
     let isNewRecord = false;
 
     // Check if this continues the streak (completed yesterday)
-    if (streakRecord.lastCompletedLocalDate === yesterdayDate) {
+    if (streakRecord.lastCompletedLocalDate === previousLocalDate) {
       // Streak continues!
       newCurrentStreak = streakRecord.currentStreak + 1;
     } else {
@@ -207,7 +217,7 @@ export const updateStreakOnCompletion = mutation({
     await ctx.db.patch(streakRecord._id, {
       currentStreak: newCurrentStreak,
       longestStreak: newLongestStreak,
-      lastCompletedLocalDate: todayDate,
+      lastCompletedLocalDate: completionLocalDate,
       updatedAt: Date.now(),
     });
 

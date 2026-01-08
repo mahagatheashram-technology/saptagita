@@ -2,6 +2,120 @@
 
 > **Instructions:** Agent appends to this file after completing each task. Most recent entries at top.
 
+## Task 4.6a: Notification Reliability & Calendar Polish
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Done
+- Persisted reminder time locally and reschedule using the saved time on sign-in/toggle; fixed SecureStore key validation errors.
+- Switched reminder scheduling to the daily trigger (device time) with Android channel setup; added DevPanel control to list scheduled notifications for debugging.
+- Improved Settings error messaging when permissions/device support are missing.
+- Refreshed Reading Calendar layout with larger cells, clearer spacing/labels, and a legend.
+
+### Files Modified
+- `lib/notifications.ts`
+- `app/_layout.tsx`
+- `components/profile/SettingsSection.tsx`
+- `components/profile/ReadingCalendar.tsx`
+- `components/dev/DevPanel.tsx`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+### Testing
+- `npx tsc --noEmit`
+- Manual device: local reminder scheduled and delivered
+
+## Task 4.6: Push Notifications (Daily Reminder)
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Done
+- Added notification utilities for permission handling, daily scheduling, badge clearing, stored preferences, and a test trigger.
+- Requested permissions and scheduled an 8 PM default reminder after sign-in; handled notification taps to land on the Today tab and clear badges on load.
+- Wired Settings to reschedule reminder times and toggle notifications; added a DevPanel button to fire an immediate test notification.
+- Added Expo notification config and installed expo-device to support local notifications.
+
+### Files Created
+- `lib/notifications.ts`
+
+### Files Modified
+- `app/_layout.tsx`
+- `app/(tabs)/index.tsx`
+- `components/profile/SettingsSection.tsx`
+- `components/dev/DevPanel.tsx`
+- `app.json`
+- `package.json`
+- `package-lock.json`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+### Testing
+- `npx tsc --noEmit`
+
+## Task 4.5: Dev Panel Access Control
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Done
+- Restricted DevPanel rendering to only the Clerk user with email `ynithinsameer@gmail.com`.
+- Added a small “Dev Mode Active” banner when the DevPanel is visible; all other users see the normal production profile with no dev tools.
+
+### Files Modified
+- `app/(tabs)/profile.tsx`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+### Testing
+- Not run (UI conditional change only).
+
+## Task 4.5.1: Welcome Screen
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Done
+- Added a welcome/landing screen for unauthenticated users with CTA buttons to sign up or sign in.
+- Updated auth routing to send logged-out users to `/welcome` and redirect authenticated users away from welcome/auth routes.
+
+### Files Created
+- `app/welcome.tsx`
+
+### Files Modified
+- `app/_layout.tsx`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+### Testing
+- Not run (navigation/UI change only).
+
+## Task 4.4: Streak & Timezone Audit
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### Audit Findings
+- Daily set generation and streak resets rely on server time with the stored user timezone; dates are stored as `YYYY-MM-DD` strings, while read/completion events use timestamps.
+- Streak updates were tied to the server's "today" and could mis-attribute completions after midnight; streak updates now anchor to the daily set's `localDate`.
+- User timezone is captured at account creation and reused; progress stays anchored even if device timezone changes (no auto update).
+
+### Changes Made
+- `updateStreakOnCompletion` (public and internal) accepts an optional `localDate` and uses it for continuation/reset checks.
+- Dev `forceCompleteToday` now routes through the anchored streak logic to avoid divergence during testing.
+- Added a DevPanel timezone testing guide comment to outline manual test scenarios.
+
+### Testing
+- Not run (logic-only changes); use the DevPanel checklist to validate timezone edges.
+
+## Task 4.3: TypeScript Health Check
+**Date:** 2026-01-08  
+**Status:** ⏸ Blocked
+
+### What Was Done
+- Ran `npx tsc --noEmit` with zero errors.
+- Attempted `npx expo start`, but it failed in non-interactive mode because port 8081 was already in use.
+
+### Files Modified
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
 ## Task 4.2.3: Community Leaderboards
 **Date:** 2026-01-08  
 **Status:** ✅ Complete

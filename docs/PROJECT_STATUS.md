@@ -23,9 +23,9 @@ For the full process description, see `docs/PROCESS.md`.
 
 ## Current State
 - **Phase:** 4 (Communities & Leaderboards)
-- **Current Task:** 4.2.3 (Community Leaderboards) ✅ Complete
+- **Current Task:** 4.6 (Push Notifications) ✅ Complete
 - **Last Updated:** 2026-01-08
-- **App Status:** Runnable, core reading flow working; Social tab live with global + community leaderboards; public communities can be created, joined, and selected; invite-code join marked as coming soon until private communities are enabled
+- **App Status:** TypeScript check clean; local reminder notifications confirmed on device; Expo dev server launch blocked by existing process on port 8081 (needs manual restart)
 
 ## Phase 1: Reading Loop
 
@@ -66,6 +66,11 @@ For the full process description, see `docs/PROCESS.md`.
 | 4.2.1 | Community Schema & Creation | ✅ Complete |
 | 4.2.2 | Community Join & Active Switching | ✅ Complete |
 | 4.2.3 | Community Leaderboards | ✅ Complete |
+| 4.3 | TypeScript Health Check | ⏸ Blocked |
+| 4.4 | Streak & Timezone Audit | ✅ Complete |
+| 4.5 | Dev Panel Access Control | ✅ Complete |
+| 4.5.1 | Welcome Screen | ✅ Complete |
+| 4.6 | Push Notifications (Daily Reminder) | ✅ Complete |
 
 ## Future Phases (Not Started)
 
@@ -187,7 +192,7 @@ Verified: all listed paths exist in the repo.
 - ✅ Clerk auth (Google/email) with protected routes and Convex user sync
 - ✅ Profile screen shows account info and sign out
 - ✅ Profile tab includes streak stats, reading calendar, and settings
-- ✅ Reminder time stored in userState with time picker UI
+- ✅ Reminder time stored in userState with time picker UI and device-side daily reminder scheduling (toggleable, badge cleared on open, tap navigates to Today)
 - ✅ Profile tab readability polish (calendar labels, time picker visibility, edit display name)
 - ✅ Account deletion purges Convex data and Clerk account
 - ✅ Haptic feedback on swipe
@@ -197,7 +202,7 @@ Verified: all listed paths exist in the repo.
 
 ## Known Issues / Blockers
 
-- Streak/day rollover issue: after midnight on day 3, the app shows the day as completed with no verses visible (streak display inconsistent). Dev panel includes controls to reproduce (simulate next/missed day).
+- Streak/day rollover issue: streak attribution was tied to the server's "today" instead of the daily set date; now anchored to the set's local date—re-test with DevPanel (simulate next/missed day) to confirm fix.
 
 ## Deferred / Revisit Later
 

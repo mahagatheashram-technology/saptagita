@@ -15,6 +15,10 @@ function formatMonthLabel(date: Date, timezone: string) {
   return date.toLocaleDateString("en-US", { month: "short", timeZone: timezone });
 }
 
+const CELL_SIZE = 22;
+const CELL_GAP = 4;
+const LABEL_WIDTH = CELL_SIZE + CELL_GAP;
+
 export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarProps) {
   const resolvedTimezone =
     timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -55,11 +59,12 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
         <Text className="text-xs text-textSecondary">Last 12 weeks</Text>
       </View>
 
-      <View className="flex-row mb-2 ml-5">
+      <View className="flex-row mb-2 ml-8">
         {monthLabels.map((label, index) => (
           <Text
             key={`month-${index}`}
-            className="text-[10px] text-textSecondary w-5 mr-1"
+            className="text-[10px] text-textSecondary"
+            style={{ width: LABEL_WIDTH, textAlign: "center" }}
           >
             {label}
           </Text>
@@ -67,9 +72,13 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
       </View>
 
       <View className="flex-row">
-        <View className="mr-2">
+        <View className="mr-3">
           {DAY_LABELS.map((label) => (
-            <Text key={label} className="text-[10px] text-textSecondary mb-1">
+            <Text
+              key={label}
+              className="text-[11px] text-textSecondary mb-[6px]"
+              style={{ width: 32 }}
+            >
               {label}
             </Text>
           ))}
@@ -77,18 +86,19 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
 
         <View className="flex-row">
           {weeks.map((week, weekIndex) => (
-            <View key={`week-${weekIndex}`} className="mr-[2px]">
+            <View key={`week-${weekIndex}`} style={{ marginRight: CELL_GAP }}>
               {week.map((day, dayIndex) => {
                 const dayNumber = day.date.getDate();
                 const isToday = day.localDate === todayString;
 
                 const backgroundColor = day.isFuture
-                  ? "#F1F5F9"
+                  ? "#F8FAFC"
                   : day.isCompleted
-                  ? "#22C55E"
+                  ? "#1F9D55"
                   : "#CBD5E1";
 
-                const borderColor = isToday ? "#F97316" : "#E2E8F0";
+                const borderColor = isToday ? "#F97316" : "transparent";
+                const textColor = day.isCompleted ? "#FFFFFF" : "#1F2937";
 
                 return (
                   <Pressable
@@ -110,22 +120,22 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
                         ? "upcoming"
                         : "missed"
                     }`}
-                    className="mb-[2px]"
+                    style={{ marginBottom: CELL_GAP }}
                   >
                     <View
                       className="items-center justify-center"
                       style={{
-                        height: 16,
-                        width: 16,
-                        borderRadius: 4,
-                        borderWidth: isToday ? 1.5 : 1,
+                        height: CELL_SIZE,
+                        width: CELL_SIZE,
+                        borderRadius: 8,
+                        borderWidth: isToday ? 2 : 1,
                         borderColor,
                         backgroundColor,
                       }}
                     >
                       <Text
-                        className="text-[8px] font-semibold"
-                        style={{ color: "#1F2937" }}
+                        className="text-[10px] font-semibold"
+                        style={{ color: textColor }}
                       >
                         {dayNumber}
                       </Text>
@@ -137,6 +147,39 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
           ))}
         </View>
       </View>
+
+      <View className="flex-row items-center mt-3" style={{ columnGap: 12 }}>
+        <LegendSwatch color="#1F9D55" label="Completed" />
+        <LegendSwatch color="#CBD5E1" label="Missed" />
+        <LegendSwatch color="#F97316" label="Today" outlined />
+      </View>
+    </View>
+  );
+}
+
+function LegendSwatch({
+  color,
+  label,
+  outlined = false,
+}: {
+  color: string;
+  label: string;
+  outlined?: boolean;
+}) {
+  return (
+    <View className="flex-row items-center mr-4">
+      <View
+        style={{
+          height: 14,
+          width: 14,
+          borderRadius: 6,
+          backgroundColor: outlined ? "transparent" : color,
+          borderColor: color,
+          borderWidth: 1.5,
+          marginRight: 6,
+        }}
+      />
+      <Text className="text-[11px] text-textSecondary">{label}</Text>
     </View>
   );
 }
