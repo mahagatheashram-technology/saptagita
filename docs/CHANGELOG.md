@@ -2,6 +2,86 @@
 
 > **Instructions:** Agent appends to this file after completing each task. Most recent entries at top.
 
+## Task 4.2.3: Community Leaderboards
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Built
+- Added Convex query for community leaderboards with ranking and current-user highlighting.
+- Replaced the global-only leaderboard list with a unified LeaderboardList that switches between global and community data.
+- Updated the Social screen and header copy to reflect community context and member counts.
+
+### Files Modified
+- `convex/streaks.ts`
+- `components/social/LeaderboardList.tsx`
+- `components/social/LeaderboardHeader.tsx`
+- `components/social/index.ts`
+- `app/(tabs)/social.tsx`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+## Task 4.2.2: Invite Code Join (Coming Soon)
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Built
+- Disabled the invite-code join path in the Join Community modal and labeled it as coming soon until private communities are enabled.
+
+### Files Modified
+- `components/social/JoinCommunityModal.tsx`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+## Task 4.2.2: Community Join & Active Switching
+**Date:** 2026-01-08  
+**Status:** ✅ Complete
+
+### What Was Built
+- Added Convex queries/mutations to browse public communities, join by ID or invite code, and leave non-owner communities while auto-setting active selection.
+- Built Join Community modal with segmented browse/code flow, loading and error states, and one-tap joins for public groups.
+- Updated Social dropdown and screen wiring so joined communities appear immediately and become active after joining.
+
+### Files Created
+- `components/social/JoinCommunityModal.tsx`
+
+### Files Modified
+- `convex/communities.ts`
+- `components/social/CommunityDropdown.tsx`
+- `components/social/index.ts`
+- `app/(tabs)/social.tsx`
+- `docs/PROJECT_STATUS.md`
+- `docs/CHANGELOG.md`
+
+## Task 4.2.1: Community Schema & Creation
+**Date:** 2026-01-07  
+**Status:** ✅ Complete
+
+### What Was Built
+- Added Convex schema for communities, memberships, and active selection plus mutations/queries for creation, listing, and switching with creator auto-promoted to owner.
+- Implemented community dropdown with Global toggle, create/join rows, and persisted active selection.
+- Built Create Community modal with name validation, public/private toggle, and invite code display for private communities; wired into Social screen.
+- Follow-up: added Convex auth token fallback, optional userId support for community APIs, a Close action in the dropdown, and disabled private community creation (coming soon).
+
+### Files Created
+- `convex/communities.ts`
+- `components/social/CreateCommunityModal.tsx`
+- `components/social/CommunityDropdown.tsx`
+
+### Files Modified
+- `convex/schema.ts`
+- `convex/communities.ts`
+- `components/social/LeaderboardHeader.tsx`
+- `components/social/CommunityDropdown.tsx`
+- `components/social/CreateCommunityModal.tsx`
+- `app/(tabs)/social.tsx`
+- `app/_layout.tsx`
+- `components/social/index.ts`
+- `docs/PROJECT_STATUS.md`
+- `docs/ARCHITECTURE.md`
+
+### Issues Resolved
+- Community creation now persists ownership and active selection, with invite codes surfaced for private groups and dropdown support for switching back to Global.
+
 ## Task 4.1: Social Tab with Global Leaderboard
 **Date:** 2026-01-05  
 **Status:** ✅ Complete

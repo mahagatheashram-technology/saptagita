@@ -1,6 +1,8 @@
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Id } from "@/convex/_generated/dataModel";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { LeaderboardRow } from "./LeaderboardRow";
 import { UserRankCard } from "./UserRankCard";
 
@@ -13,24 +15,36 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
-interface GlobalLeaderboardProps {
-  entries?: LeaderboardEntry[];
-  isLoading: boolean;
+interface LeaderboardListProps {
+  communityId: Id<"communities"> | null;
   currentUserId?: Id<"users"> | null;
-  currentUser?: LeaderboardEntry | null;
-  totalUsers?: number;
 }
 
-export function GlobalLeaderboard({
-  entries,
-  isLoading,
+export function LeaderboardList({
+  communityId,
   currentUserId,
-  currentUser,
-  totalUsers,
-}: GlobalLeaderboardProps) {
+}: LeaderboardListProps) {
   const insets = useSafeAreaInsets();
-  const data = entries ?? [];
-  const isEmpty = !isLoading && data.length === 0;
+  const isGlobal = communityId === null;
+
+  const globalData = useQuery(
+    api.streaks.getGlobalLeaderboard,
+    isGlobal ? { currentUserId: currentUserId ?? undefined } : "skip"
+  );
+  const communityData = useQuery(
+    api.streaks.getCommunityLeaderboard,
+    !isGlobal && communityId
+      ? { communityId, currentUserId: currentUserId ?? undefined }
+      : "skip"
+  );
+
+  const data = isGlobal ? globalData : communityData;
+  const entries = data?.top50 ?? [];
+  const currentUser = data?.currentUser ?? null;
+  const totalMembers = isGlobal ? undefined : communityData?.totalMembers;
+  const totalUsers = isGlobal ? globalData?.totalUsers : undefined;
+  const isLoading = data === undefined;
+  const isEmpty = !isLoading && entries.length === 0;
 
   if (isLoading) {
     return (
@@ -55,15 +69,21 @@ export function GlobalLeaderboard({
   }
 
   const isCurrentUserInTop50 = currentUserId
-    ? data.some((entry) => entry.userId === currentUserId)
+    ? entries.some((entry) => entry.userId === currentUserId)
     : false;
   const pinnedUser = !isCurrentUserInTop50 ? currentUser : null;
-  const totalCount = totalUsers ?? (pinnedUser ? pinnedUser.rank : data.length);
+  const totalCount =
+    totalMembers ??
+    totalUsers ??
+    (pinnedUser ? pinnedUser.rank : entries.length);
+  const listSubtitle = isGlobal
+    ? "Top 50 of all users"
+    : `${totalCount} members`;
 
   return (
     <View className="flex-1">
       <FlatList
-        data={data}
+        data={entries}
         keyExtractor={(item) => item.userId}
         renderItem={({ item }) => (
           <LeaderboardRow
@@ -77,10 +97,10 @@ export function GlobalLeaderboard({
         ListHeaderComponent={
           <View className="pb-2">
             <Text className="text-lg font-semibold text-secondary">
-              Global leaderboard
+              {isGlobal ? "Global leaderboard" : "Community leaderboard"}
             </Text>
             <Text className="text-sm text-textSecondary mt-1">
-              Top streaks across Sapta Gita
+              {listSubtitle}
             </Text>
           </View>
         }

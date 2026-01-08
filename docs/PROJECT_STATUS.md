@@ -23,9 +23,9 @@ For the full process description, see `docs/PROCESS.md`.
 
 ## Current State
 - **Phase:** 4 (Communities & Leaderboards)
-- **Current Task:** 4.1 (Social Tab with Global Leaderboard) ✅ Complete
-- **Last Updated:** 2026-01-05
-- **App Status:** Runnable, core reading flow working; Social tab live with global leaderboard
+- **Current Task:** 4.2.3 (Community Leaderboards) ✅ Complete
+- **Last Updated:** 2026-01-08
+- **App Status:** Runnable, core reading flow working; Social tab live with global + community leaderboards; public communities can be created, joined, and selected; invite-code join marked as coming soon until private communities are enabled
 
 ## Phase 1: Reading Loop
 
@@ -63,7 +63,9 @@ For the full process description, see `docs/PROCESS.md`.
 | Task | Description | Status |
 |------|-------------|--------|
 | 4.1 | Social Tab with Global Leaderboard | ✅ Complete |
-| 4.2 | Communities (join/create, feeds, leaderboards) | ⬜ Not Started |
+| 4.2.1 | Community Schema & Creation | ✅ Complete |
+| 4.2.2 | Community Join & Active Switching | ✅ Complete |
+| 4.2.3 | Community Leaderboards | ✅ Complete |
 
 ## Future Phases (Not Started)
 
@@ -95,8 +97,9 @@ For the full process description, see `docs/PROCESS.md`.
 | bookmarkBuckets | Bookmark folders | ✅ Implemented |
 | bookmarks | Saved verses | ✅ Implemented |
 | notes | Private reflections | ⬜ Deferred |
-| communities | Groups | ⬜ Phase 4 |
-| communityMembers | Group membership | ⬜ Phase 4 |
+| communities | Groups | ✅ Implemented |
+| communityMembers | Group membership | ✅ Implemented |
+| activeCommunity | User's selected community | ✅ Implemented |
 | comments | Verse comments | ⬜ Phase 4 |
 | commentLikes | Likes on comments | ⬜ Phase 4 |
 | reports | Content moderation | ⬜ Phase 4 |
@@ -140,6 +143,7 @@ Verified: all listed paths exist in the repo.
 - `convex/users.ts` - User management
 - `convex/dailySets.ts` - Daily set generation & read tracking
 - `convex/streaks.ts` - Streak tracking logic
+- `convex/communities.ts` - Community creation, membership, active selection
 - `convex/debug.ts` - Dev-only mutations for streak/daily-set testing
 - `convex/bookmarks.ts` - Bookmark buckets and bookmark CRUD
 - `convex/auth.config.ts` - Clerk JWT issuer configuration
@@ -168,6 +172,9 @@ Verified: all listed paths exist in the repo.
 - ✅ App launches without crashes
 - ✅ 4-tab navigation (Today, Social, Bookmarks, Profile)
 - ✅ Social tab with global leaderboard (top 50, user highlight, pinned rank card)
+- ✅ Public community creation + selection (private creation disabled for now)
+- ✅ Join public communities; invite-code join marked as coming soon until private communities ship
+- ✅ Community leaderboards show streaks for selected communities
 - ✅ Today tab shows 7 verse cards in a stack
 - ✅ Swipe right dismisses card and advances
 - ✅ Swipe left opens action drawer with share/bookmark/bucket options and springs back

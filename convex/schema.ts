@@ -71,4 +71,26 @@ export default defineSchema({
     .index("by_bucket", ["bucketId"])
     .index("by_user_verse", ["userId", "verseId"])
     .index("by_bucket_verse", ["bucketId", "verseId"]),
+  communities: defineTable({
+    name: v.string(),
+    type: v.union(v.literal("public"), v.literal("private")),
+    inviteCode: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_inviteCode", ["inviteCode"])
+    .index("by_type", ["type"]),
+  communityMembers: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    role: v.union(v.literal("owner"), v.literal("admin"), v.literal("member")),
+    joinedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_user", ["userId"])
+    .index("by_community_user", ["communityId", "userId"]),
+  activeCommunity: defineTable({
+    userId: v.id("users"),
+    communityId: v.id("communities"),
+  }).index("by_user", ["userId"]),
 });

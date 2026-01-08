@@ -1,7 +1,7 @@
 # Sapta Gita - Architecture Reference
 
 > **Instructions:** Technical reference document. Include when agent needs detailed context about structure, schema, or patterns.
-Last Updated: 2026-01-05
+Last Updated: 2026-01-07
 
 ---
 
@@ -105,7 +105,7 @@ sapta-gita/
 
 ## Database Schema (Convex)
 
-Verified against convex/schema.ts on 2026-01-04.
+Verified against convex/schema.ts on 2026-01-07.
 
 ```typescript
 // convex/schema.ts
@@ -163,6 +163,47 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("byUser", ["userId"]),
+  bookmarkBuckets: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+    icon: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_name", ["userId", "name"]),
+  bookmarks: defineTable({
+    userId: v.id("users"),
+    verseId: v.id("verses"),
+    bucketId: v.id("bookmarkBuckets"),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_bucket", ["bucketId"])
+    .index("by_user_verse", ["userId", "verseId"])
+    .index("by_bucket_verse", ["bucketId", "verseId"]),
+  communities: defineTable({
+    name: v.string(),
+    type: v.union(v.literal("public"), v.literal("private")),
+    inviteCode: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_inviteCode", ["inviteCode"])
+    .index("by_type", ["type"]),
+  communityMembers: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    role: v.union(v.literal("owner"), v.literal("admin"), v.literal("member")),
+    joinedAt: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_user", ["userId"])
+    .index("by_community_user", ["communityId", "userId"]),
+  activeCommunity: defineTable({
+    userId: v.id("users"),
+    communityId: v.id("communities"),
+  }).index("by_user", ["userId"]),
 });
 ```
 
@@ -269,8 +310,12 @@ users.ts
 
 Function	Type	Purpose
 getOrCreateUser	Mutation	Create/get user by authId
-getOrCreateTestUser	Mutation	Get/create dev test user
+getOrCreateUserFromAuth	Mutation	Create/get user from Clerk auth
 getUserByAuthId	Query	Lookup user by auth ID
+getUserState	Query	Get userState by userId
+updateReminderTime	Mutation	Set reminderTime on userState
+updateDisplayName	Mutation	Update display name
+deleteUserData	Mutation	Delete user and related data
 
 dailySets.ts
 
@@ -279,12 +324,22 @@ getTodaySet	Mutation	Get or create today's verse set
 markVerseRead	Mutation	Record a read event
 getTodayProgress	Query	Get read count for today
 
-streaks.ts (Task 1.6)
+streaks.ts
 
 Function	Type	Purpose
 getStreak	Query	Get user's streak data
+getStreakStats	Query	Get streak stats + completed days
+getGlobalLeaderboard	Query	Global streak leaderboard
 updateStreakOnCompletion	Mutation	Increment streak on day complete
-checkAndUpdateStreak	Mutation	Reset streak if day missed
+updateStreakOnCompletionInternal	Internal mutation used by completion flow
+
+communities.ts
+
+Function	Type	Purpose
+createCommunity	Mutation	Create community + owner membership + active selection (auth or userId fallback; private disabled)
+getUserCommunities	Query	List a user's communities with roles/counts (auth or userId fallback)
+getActiveCommunity	Query	Get the user's active community (auth or userId fallback)
+setActiveCommunity	Mutation	Set or clear active community (membership gated; auth or userId fallback)
 
 ---
 

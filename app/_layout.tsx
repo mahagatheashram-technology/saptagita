@@ -73,6 +73,7 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
           tokenCache={tokenCache}
         >
           <ClerkLoaded>
+            <ConvexAuthSync />
             <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
               <ThemeProvider value={DefaultTheme}>
                 <AuthStack />
@@ -83,6 +84,32 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
+}
+
+// Ensure Convex client always has the latest Clerk session token
+function ConvexAuthSync() {
+  const { getToken, isSignedIn } = useAuth();
+
+  useEffect(() => {
+    convex.setAuth(async () => {
+      if (!isSignedIn) return null;
+      // Prefer the Convex-specific template; fall back to the default session token
+      let templated: string | null = null;
+      try {
+        templated = await getToken({ template: "convex" });
+      } catch {
+        templated = null;
+      }
+      if (templated) return templated;
+      try {
+        return (await getToken()) ?? null;
+      } catch {
+        return null;
+      }
+    });
+  }, [getToken, isSignedIn]);
+
+  return null;
 }
 
 function AuthStack() {

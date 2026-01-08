@@ -1,6 +1,5 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 
 // Helper: Get today's date string in user's timezone with fallback to UTC if invalid
 function getTodayDateString(timezone: string): string {
@@ -268,7 +267,7 @@ export const checkAndUpdateStreak = mutation({
 });
 
 export const getGlobalLeaderboard = query({
-  args: { userId: v.optional(v.id("users")) },
+  args: { currentUserId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
     const streaks = await ctx.db.query("streaks").collect();
 
@@ -303,14 +302,79 @@ export const getGlobalLeaderboard = query({
       rank: index + 1,
     }));
 
-    const currentUser = args.userId
-      ? ranked.find((entry) => entry.userId === args.userId) ?? null
+    const currentUser = args.currentUserId
+      ? ranked.find((entry) => entry.userId === args.currentUserId) ?? null
       : null;
 
     return {
       top50: ranked.slice(0, 50),
       currentUser,
       totalUsers: ranked.length,
+    };
+  },
+});
+
+export const getCommunityLeaderboard = query({
+  args: {
+    communityId: v.id("communities"),
+    currentUserId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const members = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community", (q) => q.eq("communityId", args.communityId))
+      .collect();
+
+    if (members.length === 0) {
+      return { top50: [], currentUser: null, totalMembers: 0 };
+    }
+
+    const leaderboardEntries = await Promise.all(
+      members.map(async (member) => {
+        const user = await ctx.db.get(member.userId);
+        if (!user) return null;
+
+        const streak = await ctx.db
+          .query("streaks")
+          .withIndex("byUser", (q) => q.eq("userId", member.userId))
+          .first();
+
+        return {
+          userId: member.userId,
+          displayName: user.displayName ?? "Anonymous",
+          avatarUrl: user.avatarUrl ?? "",
+          currentStreak: streak?.currentStreak ?? 0,
+          lastCompletedLocalDate: streak?.lastCompletedLocalDate ?? null,
+        };
+      })
+    );
+
+    const leaderboard = leaderboardEntries.filter(
+      (entry): entry is NonNullable<typeof entry> => Boolean(entry)
+    );
+
+    leaderboard.sort((a, b) => {
+      if (b.currentStreak !== a.currentStreak) {
+        return b.currentStreak - a.currentStreak;
+      }
+      const aDate = a.lastCompletedLocalDate ?? "";
+      const bDate = b.lastCompletedLocalDate ?? "";
+      return bDate.localeCompare(aDate);
+    });
+
+    const ranked = leaderboard.map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
+
+    const currentUser = args.currentUserId
+      ? ranked.find((entry) => entry.userId === args.currentUserId) ?? null
+      : null;
+
+    return {
+      top50: ranked.slice(0, 50),
+      currentUser,
+      totalMembers: members.length,
     };
   },
 });

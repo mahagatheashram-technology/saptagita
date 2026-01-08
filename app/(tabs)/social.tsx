@@ -1,24 +1,28 @@
-import { useMemo, useState } from "react";
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
-  GlobalLeaderboard,
+  LeaderboardList,
   LeaderboardHeader,
-  LeaderboardScope,
+  CreateCommunityModal,
+  JoinCommunityModal,
 } from "@/components/social";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
 export default function SocialScreen() {
-  const [activeView, setActiveView] = useState<LeaderboardScope>("global");
-  const { user, isLoading: isUserLoading, error: userError } = useCurrentUser();
-
-  const leaderboardArgs = useMemo(
-    () => ({ userId: user?._id }),
-    [user?._id]
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const { user, error: userError } = useCurrentUser();
+  const activeCommunity = useQuery(
+    api.communities.getActiveCommunity,
+    user?._id ? { userId: user._id } : "skip"
   );
-  const leaderboardData = useQuery(api.streaks.getGlobalLeaderboard, leaderboardArgs);
+
+  const isActiveCommunityLoading = activeCommunity === undefined;
+  const activeCommunityName = activeCommunity?.name ?? null;
+  const activeCommunityId = activeCommunity?._id ?? null;
 
   if (userError) {
     return (
@@ -33,47 +37,60 @@ export default function SocialScreen() {
     );
   }
 
-  const isGlobal = activeView === "global";
-  const isLoadingLeaderboard = isUserLoading || leaderboardData === undefined;
-
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="px-5 pt-4 pb-2">
         <Text className="text-2xl font-bold text-secondary">Social</Text>
         <Text className="text-sm text-textSecondary mt-1">
-          Climb the global streak leaderboard. Communities are coming soon.
+          Climb the global streak leaderboard or compete inside your community.
         </Text>
       </View>
 
-      <LeaderboardHeader activeView={activeView} onChange={setActiveView} />
+      <LeaderboardHeader
+        userId={user?._id ?? null}
+        activeCommunityName={activeCommunityName}
+        onPressCreate={() => {
+          setShowJoinModal(false);
+          setShowCreateModal(true);
+        }}
+        onPressJoin={() => {
+          setShowCreateModal(false);
+          setShowJoinModal(true);
+        }}
+      />
 
       <View className="flex-1">
-        {isGlobal ? (
-          <GlobalLeaderboard
-            entries={leaderboardData?.top50}
-            currentUserId={user?._id ?? null}
-            currentUser={leaderboardData?.currentUser ?? null}
-            totalUsers={leaderboardData?.totalUsers}
-            isLoading={isLoadingLeaderboard}
-          />
-        ) : (
-          <View className="flex-1 px-5">
-            <View className="bg-surface rounded-2xl border border-[#E2E8F0] p-4 mt-1 shadow-sm">
-              <Text className="text-base font-semibold text-secondary">
-                Communities
-              </Text>
-              <Text className="text-sm text-textSecondary mt-1">
-                No communities yet. Join a community to see your group's leaderboard.
-              </Text>
-              <View className="mt-3 px-4 py-3 rounded-xl bg-[#F7FAFC] border border-[#E2E8F0]">
-                <Text className="text-textSecondary font-semibold text-center">
-                  Join a community (coming soon)
-                </Text>
-              </View>
-            </View>
+        {isActiveCommunityLoading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator size="large" color="#FF6B35" />
+            <Text className="text-sm text-textSecondary mt-2">
+              Loading communities...
+            </Text>
           </View>
+        ) : (
+          <LeaderboardList
+            communityId={activeCommunityId}
+            currentUserId={user?._id ?? null}
+          />
         )}
       </View>
+
+      <CreateCommunityModal
+        visible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        userId={user?._id ?? null}
+        onCreated={(result) => {
+          if (!result.inviteCode) {
+            setShowCreateModal(false);
+          }
+        }}
+      />
+
+      <JoinCommunityModal
+        visible={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        userId={user?._id ?? null}
+      />
     </SafeAreaView>
   );
 }
