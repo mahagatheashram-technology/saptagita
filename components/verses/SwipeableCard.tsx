@@ -15,7 +15,6 @@ import { Verse } from "./VerseCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3; // 30% of screen width
-const CARD_WIDTH = SCREEN_WIDTH - 40;
 
 interface SwipeableCardProps {
   verse: Verse;
@@ -24,6 +23,7 @@ interface SwipeableCardProps {
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
   isTop: boolean;
+  cardWidth: number;
 }
 
 export function SwipeableCard({
@@ -33,6 +33,7 @@ export function SwipeableCard({
   onSwipeRight,
   onSwipeLeft,
   isTop,
+  cardWidth,
 }: SwipeableCardProps) {
   // Only render top 3 cards for performance
   if (index > 2) return null;
@@ -112,7 +113,7 @@ export function SwipeableCard({
     <GestureDetector gesture={panGesture}>
       <Animated.View
         className="absolute bg-surface rounded-2xl p-6 shadow-lg"
-        style={[{ width: CARD_WIDTH }, animatedStyle]}
+        style={[{ width: cardWidth }, animatedStyle]}
       >
         {/* Right swipe indicator - Mark as read */}
         <Animated.View

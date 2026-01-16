@@ -48,21 +48,21 @@ export default function WelcomeScreen() {
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          justifyContent: "space-between",
-          minHeight: "100%",
+          justifyContent: "center",
+          paddingVertical: 32,
         }}
         className="flex-1"
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View
-          className="items-center px-6 pt-10 pb-6"
-          style={{
-            opacity: heroOpacity,
-            transform: [{ translateY: heroTranslate }],
-          }}
-        >
-          <View className="w-full max-w-xl items-center">
+        <View className="flex-1 items-center justify-center px-6">
+          <Animated.View
+            className="w-full max-w-xl items-center mb-10"
+            style={{
+              opacity: heroOpacity,
+              transform: [{ translateY: heroTranslate }],
+            }}
+          >
             <Text
               className="mb-5"
               style={{ fontSize: 64, lineHeight: 76, textAlign: "center" }}
@@ -90,32 +90,32 @@ export default function WelcomeScreen() {
               <Badge label="Community energy" />
               <Badge label="Offline-friendly reading" />
             </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        <Animated.View
-          className="px-6 pb-10"
-          style={{
-            opacity: heroOpacity,
-            transform: [{ translateY: Animated.multiply(heroTranslate, 0.5) }],
-          }}
-        >
-          <Pressable
-            onPress={() => router.push("/sign-up")}
-            className="bg-[#FF6B35] py-4 rounded-xl mb-3 shadow-md shadow-[#FF6B35]/30"
+          <Animated.View
+            className="w-full max-w-xl"
+            style={{
+              opacity: heroOpacity,
+              transform: [{ translateY: Animated.multiply(heroTranslate, 0.5) }],
+            }}
           >
-            <Text className="text-white text-center text-lg font-semibold">
-              Get Started
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={() => router.push("/sign-up")}
+              className="bg-[#FF6B35] py-4 rounded-xl mb-3 shadow-md shadow-[#FF6B35]/30"
+            >
+              <Text className="text-white text-center text-lg font-semibold">
+                Get Started
+              </Text>
+            </Pressable>
 
-          <Pressable onPress={() => router.push("/sign-in")}>
-            <Text className="text-[#5B6A82] text-center text-base">
-              Already have an account?{" "}
-              <Text className="text-[#FF6B35] font-semibold">Sign In</Text>
-            </Text>
-          </Pressable>
-        </Animated.View>
+            <Pressable onPress={() => router.push("/sign-in")}>
+              <Text className="text-[#5B6A82] text-center text-base">
+                Already have an account?{" "}
+                <Text className="text-[#FF6B35] font-semibold">Sign In</Text>
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
