@@ -1,4 +1,4 @@
-import { Platform, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
 

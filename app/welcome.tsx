@@ -46,13 +46,17 @@ export default function WelcomeScreen() {
       <View className="absolute w-64 h-64 rounded-full bg-[#7C3AED]/8 blur-3xl -right-12 bottom-24" />
 
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "space-between",
+          minHeight: "100%",
+        }}
         className="flex-1"
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View
-          className="flex-1 items-center px-6 pt-10 pb-6"
+          className="items-center px-6 pt-10 pb-6"
           style={{
             opacity: heroOpacity,
             transform: [{ translateY: heroTranslate }],
