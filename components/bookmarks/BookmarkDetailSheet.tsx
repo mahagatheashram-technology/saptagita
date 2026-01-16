@@ -1,11 +1,12 @@
 import { forwardRef, useCallback, useMemo } from "react";
-import { Pressable, Share, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { Verse } from "../verses/VerseCard";
 import { Ionicons } from "@expo/vector-icons";
+import { formatVerseShareMessage, shareText } from "@/lib/shareText";
 
 interface BookmarkDetailSheetProps {
   verse: Verse | null;
@@ -34,13 +35,8 @@ export const BookmarkDetailSheet = forwardRef<
 
   const handleShare = useCallback(async () => {
     if (!verse) return;
-    try {
-      await Share.share({
-        message: `Bhagavad Gita ${verse.chapterNumber}.${verse.verseNumber}\n\n${verse.sanskritDevanagari}\n\n${verse.transliteration}\n\n"${verse.translationEnglish}"\n\n— Shared from Sapta Gita`,
-      });
-    } catch (error) {
-      console.error("Share failed:", error);
-    }
+    const message = formatVerseShareMessage(verse);
+    await shareText(message);
   }, [verse]);
 
   if (!verse) return null;

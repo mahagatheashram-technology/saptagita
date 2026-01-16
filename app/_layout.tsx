@@ -16,9 +16,8 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -126,10 +125,16 @@ function NotificationEffects() {
   const { isSignedIn } = useAuth();
 
   useEffect(() => {
+    if (Platform.OS === "web") return;
     if (!isSignedIn) return;
+
+    let Notifications: typeof import("expo-notifications") | null = null;
+    let subscription: import("expo-notifications").Subscription | null = null;
 
     const setupNotifications = async () => {
       try {
+        Notifications = await import("expo-notifications");
+
         const enabled = await getReminderPreference();
         if (!enabled) {
           await cancelDailyReminder();
@@ -147,23 +152,23 @@ function NotificationEffects() {
             .map((v: string) => Number(v) || 0);
           await scheduleDailyReminder(storedHour, storedMinute);
         }
+
+        subscription = Notifications.addNotificationResponseReceivedListener(
+          () => {
+            router.replace("/(tabs)");
+          }
+        );
       } catch (error) {
         console.log("Notification setup failed", error);
       }
     };
 
     setupNotifications();
+
+    return () => {
+      subscription?.remove();
+    };
   }, [isSignedIn]);
-
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      () => {
-        router.replace("/(tabs)");
-      }
-    );
-
-    return () => subscription.remove();
-  }, []);
 
   return null;
 }

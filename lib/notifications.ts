@@ -1,37 +1,56 @@
-import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
-import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-
-// Configure how notifications appear when the app is in the foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 // SecureStore keys must be alphanumeric with ., -, or _
 const REMINDER_ENABLED_KEY = "notifications_reminders_enabled";
 const REMINDER_TIME_KEY = "notifications_reminder_time";
 const ANDROID_CHANNEL_ID = "default";
 
-async function isPreferenceStorageAvailable() {
+const isWeb = Platform.OS === "web";
+
+async function getSecureStore() {
+  if (isWeb) return null;
   try {
-    return await SecureStore.isAvailableAsync();
+    const mod = await import("expo-secure-store");
+    return mod;
   } catch {
-    return false;
+    return null;
   }
 }
 
+async function getNotifications() {
+  if (isWeb || typeof window === "undefined") return null;
+  try {
+    const mod = await import("expo-notifications");
+    return mod;
+  } catch {
+    return null;
+  }
+}
+
+async function getDevice() {
+  if (isWeb) return null;
+  try {
+    const mod = await import("expo-device");
+    return mod;
+  } catch {
+    return null;
+  }
+}
+
+async function isPreferenceStorageAvailable() {
+  const SecureStore = await getSecureStore();
+  if (!SecureStore) return false;
+  return SecureStore.isAvailableAsync();
+}
+
 export async function getReminderPreference(): Promise<boolean> {
+  if (isWeb) return false;
   if (!(await isPreferenceStorageAvailable())) {
     return true;
   }
   try {
+    const SecureStore = await getSecureStore();
+    if (!SecureStore) return true;
     const stored = await SecureStore.getItemAsync(REMINDER_ENABLED_KEY);
     if (stored === null) return true;
     return stored === "true";
@@ -42,10 +61,13 @@ export async function getReminderPreference(): Promise<boolean> {
 }
 
 export async function setReminderPreference(enabled: boolean): Promise<void> {
+  if (isWeb) return;
   if (!(await isPreferenceStorageAvailable())) {
     return;
   }
   try {
+    const SecureStore = await getSecureStore();
+    if (!SecureStore) return;
     await SecureStore.setItemAsync(REMINDER_ENABLED_KEY, enabled ? "true" : "false");
   } catch (error) {
     console.log("Failed to persist reminder preference", error);
@@ -53,10 +75,13 @@ export async function setReminderPreference(enabled: boolean): Promise<void> {
 }
 
 export async function getStoredReminderTime(): Promise<string | null> {
+  if (isWeb) return null;
   if (!(await isPreferenceStorageAvailable())) {
     return null;
   }
   try {
+    const SecureStore = await getSecureStore();
+    if (!SecureStore) return null;
     return await SecureStore.getItemAsync(REMINDER_TIME_KEY);
   } catch (error) {
     console.log("Failed to read reminder time", error);
@@ -65,10 +90,13 @@ export async function getStoredReminderTime(): Promise<string | null> {
 }
 
 async function setStoredReminderTime(value: string) {
+  if (isWeb) return;
   if (!(await isPreferenceStorageAvailable())) {
     return;
   }
   try {
+    const SecureStore = await getSecureStore();
+    if (!SecureStore) return;
     await SecureStore.setItemAsync(REMINDER_TIME_KEY, value);
   } catch (error) {
     console.log("Failed to store reminder time", error);
@@ -76,6 +104,12 @@ async function setStoredReminderTime(value: string) {
 }
 
 export async function requestNotificationPermissions(): Promise<boolean> {
+  if (isWeb) return false;
+
+  const Device = await getDevice();
+  const Notifications = await getNotifications();
+  if (!Device || !Notifications) return false;
+
   if (!Device.isDevice) {
     console.log("Notifications only work on physical devices");
     return false;
@@ -108,6 +142,11 @@ export async function scheduleDailyReminder(
   hour = 20,
   minute = 0
 ): Promise<string | null> {
+  if (isWeb) {
+    throw new Error("Notifications are not available on web.");
+  }
+
+  const Notifications = await getNotifications();
   if (!Device.isDevice) {
     throw new Error("Notifications require a physical device to schedule.");
   }
@@ -145,20 +184,32 @@ export async function scheduleDailyReminder(
 }
 
 export async function cancelDailyReminder(): Promise<void> {
+  if (isWeb) return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   await Notifications.cancelAllScheduledNotificationsAsync();
   await setReminderPreference(false);
 }
 
 export async function isDailyReminderScheduled(): Promise<boolean> {
+  if (isWeb) return false;
+  const Notifications = await getNotifications();
+  if (!Notifications) return false;
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   return scheduled.length > 0;
 }
 
 export async function getScheduledNotifications() {
+  if (isWeb) return [];
+  const Notifications = await getNotifications();
+  if (!Notifications) return [];
   return Notifications.getAllScheduledNotificationsAsync();
 }
 
 export async function getScheduledNotificationSummaries() {
+  if (isWeb) return [];
+  const Notifications = await getNotifications();
+  if (!Notifications) return [];
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   return scheduled.map((item) => {
     const trigger: any = item.trigger;
@@ -175,13 +226,22 @@ export async function getScheduledNotificationSummaries() {
 }
 
 export async function clearBadge(): Promise<void> {
+  if (isWeb) return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   await Notifications.setBadgeCountAsync(0);
 }
 
 export async function sendTestNotification(): Promise<string | null> {
+  if (isWeb) {
+    console.log("Test notification not available on web");
+    return null;
+  }
   const permissionsGranted = await requestNotificationPermissions();
   if (!permissionsGranted) return null;
 
+  const Notifications = await getNotifications();
+  if (!Notifications) return null;
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "Test notification",

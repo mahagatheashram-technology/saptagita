@@ -5,7 +5,7 @@ import BottomSheet, {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { impact } from "@/lib/haptics";
 
 interface ActionDrawerProps {
   verseId: string;
@@ -48,7 +48,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       action: () => void | Promise<void>,
       options?: { closeAfter?: boolean }
     ) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      impact();
       await action();
       if (options?.closeAfter !== false) {
         onClose();

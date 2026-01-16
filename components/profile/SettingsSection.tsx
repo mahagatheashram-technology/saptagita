@@ -70,6 +70,7 @@ export function SettingsSection({
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [isLoadingPreference, setIsLoadingPreference] = useState(true);
   const updateReminderTime = useMutation(api.users.updateReminderTime);
+  const isWeb = Platform.OS === "web";
 
   useEffect(() => {
     setLocalReminderTime(reminderTime ?? null);
@@ -78,6 +79,11 @@ export function SettingsSection({
 
   useEffect(() => {
     const loadPreference = async () => {
+      if (isWeb) {
+        setRemindersEnabled(false);
+        setIsLoadingPreference(false);
+        return;
+      }
       try {
         const enabled = await getReminderPreference();
         setRemindersEnabled(enabled);
@@ -89,7 +95,7 @@ export function SettingsSection({
     };
 
     loadPreference();
-  }, []);
+  }, [isWeb]);
 
   const displayTime = useMemo(
     () => toDisplayTime(localReminderTime),
@@ -98,6 +104,10 @@ export function SettingsSection({
   const modeLabel = mode === "random" ? "Random" : "Sequential";
 
   const saveReminderTime = async (date: Date) => {
+    if (isWeb) {
+      Alert.alert("Not available on web", "Notification reminders are disabled on web.");
+      return;
+    }
     const nextTime = toStorageTime(date);
     setLocalReminderTime(nextTime);
     try {
@@ -114,6 +124,10 @@ export function SettingsSection({
   };
 
   const handleTimePress = () => {
+    if (isWeb) {
+      Alert.alert("Not available on web", "Notification reminders are disabled on web.");
+      return;
+    }
     const initialValue = toDate(localReminderTime);
     setPickerValue(initialValue);
     setShowPicker(true);
@@ -142,6 +156,10 @@ export function SettingsSection({
   };
 
   const handleToggleReminders = async (enabled: boolean) => {
+    if (isWeb) {
+      Alert.alert("Not available on web", "Notification reminders are disabled on web.");
+      return;
+    }
     setRemindersEnabled(enabled);
     try {
       if (enabled) {
@@ -183,13 +201,13 @@ export function SettingsSection({
         <View>
           <Text className="text-sm text-textSecondary">Notifications</Text>
           <Text className="text-base font-semibold text-textPrimary">
-            {remindersEnabled ? "Enabled" : "Disabled"}
+            {isWeb ? "Unavailable on web" : remindersEnabled ? "Enabled" : "Disabled"}
           </Text>
         </View>
         <Switch
           value={remindersEnabled}
           onValueChange={handleToggleReminders}
-          disabled={isLoadingPreference}
+          disabled={isLoadingPreference || isWeb}
           thumbColor={remindersEnabled ? "#FF6B35" : "#CBD5E0"}
           trackColor={{ false: "#E2E8F0", true: "#FBD38D" }}
         />

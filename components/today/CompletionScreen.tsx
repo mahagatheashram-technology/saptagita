@@ -11,7 +11,7 @@ import Animated, {
   Extrapolation,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { notify } from "@/lib/haptics";
 
 interface CompletionScreenProps {
   currentStreak: number;
@@ -32,7 +32,7 @@ export function CompletionScreen({
 
   useEffect(() => {
     // Trigger success haptic
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    notify();
 
     // Staggered animations
     checkScale.value = withSpring(1, { damping: 8, stiffness: 100 });

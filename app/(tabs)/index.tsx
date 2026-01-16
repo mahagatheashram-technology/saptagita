@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator, Alert, Share, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, Alert, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
@@ -10,7 +10,7 @@ import {
   CompletionScreen,
 } from "@/components/today";
 import { useTodayReading } from "@/lib/hooks/useTodayReading";
-import * as Haptics from "expo-haptics";
+import { impact } from "@/lib/haptics";
 import { Id } from "@/convex/_generated/dataModel";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { ActionDrawer } from "@/components/verses/ActionDrawer";
@@ -18,6 +18,7 @@ import { BucketPickerModal } from "@/components/bookmarks";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
 import { clearBadge } from "@/lib/notifications";
+import { formatVerseShareMessage, shareText } from "@/lib/shareText";
 
 const DAILY_VERSE_COUNT = 7;
 
@@ -63,7 +64,7 @@ export default function TodayScreen() {
   }, [userId, checkStreak]);
 
   const handleSwipeRight = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    impact();
     await markAsRead();
   }, [markAsRead]);
 
@@ -79,7 +80,7 @@ export default function TodayScreen() {
       verse: currentVerse.verseNumber,
     });
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    impact();
     actionDrawerRef.current?.snapToIndex(0);
   }, [verses, currentIndex]);
 
@@ -94,7 +95,7 @@ export default function TodayScreen() {
     const verseId = activeVerse.id as Id<"verses">;
     try {
       const result = await quickBookmark({ userId, verseId });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      impact();
       if (result?.removed) {
         Alert.alert("Removed", "Verse removed from Saved.");
       } else {
@@ -116,13 +117,8 @@ export default function TodayScreen() {
     const verse = verses.find((v) => v._id === activeVerse.id);
     if (!verse) return;
 
-    try {
-      await Share.share({
-        message: `Bhagavad Gita ${verse.chapterNumber}.${verse.verseNumber}\n\n${verse.sanskritDevanagari}\n\n${verse.transliteration}\n\n"${verse.translationEnglish}"\n\n— Shared from Sapta Gita`,
-      });
-    } catch (error) {
-      console.error("Share failed:", error);
-    }
+    const message = formatVerseShareMessage(verse);
+    await shareText(message);
   }, [activeVerse, verses]);
 
   const handleCloseDrawer = useCallback(() => {
