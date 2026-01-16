@@ -32,6 +32,48 @@ export function CardStack({
     return null;
   }
 
+  const isWeb = Platform.OS === "web";
+
+  if (isWeb) {
+    const top = remainingVerses[0];
+    if (!top) return null;
+    return (
+      <View className="w-full items-center justify-start">
+        <View
+          className="bg-surface rounded-3xl p-6 shadow-lg"
+          style={{ width: "100%", maxWidth: cardWidth }}
+        >
+          <Text className="text-sm text-textSecondary mb-4">
+            Chapter {top.chapterNumber} • Verse {top.verseNumber}
+          </Text>
+
+          <Text className="text-xl text-secondary leading-9 mb-4">
+            {top.sanskritDevanagari}
+          </Text>
+
+          <Text className="text-base italic text-textSecondary mb-4">
+            {top.transliteration}
+          </Text>
+
+          <View className="h-px bg-gray-200 my-4" />
+
+          <Text className="text-base text-textPrimary leading-7 mb-4">
+            {top.translationEnglish}
+          </Text>
+
+          <View className="flex-row items-center justify-between pt-2">
+            <Pressable onPress={onSwipeLeft} className="pr-3 py-2">
+              <Text className="text-textSecondary font-medium">More options</Text>
+            </Pressable>
+            <Pressable onPress={onSwipeRight} className="pl-3 py-2">
+              <Text className="text-primary font-semibold">Mark as read →</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 items-center justify-center relative w-full">
       {remainingVerses
