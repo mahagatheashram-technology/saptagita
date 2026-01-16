@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
 
@@ -27,6 +27,40 @@ export function CardStack({
   // Safety check: ensure we have verses to render
   if (remainingVerses.length === 0) {
     return null;
+  }
+
+  const isWeb = Platform.OS === "web";
+
+  // Web fallback: render a static card (no gesture) with responsive max width
+  if (isWeb) {
+    const top = remainingVerses[0];
+    if (!top) return null;
+    return (
+      <View className="w-full items-center justify-start">
+        <View
+          className="bg-surface rounded-3xl p-6 shadow-lg"
+          style={{ width: "100%", maxWidth: 720 }}
+        >
+          <Text className="text-sm text-textSecondary mb-4">
+            Chapter {top.chapterNumber} • Verse {top.verseNumber}
+          </Text>
+
+          <Text className="text-xl text-secondary leading-9 mb-4">
+            {top.sanskritDevanagari}
+          </Text>
+
+          <Text className="text-base italic text-textSecondary mb-4">
+            {top.transliteration}
+          </Text>
+
+          <View className="h-px bg-gray-200 my-4" />
+
+          <Text className="text-base text-textPrimary leading-7">
+            {top.translationEnglish}
+          </Text>
+        </View>
+      </View>
+    );
   }
 
   return (
