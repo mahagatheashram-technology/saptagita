@@ -1,7 +1,8 @@
 import { config } from "dotenv";
+import { readFile } from "fs/promises";
+import path from "path";
 import { ConvexHttpClient } from "convex/browser";
-import { api } from "../convex/_generated/api";
-import gitaData from "../data/gita.json";
+import { api } from "../convex/_generated/api.js";
 
 // Load environment variables (supports .env.local and .env)
 config({ path: ".env.local" });
@@ -21,46 +22,83 @@ if (!CONVEX_URL) {
   process.exit(1);
 }
 
+const DATA_PATH =
+  process.env.GITA_JSON_PATH || path.join(process.cwd(), "data/gita.json");
+
 const client = new ConvexHttpClient(CONVEX_URL);
 
-interface VerseInput {
-  chapter: number;
-  verse: number;
-  sanskrit: string;
-  transliteration: string;
-  translation: string;
+type VerseInput =
+  | {
+      chapter: number;
+      verse: number;
+      sanskrit: string;
+      transliteration: string;
+      translation: string;
+      sourceKey?: string;
+    }
+  | {
+      chapterNumber: number;
+      verseNumber: number;
+      sanskritDevanagari: string;
+      transliteration: string;
+      translationEnglish: string;
+      sourceKey?: string;
+    };
+
+function normalizeVerse(input: VerseInput) {
+  const chapterNumber =
+    "chapterNumber" in input ? input.chapterNumber : input.chapter;
+  const verseNumber = "verseNumber" in input ? input.verseNumber : input.verse;
+
+  return {
+    chapterNumber,
+    verseNumber,
+    sanskritDevanagari:
+      "sanskritDevanagari" in input ? input.sanskritDevanagari : input.sanskrit,
+    transliteration: input.transliteration,
+    translationEnglish:
+      "translationEnglish" in input
+        ? input.translationEnglish
+        : input.translation,
+    sourceKey: input.sourceKey ?? "vedicscriptures_github",
+  };
+}
+
+async function loadVersesFromFile(filePath: string) {
+  const fileContents = await readFile(filePath, "utf8");
+  const parsed = JSON.parse(fileContents) as VerseInput[];
+  return parsed.map(normalizeVerse);
 }
 
 async function seedVerses() {
+  const verses = await loadVersesFromFile(DATA_PATH);
+
   console.log("Starting verse seeding...");
-  console.log(`Found ${gitaData.length} verses in JSON file`);
+  console.log(`Dataset: ${DATA_PATH}`);
+  console.log(`Found ${verses.length} verses in JSON file`);
 
   let successCount = 0;
   let errorCount = 0;
 
-  for (const verse of gitaData as VerseInput[]) {
+  for (const verse of verses) {
     try {
-      await client.mutation(api.verses.insertVerse, {
-        chapterNumber: verse.chapter,
-        verseNumber: verse.verse,
-        sanskritDevanagari: verse.sanskrit,
-        transliteration: verse.transliteration,
-        translationEnglish: verse.translation,
-        sourceKey: "vedicscriptures_github",
-      });
+      await client.mutation(api.verses.insertVerse, verse);
       successCount++;
 
       // Log progress every 50 verses
       if (successCount % 50 === 0) {
-        console.log(`Progress: ${successCount}/${gitaData.length} verses inserted`);
+        console.log(`Progress: ${successCount}/${verses.length} verses inserted`);
       }
     } catch (error) {
-      console.error(`Error inserting verse ${verse.chapter}.${verse.verse}:`, error);
+      console.error(
+        `Error inserting verse ${verse.chapterNumber}.${verse.verseNumber}:`,
+        error,
+      );
       errorCount++;
     }
   }
 
-  console.log("\\n=== Seeding Complete ===");
+  console.log("\n=== Seeding Complete ===");
   console.log(`Successfully inserted: ${successCount} verses`);
   console.log(`Errors: ${errorCount}`);
 }

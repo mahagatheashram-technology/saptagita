@@ -24,6 +24,7 @@ export const insertVerse = mutation({
       .first();
 
     if (existing) {
+      await ctx.db.patch(existing._id, args);
       return existing._id;
     }
 
