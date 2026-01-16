@@ -38,7 +38,7 @@ export function CardStack({
     const top = remainingVerses[0];
     if (!top) return null;
     return (
-      <View className="w-full items-center justify-start">
+      <View className="w-full items-center justify-start pb-6">
         <View
           className="bg-surface rounded-3xl p-6 shadow-lg"
           style={{ width: "100%", maxWidth: cardWidth }}
@@ -61,7 +61,7 @@ export function CardStack({
             {top.translationEnglish}
           </Text>
 
-          <View className="flex-row items-center justify-between pt-2">
+          <View className="flex-row items-center justify-between pt-3">
             <Pressable onPress={onSwipeLeft} className="pr-3 py-2">
               <Text className="text-textSecondary font-medium">More options</Text>
             </Pressable>
