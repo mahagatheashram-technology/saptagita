@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator, Alert, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, Alert, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
@@ -23,6 +23,7 @@ import { formatVerseShareMessage, shareText } from "@/lib/shareText";
 const DAILY_VERSE_COUNT = 7;
 
 export default function TodayScreen() {
+  const isWeb = Platform.OS === "web";
   const [activeVerse, setActiveVerse] = useState<{
     id: string;
     chapter: number;
@@ -194,7 +195,7 @@ export default function TodayScreen() {
         streak={currentStreak}
       />
 
-      <View className="flex-1 px-5">
+      <View className="flex-1 px-5" style={isWeb ? { paddingBottom: 96 } : undefined}>
         <CardStack
           verses={verses}
           currentIndex={currentIndex}
@@ -203,7 +204,7 @@ export default function TodayScreen() {
         />
       </View>
 
-      <SwipeHint />
+      {!isWeb && <SwipeHint />}
 
       <ActionDrawer
         ref={actionDrawerRef}
