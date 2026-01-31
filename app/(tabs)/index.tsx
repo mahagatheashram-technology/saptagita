@@ -123,17 +123,21 @@ export default function TodayScreen() {
   }, [activeVerse, verses]);
 
   const handleCloseDrawer = useCallback(() => {
-    actionDrawerRef.current?.close();
+    if (!isWeb) {
+      actionDrawerRef.current?.close();
+    }
     if (!showBucketPicker) {
       setActiveVerse(null);
     }
-  }, [showBucketPicker]);
+  }, [isWeb, showBucketPicker]);
 
   const handleCloseBucketPicker = useCallback(() => {
     setShowBucketPicker(false);
-    actionDrawerRef.current?.close();
+    if (!isWeb) {
+      actionDrawerRef.current?.close();
+    }
     setActiveVerse(null);
-  }, []);
+  }, [isWeb]);
 
   // Loading state
   if (userError) {
