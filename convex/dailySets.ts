@@ -263,3 +263,85 @@ export const getReadingHistory = query({
     return { completedDates };
   },
 });
+
+export const getReadVerses = query({
+  args: {
+    userId: v.id("users"),
+    sort: v.optional(v.union(v.literal("recent"), v.literal("canonical"))),
+  },
+  handler: async (ctx, args) => {
+    const readEvents = await ctx.db
+      .query("readEvents")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    if (readEvents.length === 0) {
+      return { items: [], totalReadVerses: 0, totalVerses: TOTAL_VERSES };
+    }
+
+    const verseStats = new Map<
+      string,
+      { verseId: Id<"verses">; lastReadAt: number; firstReadAt: number; readCount: number }
+    >();
+
+    for (const event of readEvents) {
+      const key = String(event.verseId);
+      const existing = verseStats.get(key);
+      if (!existing) {
+        verseStats.set(key, {
+          verseId: event.verseId,
+          lastReadAt: event.readAt,
+          firstReadAt: event.readAt,
+          readCount: 1,
+        });
+        continue;
+      }
+      existing.lastReadAt = Math.max(existing.lastReadAt, event.readAt);
+      existing.firstReadAt = Math.min(existing.firstReadAt, event.readAt);
+      existing.readCount += 1;
+    }
+
+    const verseIds = Array.from(verseStats.values()).map((v) => v.verseId);
+    const verses = await Promise.all(verseIds.map((id) => ctx.db.get(id)));
+    const verseMap = new Map<string, any>();
+    for (const verse of verses) {
+      if (verse) {
+        verseMap.set(String(verse._id), verse);
+      }
+    }
+
+    const items = Array.from(verseStats.values())
+      .map((entry) => {
+        const verse = verseMap.get(String(entry.verseId));
+        if (!verse) return null;
+        return {
+          verse,
+          lastReadAt: entry.lastReadAt,
+          readCount: entry.readCount,
+        };
+      })
+      .filter(Boolean) as Array<{
+      verse: any;
+      lastReadAt: number;
+      readCount: number;
+    }>;
+
+    const sortMode = args.sort ?? "recent";
+    if (sortMode === "recent") {
+      items.sort((a, b) => b.lastReadAt - a.lastReadAt);
+    } else {
+      items.sort((a, b) => {
+        if (a.verse.chapterNumber !== b.verse.chapterNumber) {
+          return a.verse.chapterNumber - b.verse.chapterNumber;
+        }
+        return a.verse.verseNumber - b.verse.verseNumber;
+      });
+    }
+
+    return {
+      items,
+      totalReadVerses: items.length,
+      totalVerses: TOTAL_VERSES,
+    };
+  },
+});
