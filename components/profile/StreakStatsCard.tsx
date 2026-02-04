@@ -3,27 +3,33 @@ import { View, Text } from "react-native";
 interface StreakStatsCardProps {
   currentStreak: number;
   longestStreak: number;
-  totalCompletedDays: number;
+  perfectDays: number;
 }
 
 function StatBox({
   label,
   value,
-  highlight,
+  tone,
 }: {
   label: string;
   value: number;
-  highlight?: boolean;
+  tone?: "primary" | "gold";
 }) {
+  const isPrimary = tone === "primary";
+  const isGold = tone === "gold";
   return (
     <View
       className={`flex-1 rounded-lg p-3 ${
-        highlight ? "bg-[#FFF7ED] border border-primary/20" : "bg-[#F7FAFC]"
+        isGold
+          ? "bg-[#FFFBEB] border border-[#FDE68A]"
+          : isPrimary
+          ? "bg-[#FFF7ED] border border-primary/20"
+          : "bg-[#F7FAFC]"
       }`}
     >
       <Text
         className={`text-xs font-semibold ${
-          highlight ? "text-primary" : "text-textSecondary"
+          isGold ? "text-[#B45309]" : isPrimary ? "text-primary" : "text-textSecondary"
         }`}
       >
         {label}
@@ -38,7 +44,7 @@ function StatBox({
 export function StreakStatsCard({
   currentStreak,
   longestStreak,
-  totalCompletedDays,
+  perfectDays,
 }: StreakStatsCardProps) {
   return (
     <View className="bg-surface rounded-xl p-4 shadow-sm">
@@ -46,9 +52,9 @@ export function StreakStatsCard({
         Streak Stats
       </Text>
       <View className="flex-row space-x-2">
-        <StatBox label="🔥 Current" value={currentStreak} highlight />
+        <StatBox label="🔥 Current" value={currentStreak} tone="primary" />
         <StatBox label="🏆 Longest" value={longestStreak} />
-        <StatBox label="📅 Total" value={totalCompletedDays} />
+        <StatBox label="⭐ Perfect" value={perfectDays} tone="gold" />
       </View>
     </View>
   );

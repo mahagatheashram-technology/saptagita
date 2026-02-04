@@ -11,7 +11,7 @@ export interface LeaderboardEntry {
   displayName: string;
   avatarUrl?: string | null;
   currentStreak: number;
-  lastCompletedLocalDate?: string | null;
+  lastReadLocalDate?: string | null;
   rank: number;
 }
 

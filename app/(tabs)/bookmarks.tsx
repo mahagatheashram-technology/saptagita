@@ -47,6 +47,7 @@ export default function BookmarksScreen() {
   const renameBucket = useMutation(api.bookmarks.renameBucket);
   const deleteBucket = useMutation(api.bookmarks.deleteBucket);
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
+  const logReread = useMutation(api.dailySets.logReread);
 
   useEffect(() => {
     if (userId) {
@@ -59,7 +60,10 @@ export default function BookmarksScreen() {
     userId ? { userId } : "skip"
   );
 
-  const readHistory = useReadHistory(userId, sortMode);
+  const readHistory = useReadHistory(
+    activeTab === "read" ? userId : null,
+    sortMode
+  );
 
   const handleCreate = async () => {
     if (!userId) return;
@@ -171,6 +175,17 @@ export default function BookmarksScreen() {
       }
     } catch (error: any) {
       Alert.alert("Could not bookmark", String(error?.message ?? error));
+    }
+  };
+
+  const handleLogReadToday = async () => {
+    if (!userId || !selectedReadVerse) return;
+    try {
+      await logReread({ userId, verseId: selectedReadVerse._id });
+      readDetailSheetRef.current?.close();
+      Alert.alert("Logged", "Counted your reading for today.");
+    } catch (error: any) {
+      Alert.alert("Could not log read", String(error?.message ?? error));
     }
   };
 
@@ -515,6 +530,7 @@ export default function BookmarksScreen() {
             verse={selectedReadVerse}
             onAddToBucket={handleAddToBucket}
             onQuickBookmark={handleQuickBookmark}
+            onLogReadToday={handleLogReadToday}
           />
 
           <BucketPickerModal

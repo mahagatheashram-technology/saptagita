@@ -12,12 +12,13 @@ interface ReadVerseDetailSheetProps {
   verse: Verse | null;
   onAddToBucket: () => void;
   onQuickBookmark: () => void;
+  onLogReadToday: () => void;
 }
 
 export const ReadVerseDetailSheet = forwardRef<
   BottomSheet,
   ReadVerseDetailSheetProps
->(({ verse, onAddToBucket, onQuickBookmark }, ref) => {
+>(({ verse, onAddToBucket, onQuickBookmark, onLogReadToday }, ref) => {
   const snapPoints = useMemo(() => ["65%"], []);
 
   const renderBackdrop = useCallback(
@@ -74,6 +75,11 @@ export const ReadVerseDetailSheet = forwardRef<
             icon="folder-open-outline"
             label="Add to bucket"
             onPress={onAddToBucket}
+          />
+          <SheetButton
+            icon="checkmark-circle-outline"
+            label="Log read today"
+            onPress={onLogReadToday}
           />
           <SheetButton
             icon="bookmark-outline"

@@ -172,7 +172,7 @@ export async function scheduleDailyReminder(
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: "Your verses await",
-      body: "Complete your 7 daily verses to keep your streak alive!",
+      body: "Read today to keep your streak alive!",
       sound: true,
       badge: 1,
     },

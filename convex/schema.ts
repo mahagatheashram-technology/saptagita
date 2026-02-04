@@ -25,6 +25,7 @@ export default defineSchema({
     lastDailyDate: v.string(), // YYYY-MM-DD format
     currentDailySetId: v.union(v.id("dailySets"), v.null()),
     reminderTime: v.optional(v.string()), // "HH:mm" 24h
+    sequenceInitialized: v.optional(v.boolean()),
   })
     .index("byUser", ["userId"]),
   dailySets: defineTable({
@@ -41,6 +42,7 @@ export default defineSchema({
     dailySetId: v.id("dailySets"),
     verseId: v.id("verses"),
     readAt: v.number(),
+    kind: v.optional(v.union(v.literal("sequence"), v.literal("reread"))),
   })
     .index("by_user", ["userId"])
     .index("by_dailySet", ["dailySetId"]),
@@ -49,6 +51,7 @@ export default defineSchema({
     currentStreak: v.number(),
     longestStreak: v.number(),
     lastCompletedLocalDate: v.string(), // YYYY-MM-DD format
+    lastReadLocalDate: v.optional(v.string()),
     updatedAt: v.number(),
   })
     .index("byUser", ["userId"]),

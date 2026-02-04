@@ -1,7 +1,8 @@
-import { Alert, Pressable, View, Text } from "react-native";
+import { Alert, Pressable, ScrollView, View, Text } from "react-native";
 
 interface ReadingCalendarProps {
-  completedDates: string[];
+  readDates: string[];
+  perfectDates: string[];
   timezone?: string | null;
 }
 
@@ -19,10 +20,15 @@ const CELL_SIZE = 22;
 const CELL_GAP = 4;
 const LABEL_WIDTH = CELL_SIZE + CELL_GAP;
 
-export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarProps) {
+export function ReadingCalendar({
+  readDates,
+  perfectDates,
+  timezone,
+}: ReadingCalendarProps) {
   const resolvedTimezone =
     timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const completedSet = new Set(completedDates);
+  const readSet = new Set(readDates);
+  const perfectSet = new Set(perfectDates);
   const today = new Date();
   const todayString = formatDate(today, resolvedTimezone);
   const startDate = new Date(today);
@@ -34,8 +40,9 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
       date.setDate(startDate.getDate() + weekIndex * 7 + dayIndex);
       const localDate = formatDate(date, resolvedTimezone);
       const isFuture = localDate > todayString;
-      const isCompleted = completedSet.has(localDate);
-      return { localDate, isFuture, isCompleted, date };
+      const isPerfect = perfectSet.has(localDate);
+      const isRead = isPerfect || readSet.has(localDate);
+      return { localDate, isFuture, isRead, isPerfect, date };
     });
   });
 
@@ -59,97 +66,109 @@ export function ReadingCalendar({ completedDates, timezone }: ReadingCalendarPro
         <Text className="text-xs text-textSecondary">Last 12 weeks</Text>
       </View>
 
-      <View className="flex-row mb-2 ml-8">
-        {monthLabels.map((label, index) => (
-          <Text
-            key={`month-${index}`}
-            className="text-[10px] text-textSecondary"
-            style={{ width: LABEL_WIDTH, textAlign: "center" }}
-          >
-            {label}
-          </Text>
-        ))}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View>
+          <View className="flex-row mb-2 ml-8">
+            {monthLabels.map((label, index) => (
+              <Text
+                key={`month-${index}`}
+                className="text-[10px] text-textSecondary"
+                style={{ width: LABEL_WIDTH, textAlign: "center" }}
+              >
+                {label}
+              </Text>
+            ))}
+          </View>
 
-      <View className="flex-row">
-        <View className="mr-3">
-          {DAY_LABELS.map((label) => (
-            <Text
-              key={label}
-              className="text-[11px] text-textSecondary mb-[6px]"
-              style={{ width: 32 }}
-            >
-              {label}
-            </Text>
-          ))}
-        </View>
-
-        <View className="flex-row">
-          {weeks.map((week, weekIndex) => (
-            <View key={`week-${weekIndex}`} style={{ marginRight: CELL_GAP }}>
-              {week.map((day, dayIndex) => {
-                const dayNumber = day.date.getDate();
-                const isToday = day.localDate === todayString;
-
-                const backgroundColor = day.isFuture
-                  ? "#F8FAFC"
-                  : day.isCompleted
-                  ? "#1F9D55"
-                  : "#CBD5E1";
-
-                const borderColor = isToday ? "#F97316" : "transparent";
-                const textColor = day.isCompleted ? "#FFFFFF" : "#1F2937";
-
-                return (
-                  <Pressable
-                    key={`day-${weekIndex}-${dayIndex}`}
-                    onPress={() =>
-                      Alert.alert(
-                        day.localDate,
-                        day.isFuture
-                          ? "Upcoming"
-                          : day.isCompleted
-                          ? "Completed"
-                          : "Missed"
-                      )
-                    }
-                    accessibilityLabel={`${day.localDate} ${
-                      day.isCompleted
-                        ? "completed"
-                        : day.isFuture
-                        ? "upcoming"
-                        : "missed"
-                    }`}
-                    style={{ marginBottom: CELL_GAP }}
-                  >
-                    <View
-                      className="items-center justify-center"
-                      style={{
-                        height: CELL_SIZE,
-                        width: CELL_SIZE,
-                        borderRadius: 8,
-                        borderWidth: isToday ? 2 : 1,
-                        borderColor,
-                        backgroundColor,
-                      }}
-                    >
-                      <Text
-                        className="text-[10px] font-semibold"
-                        style={{ color: textColor }}
-                      >
-                        {dayNumber}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
+          <View className="flex-row">
+            <View className="mr-3">
+              {DAY_LABELS.map((label) => (
+                <Text
+                  key={label}
+                  className="text-[11px] text-textSecondary mb-[6px]"
+                  style={{ width: 32 }}
+                >
+                  {label}
+                </Text>
+              ))}
             </View>
-          ))}
+
+            <View className="flex-row">
+              {weeks.map((week, weekIndex) => (
+                <View key={`week-${weekIndex}`} style={{ marginRight: CELL_GAP }}>
+                  {week.map((day, dayIndex) => {
+                    const dayNumber = day.date.getDate();
+                    const isToday = day.localDate === todayString;
+
+                    const backgroundColor = day.isFuture
+                      ? "#F8FAFC"
+                      : day.isPerfect
+                      ? "#F59E0B"
+                      : day.isRead
+                      ? "#1F9D55"
+                      : "#CBD5E1";
+
+                    const borderColor = isToday ? "#F97316" : "transparent";
+                    const textColor =
+                      day.isPerfect || day.isRead ? "#FFFFFF" : "#1F2937";
+
+                    return (
+                      <Pressable
+                        key={`day-${weekIndex}-${dayIndex}`}
+                        onPress={() =>
+                          Alert.alert(
+                            day.localDate,
+                            day.isFuture
+                              ? "Upcoming"
+                              : day.isPerfect
+                              ? "Perfect"
+                              : day.isRead
+                              ? "Read"
+                              : "Missed"
+                          )
+                        }
+                        accessibilityLabel={`${day.localDate} ${
+                          day.isPerfect
+                            ? "perfect"
+                            : day.isRead
+                            ? "read"
+                            : day.isFuture
+                            ? "upcoming"
+                            : "missed"
+                        }`}
+                        style={{ marginBottom: CELL_GAP }}
+                      >
+                        <View
+                          className="items-center justify-center"
+                          style={{
+                            height: CELL_SIZE,
+                            width: CELL_SIZE,
+                            borderRadius: 8,
+                            borderWidth: isToday ? 2 : 1,
+                            borderColor,
+                            backgroundColor,
+                          }}
+                        >
+                          <Text
+                            className="text-[10px] font-semibold"
+                            style={{ color: textColor }}
+                          >
+                            {dayNumber}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
-      </View>
+      </ScrollView>
 
       <View className="flex-row items-center mt-3" style={{ columnGap: 12 }}>
-        <LegendSwatch color="#1F9D55" label="Completed" />
+        <LegendSwatch color="#F59E0B" label="Perfect" />
+        <LegendSwatch color="#1F9D55" label="Read" />
         <LegendSwatch color="#CBD5E1" label="Missed" />
         <LegendSwatch color="#F97316" label="Today" outlined />
       </View>

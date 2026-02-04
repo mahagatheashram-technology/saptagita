@@ -64,10 +64,104 @@ export const getStreakStats = query({
       .filter((q) => q.neq(q.field("completedAt"), null))
       .collect();
 
+    const readEvents = await ctx.db
+      .query("readEvents")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const readDailySetIds = Array.from(
+      new Set(readEvents.map((event: any) => String(event.dailySetId)))
+    );
+
+    const readDailySets = await Promise.all(
+      readDailySetIds.map((id) => ctx.db.get(id as any))
+    );
+
+    const readDays = new Set(
+      readDailySets
+        .filter(Boolean)
+        .map((set: any) => set.localDate)
+    ).size;
+
     return {
       currentStreak: streak?.currentStreak ?? 0,
       longestStreak: streak?.longestStreak ?? 0,
-      totalCompletedDays: completedSets.length,
+      perfectDays: completedSets.length,
+      readDays,
+    };
+  },
+});
+
+export const updateStreakOnReadInternal = internalMutation({
+  args: { userId: v.id("users"), localDate: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    const timezone = user.timezone || "UTC";
+    const readLocalDate = args.localDate ?? getTodayDateString(timezone);
+    const previousLocalDate = getPreviousLocalDate(readLocalDate);
+
+    const streakRecord = await ctx.db
+      .query("streaks")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!streakRecord) {
+      await ctx.db.insert("streaks", {
+        userId: args.userId,
+        currentStreak: 1,
+        longestStreak: 1,
+        lastCompletedLocalDate: "",
+        lastReadLocalDate: readLocalDate,
+        updatedAt: Date.now(),
+      });
+      return { currentStreak: 1, longestStreak: 1, isNewRecord: true };
+    }
+
+    const lastRead =
+      streakRecord.lastReadLocalDate ??
+      streakRecord.lastCompletedLocalDate ??
+      "";
+
+    if (!streakRecord.lastReadLocalDate && streakRecord.lastCompletedLocalDate) {
+      await ctx.db.patch(streakRecord._id, {
+        lastReadLocalDate: streakRecord.lastCompletedLocalDate,
+        updatedAt: Date.now(),
+      });
+    }
+
+    if (lastRead === readLocalDate) {
+      return {
+        currentStreak: streakRecord.currentStreak,
+        longestStreak: streakRecord.longestStreak,
+        isNewRecord: false,
+      };
+    }
+
+    let newCurrentStreak = 1;
+    if (lastRead === previousLocalDate) {
+      newCurrentStreak = streakRecord.currentStreak + 1;
+    }
+
+    let newLongestStreak = streakRecord.longestStreak;
+    let isNewRecord = false;
+    if (newCurrentStreak > streakRecord.longestStreak) {
+      newLongestStreak = newCurrentStreak;
+      isNewRecord = true;
+    }
+
+    await ctx.db.patch(streakRecord._id, {
+      currentStreak: newCurrentStreak,
+      longestStreak: newLongestStreak,
+      lastReadLocalDate: readLocalDate,
+      updatedAt: Date.now(),
+    });
+
+    return {
+      currentStreak: newCurrentStreak,
+      longestStreak: newLongestStreak,
+      isNewRecord,
     };
   },
 });
@@ -250,10 +344,15 @@ export const checkAndUpdateStreak = mutation({
       return { currentStreak: 0, longestStreak: 0, needsReset: false };
     }
 
-    // If last completion was today or yesterday, streak is still valid
+    const lastRead =
+      streakRecord.lastReadLocalDate ??
+      streakRecord.lastCompletedLocalDate ??
+      "";
+
+    // If last read was today or yesterday, streak is still valid
     if (
-      streakRecord.lastCompletedLocalDate === todayDate ||
-      streakRecord.lastCompletedLocalDate === yesterdayDate
+      lastRead === todayDate ||
+      lastRead === yesterdayDate
     ) {
       return {
         currentStreak: streakRecord.currentStreak,
@@ -293,7 +392,8 @@ export const getGlobalLeaderboard = query({
           displayName: user?.displayName ?? "Anonymous",
           avatarUrl: user?.avatarUrl ?? "",
           currentStreak: streak.currentStreak,
-          lastCompletedLocalDate: streak.lastCompletedLocalDate,
+          lastReadLocalDate:
+            streak.lastReadLocalDate ?? streak.lastCompletedLocalDate ?? "",
         };
       })
     );
@@ -302,8 +402,8 @@ export const getGlobalLeaderboard = query({
       if (b.currentStreak !== a.currentStreak) {
         return b.currentStreak - a.currentStreak;
       }
-      const aDate = a.lastCompletedLocalDate ?? "";
-      const bDate = b.lastCompletedLocalDate ?? "";
+      const aDate = a.lastReadLocalDate ?? "";
+      const bDate = b.lastReadLocalDate ?? "";
       return bDate.localeCompare(aDate);
     });
 
@@ -354,7 +454,8 @@ export const getCommunityLeaderboard = query({
           displayName: user.displayName ?? "Anonymous",
           avatarUrl: user.avatarUrl ?? "",
           currentStreak: streak?.currentStreak ?? 0,
-          lastCompletedLocalDate: streak?.lastCompletedLocalDate ?? null,
+          lastReadLocalDate:
+            streak?.lastReadLocalDate ?? streak?.lastCompletedLocalDate ?? null,
         };
       })
     );
@@ -367,8 +468,8 @@ export const getCommunityLeaderboard = query({
       if (b.currentStreak !== a.currentStreak) {
         return b.currentStreak - a.currentStreak;
       }
-      const aDate = a.lastCompletedLocalDate ?? "";
-      const bDate = b.lastCompletedLocalDate ?? "";
+      const aDate = a.lastReadLocalDate ?? "";
+      const bDate = b.lastReadLocalDate ?? "";
       return bDate.localeCompare(aDate);
     });
 
@@ -388,4 +489,3 @@ export const getCommunityLeaderboard = query({
     };
   },
 });
-

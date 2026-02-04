@@ -28,6 +28,43 @@ async function getOrderedVerseIds(ctx: any): Promise<Id<"verses">[]> {
   return sorted.map((v: any) => v._id);
 }
 
+async function ensureSequenceInitialized(
+  ctx: any,
+  userId: Id<"users">,
+  userState: any,
+  orderedVerseIds: Id<"verses">[]
+): Promise<any> {
+  if (userState.sequenceInitialized) {
+    return userState;
+  }
+
+  const readEvents = await ctx.db
+    .query("readEvents")
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
+
+  const readSet = new Set(
+    readEvents
+      .filter((event: any) => event.kind !== "reread")
+      .map((event: any) => String(event.verseId))
+  );
+
+  let pointer = 0;
+  if (readSet.size > 0) {
+    const firstUnreadIndex = orderedVerseIds.findIndex(
+      (id) => !readSet.has(String(id))
+    );
+    pointer = firstUnreadIndex === -1 ? 0 : firstUnreadIndex;
+  }
+
+  await ctx.db.patch(userState._id, {
+    sequentialPointer: pointer,
+    sequenceInitialized: true,
+  });
+
+  return { ...userState, sequentialPointer: pointer, sequenceInitialized: true };
+}
+
 // Get or create today's daily set for a user
 export const getTodaySet = mutation({
   args: { userId: v.id("users") },
@@ -36,13 +73,23 @@ export const getTodaySet = mutation({
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
 
-    const userState = await ctx.db
+    let userState = await ctx.db
       .query("userState")
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
       .first();
     if (!userState) throw new Error("User state not found");
 
     const todayDate = getTodayDateString(user.timezone);
+    const orderedVerseIds = await getOrderedVerseIds(ctx);
+    const totalVerses = orderedVerseIds.length || TOTAL_VERSES;
+
+    userState = await ensureSequenceInitialized(
+      ctx,
+      args.userId,
+      userState,
+      orderedVerseIds
+    );
+    if (!userState) throw new Error("User state not found");
 
     // Check if we already have today's set
     if (userState.currentDailySetId && userState.lastDailyDate === todayDate) {
@@ -58,27 +105,29 @@ export const getTodaySet = mutation({
           .query("readEvents")
           .withIndex("by_dailySet", (q) => q.eq("dailySetId", existingSet._id))
           .collect();
-        
+
+        const sequenceReads = readEvents.filter(
+          (event: any) => event.kind !== "reread"
+        );
+
         return {
           dailySet: existingSet,
           verses: verses.filter(Boolean),
-          readVerseIds: readEvents.map((e) => e.verseId),
+          readVerseIds: sequenceReads.map((e) => e.verseId),
           isComplete: existingSet.completedAt != null,
         };
       }
     }
 
     // Need to create a new daily set
-    const allVerseIds = await getOrderedVerseIds(ctx);
-    
     // Get next 7 verses based on sequential pointer
-    let pointer = userState.sequentialPointer;
+    const pointer = userState.sequentialPointer ?? 0;
     const selectedVerseIds: Id<"verses">[] = [];
     
     for (let i = 0; i < DAILY_VERSE_COUNT; i++) {
       // Wrap around if we've gone through all verses
-      const index = (pointer + i) % TOTAL_VERSES;
-      selectedVerseIds.push(allVerseIds[index]);
+      const index = (pointer + i) % totalVerses;
+      selectedVerseIds.push(orderedVerseIds[index]);
     }
 
     // Create the daily set
@@ -90,9 +139,8 @@ export const getTodaySet = mutation({
       completedAt: null,
     });
 
-    // Update user state with new pointer (advance by 7)
+    // Update user state with new set (do not advance pointer)
     await ctx.db.patch(userState._id, {
-      sequentialPointer: (pointer + DAILY_VERSE_COUNT) % TOTAL_VERSES,
       lastDailyDate: todayDate,
       currentDailySetId: dailySetId,
     });
@@ -134,33 +182,61 @@ export const markVerseRead = mutation({
     isComplete: boolean;
     streakUpdate: StreakUpdate | null;
   }> => {
-    // Check if already read
-    const existingRead = await ctx.db
-      .query("readEvents")
-      .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
-      .filter((q) => q.eq(q.field("verseId"), args.verseId))
-      .first();
-
     // Check if all verses in the set are now read
     const dailySet = await ctx.db.get(args.dailySetId);
     if (!dailySet) throw new Error("Daily set not found");
+    if (dailySet.userId !== args.userId) {
+      throw new Error("Not your daily set");
+    }
+
+    let userState = await ctx.db
+      .query("userState")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+    if (!userState) throw new Error("User state not found");
+
+    const readEvents = await ctx.db
+      .query("readEvents")
+      .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
+      .collect();
+
+    const sequenceReads = readEvents.filter(
+      (event: any) => event.kind !== "reread"
+    );
+
+    // Check if already read (sequence)
+    const existingRead = sequenceReads.find(
+      (event: any) => String(event.verseId) === String(args.verseId)
+    );
 
     if (existingRead) {
-      const readEvents = await ctx.db
-        .query("readEvents")
-        .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
-        .collect();
-
-      const isComplete = readEvents.length >= dailySet.verseIds.length;
+      const isComplete = sequenceReads.length >= dailySet.verseIds.length;
 
       return {
         alreadyRead: true,
-        versesRead: readEvents.length,
+        versesRead: sequenceReads.length,
         totalVerses: dailySet.verseIds.length,
         isComplete,
         streakUpdate: null,
       };
     }
+
+    const expectedVerseId = dailySet.verseIds[sequenceReads.length];
+    if (!expectedVerseId) {
+      return {
+        alreadyRead: true,
+        versesRead: sequenceReads.length,
+        totalVerses: dailySet.verseIds.length,
+        isComplete: true,
+        streakUpdate: null,
+      };
+    }
+
+    if (String(expectedVerseId) !== String(args.verseId)) {
+      throw new Error("Verse is not next in sequence");
+    }
+
+    const firstReadOfDay = readEvents.length === 0;
 
     // Create read event
     await ctx.db.insert("readEvents", {
@@ -168,15 +244,23 @@ export const markVerseRead = mutation({
       dailySetId: args.dailySetId,
       verseId: args.verseId,
       readAt: Date.now(),
+      kind: "sequence",
     });
 
-    const allReadEvents = await ctx.db
-      .query("readEvents")
-      .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
-      .collect();
-
-    const isComplete = allReadEvents.length >= dailySet.verseIds.length;
+    const newReadCount = sequenceReads.length + 1;
+    const isComplete = newReadCount >= dailySet.verseIds.length;
     let streakUpdate: StreakUpdate | null = null;
+
+    if (firstReadOfDay) {
+      streakUpdate = await ctx.runMutation(
+        internal.streaks.updateStreakOnReadInternal,
+        { userId: args.userId, localDate: dailySet.localDate }
+      );
+    }
+
+    await ctx.db.patch(userState._id, {
+      sequentialPointer: ((userState.sequentialPointer ?? 0) + 1) % TOTAL_VERSES,
+    });
 
     if (isComplete && !dailySet.completedAt) {
       // Mark set as complete
@@ -184,20 +268,113 @@ export const markVerseRead = mutation({
         completedAt: Date.now(),
       });
 
-      // Update streak and capture result for UI
-      streakUpdate = await ctx.runMutation(
-        internal.streaks.updateStreakOnCompletionInternal,
-        { userId: args.userId, localDate: dailySet.localDate }
-      );
+      const streakRecord = await ctx.db
+        .query("streaks")
+        .withIndex("byUser", (q) => q.eq("userId", args.userId))
+        .first();
+
+      if (streakRecord) {
+        await ctx.db.patch(streakRecord._id, {
+          lastCompletedLocalDate: dailySet.localDate,
+          updatedAt: Date.now(),
+        });
+      }
     }
 
     return {
       alreadyRead: false,
-      versesRead: allReadEvents.length,
+      versesRead: newReadCount,
       totalVerses: dailySet.verseIds.length,
       isComplete,
       streakUpdate,
     };
+  },
+});
+
+export const logReread = mutation({
+  args: {
+    userId: v.id("users"),
+    verseId: v.id("verses"),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ streakUpdate: StreakUpdate | null }> => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    let userState = await ctx.db
+      .query("userState")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+    if (!userState) throw new Error("User state not found");
+
+    const todayDate = getTodayDateString(user.timezone);
+
+    let dailySet = null;
+    if (userState.currentDailySetId && userState.lastDailyDate === todayDate) {
+      dailySet = await ctx.db.get(userState.currentDailySetId);
+    }
+
+    if (!dailySet) {
+      const orderedVerseIds = await getOrderedVerseIds(ctx);
+      userState = await ensureSequenceInitialized(
+        ctx,
+        args.userId,
+        userState,
+        orderedVerseIds
+      );
+      if (!userState) throw new Error("User state not found");
+      const totalVerses = orderedVerseIds.length || TOTAL_VERSES;
+      const pointer = userState.sequentialPointer ?? 0;
+
+      const selectedVerseIds: Id<"verses">[] = [];
+      for (let i = 0; i < DAILY_VERSE_COUNT; i++) {
+        const index = (pointer + i) % totalVerses;
+        selectedVerseIds.push(orderedVerseIds[index]);
+      }
+
+      const dailySetId = await ctx.db.insert("dailySets", {
+        userId: args.userId,
+        localDate: todayDate,
+        verseIds: selectedVerseIds,
+        createdAt: Date.now(),
+        completedAt: null,
+      });
+
+      await ctx.db.patch(userState._id, {
+        lastDailyDate: todayDate,
+        currentDailySetId: dailySetId,
+      });
+
+      dailySet = await ctx.db.get(dailySetId);
+    }
+    if (!dailySet) throw new Error("Daily set not found");
+
+    const existingEvents = await ctx.db
+      .query("readEvents")
+      .withIndex("by_dailySet", (q) => q.eq("dailySetId", dailySet._id))
+      .collect();
+
+    const firstReadOfDay = existingEvents.length === 0;
+
+    await ctx.db.insert("readEvents", {
+      userId: args.userId,
+      dailySetId: dailySet._id,
+      verseId: args.verseId,
+      readAt: Date.now(),
+      kind: "reread",
+    });
+
+    let streakUpdate: StreakUpdate | null = null;
+    if (firstReadOfDay) {
+      streakUpdate = await ctx.runMutation(
+        internal.streaks.updateStreakOnReadInternal,
+        { userId: args.userId, localDate: dailySet.localDate }
+      );
+    }
+
+    return { streakUpdate };
   },
 });
 
@@ -224,8 +401,12 @@ export const getTodayProgress = query({
       .withIndex("by_dailySet", (q) => q.eq("dailySetId", dailySet._id))
       .collect();
 
+    const sequenceReads = readEvents.filter(
+      (event: any) => event.kind !== "reread"
+    );
+
     return {
-      versesRead: readEvents.length,
+      versesRead: sequenceReads.length,
       totalVerses: dailySet.verseIds.length,
       isComplete: dailySet.completedAt != null,
     };
@@ -250,17 +431,42 @@ export const getReadingHistory = query({
       targetDates.add(localDate);
     }
 
-    const completedSets = await ctx.db
-      .query("dailySets")
-      .withIndex("byUser", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.neq(q.field("completedAt"), null))
+    const readEvents = await ctx.db
+      .query("readEvents")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
 
-    const completedDates = completedSets
-      .map((set) => set.localDate)
-      .filter((localDate) => targetDates.has(localDate));
+    if (readEvents.length === 0) {
+      return { readDates: [], perfectDates: [] };
+    }
 
-    return { completedDates };
+    const dailySetIds = Array.from(
+      new Set(readEvents.map((event) => String(event.dailySetId)))
+    );
+
+    const dailySets = await Promise.all(
+      dailySetIds.map((id) => ctx.db.get(id as Id<"dailySets">))
+    );
+
+    const readDates = new Set(
+      dailySets
+        .filter(Boolean)
+        .map((set) => (set as any).localDate)
+        .filter((localDate) => targetDates.has(localDate))
+    );
+
+    const perfectDates = new Set(
+      dailySets
+        .filter(Boolean)
+        .filter((set: any) => set.completedAt != null)
+        .map((set: any) => set.localDate)
+        .filter((localDate) => targetDates.has(localDate))
+    );
+
+    return {
+      readDates: Array.from(readDates),
+      perfectDates: Array.from(perfectDates),
+    };
   },
 });
 

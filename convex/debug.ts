@@ -176,6 +176,7 @@ export const forceCompleteToday = mutation({
           dailySetId: dailySet._id,
           verseId: verseId,
           readAt: Date.now(),
+          kind: "sequence",
         });
         created++;
       }
@@ -189,7 +190,7 @@ export const forceCompleteToday = mutation({
     }
 
     // Update streak anchored to the set's local date to avoid misattribution across midnights
-    await ctx.runMutation(internal.streaks.updateStreakOnCompletionInternal, {
+    await ctx.runMutation(internal.streaks.updateStreakOnReadInternal, {
       userId: args.userId,
       localDate: dailySet.localDate,
     });

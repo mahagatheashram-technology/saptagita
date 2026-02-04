@@ -153,13 +153,14 @@ export default function ProfileScreen() {
         <StreakStatsCard
           currentStreak={streakStats?.currentStreak ?? 0}
           longestStreak={streakStats?.longestStreak ?? 0}
-          totalCompletedDays={streakStats?.totalCompletedDays ?? 0}
+          perfectDays={streakStats?.perfectDays ?? 0}
         />
 
         <View className="h-4" />
 
         <ReadingCalendar
-          completedDates={readingHistory?.completedDates ?? []}
+          readDates={readingHistory?.readDates ?? []}
+          perfectDates={readingHistory?.perfectDates ?? []}
           timezone={user.timezone}
         />
 
@@ -202,4 +203,3 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
-
