@@ -17,7 +17,7 @@ import { BucketCard, BucketPickerModal } from "@/components/bookmarks";
 import { ReadVerseDetailSheet, ReadVerseRow } from "@/components/library";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
-import { useReadHistory, ReadSortMode } from "@/lib/hooks/useReadHistory";
+import { useReadHistory } from "@/lib/hooks/useReadHistory";
 
 export default function BookmarksScreen() {
   const router = useRouter();
@@ -28,7 +28,6 @@ export default function BookmarksScreen() {
   const [activeTab, setActiveTab] = useState<"bookmarks" | "read">(
     "bookmarks"
   );
-  const [sortMode, setSortMode] = useState<ReadSortMode>("recent");
   const [selectedReadVerse, setSelectedReadVerse] = useState<any | null>(null);
   const [showBucketPicker, setShowBucketPicker] = useState(false);
 
@@ -60,10 +59,7 @@ export default function BookmarksScreen() {
     userId ? { userId } : "skip"
   );
 
-  const readHistory = useReadHistory(
-    activeTab === "read" ? userId : null,
-    sortMode
-  );
+  const readHistory = useReadHistory(activeTab === "read" ? userId : null);
 
   const handleCreate = async () => {
     if (!userId) return;
@@ -466,42 +462,7 @@ export default function BookmarksScreen() {
                     />
                   </View>
                 </View>
-                <View className="flex-row items-center mb-3 space-x-2">
-                  <Pressable
-                    onPress={() => setSortMode("recent")}
-                    className={`px-3 py-2 rounded-full ${
-                      sortMode === "recent" ? "bg-primary/10" : "bg-gray-100"
-                    }`}
-                  >
-                    <Text
-                      className={`text-sm font-medium ${
-                        sortMode === "recent"
-                          ? "text-primary"
-                          : "text-textSecondary"
-                      }`}
-                    >
-                      Most recent
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setSortMode("canonical")}
-                    className={`px-3 py-2 rounded-full ${
-                      sortMode === "canonical"
-                        ? "bg-primary/10"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    <Text
-                      className={`text-sm font-medium ${
-                        sortMode === "canonical"
-                          ? "text-primary"
-                          : "text-textSecondary"
-                      }`}
-                    >
-                      Canonical order
-                    </Text>
-                  </Pressable>
-                </View>
+                <View className="h-2" />
               </View>
             }
             ListEmptyComponent={

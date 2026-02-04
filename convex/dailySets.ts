@@ -537,29 +537,15 @@ export const getReadVerses = query({
     }
 
     const progressVerses = orderedVerses.slice(0, maxSequenceIndex + 1);
-    let items = progressVerses.map((verse: any, index: number) => {
+    const orderedProgress = [...progressVerses].reverse();
+    const items = orderedProgress.map((verse: any) => {
       const stats = verseStats.get(String(verse._id));
       return {
         verse,
         lastReadAt: stats?.lastReadAt ?? null,
         readCount: stats?.readCount ?? 0,
-        _index: index,
       };
     });
-
-    const sortMode = args.sort ?? "recent";
-    if (sortMode === "recent") {
-      items.sort((a: any, b: any) => {
-        const aTime = a.lastReadAt ?? 0;
-        const bTime = b.lastReadAt ?? 0;
-        if (bTime !== aTime) {
-          return bTime - aTime;
-        }
-        return a._index - b._index;
-      });
-    }
-
-    items = items.map(({ _index, ...rest }: any) => rest);
 
     return {
       items,
