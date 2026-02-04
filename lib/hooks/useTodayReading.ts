@@ -17,6 +17,10 @@ export function useTodayReading(userId: Id<"users"> | null) {
   
   const getTodaySet = useMutation(api.dailySets.getTodaySet);
   const markVerseRead = useMutation(api.dailySets.markVerseRead);
+  const userState = useQuery(
+    api.users.getUserState,
+    userId ? { userId } : "skip"
+  );
   
   // Fetch streak data
   const streak = useQuery(
@@ -67,6 +71,15 @@ export function useTodayReading(userId: Id<"users"> | null) {
         });
     }
   }, [userId, isInitialized, getTodaySet]);
+
+  useEffect(() => {
+    if (!userId || !userState) return;
+    if (isInitialized && !userState.currentDailySetId) {
+      setIsInitialized(false);
+      setTodayData(null);
+      setStreakInfo((prev) => ({ ...prev, isNewRecord: false }));
+    }
+  }, [userId, userState?.currentDailySetId, isInitialized]);
 
   // Calculate current index based on read verses
   const currentIndex = todayData?.readVerseIds.length ?? 0;

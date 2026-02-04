@@ -121,6 +121,39 @@ export const updateReminderTime = mutation({
   },
 });
 
+export const resetReadingProgress = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && user.authId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    const userState = await ctx.db
+      .query("userState")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!userState) {
+      throw new Error("User state not found");
+    }
+
+    await ctx.db.patch(userState._id, {
+      sequentialPointer: 0,
+      sequenceInitialized: true,
+      lastDailyDate: "",
+      currentDailySetId: null,
+    });
+
+    return { success: true };
+  },
+});
+
 export const updateDisplayName = mutation({
   args: { userId: v.id("users"), displayName: v.string() },
   handler: async (ctx, args) => {
@@ -211,4 +244,3 @@ export const getOrCreateTestUser = mutation({
     });
   },
 });
-

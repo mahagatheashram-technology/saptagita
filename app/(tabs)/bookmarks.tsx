@@ -132,7 +132,8 @@ export default function BookmarksScreen() {
     );
   };
 
-  const formatLastRead = (timestamp: number) => {
+  const formatLastRead = (timestamp?: number | null) => {
+    if (!timestamp) return null;
     const date = new Date(timestamp);
     try {
       return date.toLocaleDateString("en-US", {
@@ -442,13 +443,16 @@ export default function BookmarksScreen() {
           <FlatList
             data={readItems}
             keyExtractor={(item) => item.verse._id}
-            renderItem={({ item }) => (
-              <ReadVerseRow
-                verse={item.verse}
-                meta={`Last read ${formatLastRead(item.lastReadAt)}`}
-                onPress={() => handleReadRowPress(item)}
-              />
-            )}
+            renderItem={({ item }) => {
+              const lastRead = formatLastRead(item.lastReadAt);
+              return (
+                <ReadVerseRow
+                  verse={item.verse}
+                  meta={lastRead ? `Last read ${lastRead}` : "Read"}
+                  onPress={() => handleReadRowPress(item)}
+                />
+              );
+            }}
             ListHeaderComponent={
               <View>
                 <View className="bg-surface rounded-2xl p-4 shadow-sm mb-4">

@@ -481,7 +481,36 @@ export const getReadVerses = query({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
 
+    const verses = await ctx.db.query("verses").collect();
+    const orderedVerses = verses.sort((a: any, b: any) => {
+      if (a.chapterNumber !== b.chapterNumber) {
+        return a.chapterNumber - b.chapterNumber;
+      }
+      return a.verseNumber - b.verseNumber;
+    });
+
     if (readEvents.length === 0) {
+      return { items: [], totalReadVerses: 0, totalVerses: TOTAL_VERSES };
+    }
+
+    const verseIndexMap = new Map<string, number>();
+    orderedVerses.forEach((verse: any, index: number) => {
+      verseIndexMap.set(String(verse._id), index);
+    });
+
+    const sequenceEvents = readEvents.filter(
+      (event: any) => event.kind !== "reread"
+    );
+
+    let maxSequenceIndex = -1;
+    for (const event of sequenceEvents) {
+      const index = verseIndexMap.get(String(event.verseId));
+      if (index !== undefined && index > maxSequenceIndex) {
+        maxSequenceIndex = index;
+      }
+    }
+
+    if (maxSequenceIndex < 0) {
       return { items: [], totalReadVerses: 0, totalVerses: TOTAL_VERSES };
     }
 
@@ -507,46 +536,34 @@ export const getReadVerses = query({
       existing.readCount += 1;
     }
 
-    const verseIds = Array.from(verseStats.values()).map((v) => v.verseId);
-    const verses = await Promise.all(verseIds.map((id) => ctx.db.get(id)));
-    const verseMap = new Map<string, any>();
-    for (const verse of verses) {
-      if (verse) {
-        verseMap.set(String(verse._id), verse);
-      }
-    }
-
-    const items = Array.from(verseStats.values())
-      .map((entry) => {
-        const verse = verseMap.get(String(entry.verseId));
-        if (!verse) return null;
-        return {
-          verse,
-          lastReadAt: entry.lastReadAt,
-          readCount: entry.readCount,
-        };
-      })
-      .filter(Boolean) as Array<{
-      verse: any;
-      lastReadAt: number;
-      readCount: number;
-    }>;
+    const progressVerses = orderedVerses.slice(0, maxSequenceIndex + 1);
+    let items = progressVerses.map((verse: any, index: number) => {
+      const stats = verseStats.get(String(verse._id));
+      return {
+        verse,
+        lastReadAt: stats?.lastReadAt ?? null,
+        readCount: stats?.readCount ?? 0,
+        _index: index,
+      };
+    });
 
     const sortMode = args.sort ?? "recent";
     if (sortMode === "recent") {
-      items.sort((a, b) => b.lastReadAt - a.lastReadAt);
-    } else {
-      items.sort((a, b) => {
-        if (a.verse.chapterNumber !== b.verse.chapterNumber) {
-          return a.verse.chapterNumber - b.verse.chapterNumber;
+      items.sort((a: any, b: any) => {
+        const aTime = a.lastReadAt ?? 0;
+        const bTime = b.lastReadAt ?? 0;
+        if (bTime !== aTime) {
+          return bTime - aTime;
         }
-        return a.verse.verseNumber - b.verse.verseNumber;
+        return a._index - b._index;
       });
     }
 
+    items = items.map(({ _index, ...rest }: any) => rest);
+
     return {
       items,
-      totalReadVerses: items.length,
+      totalReadVerses: progressVerses.length,
       totalVerses: TOTAL_VERSES,
     };
   },

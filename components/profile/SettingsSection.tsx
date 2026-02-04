@@ -70,6 +70,7 @@ export function SettingsSection({
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [isLoadingPreference, setIsLoadingPreference] = useState(true);
   const updateReminderTime = useMutation(api.users.updateReminderTime);
+  const resetReadingProgress = useMutation(api.users.resetReadingProgress);
   const isWeb = Platform.OS === "web";
 
   useEffect(() => {
@@ -178,6 +179,31 @@ export function SettingsSection({
     }
   };
 
+  const handleResetProgress = () => {
+    Alert.alert(
+      "Reset reading progress?",
+      "This will restart your daily reading from verse 1. Your streaks and calendar history will stay.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await resetReadingProgress({ userId });
+              Alert.alert("Progress reset", "Your next reading starts at verse 1.");
+            } catch (error: any) {
+              Alert.alert(
+                "Reset failed",
+                String(error?.message ?? error)
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View className="bg-surface rounded-xl p-4 shadow-sm">
       <Text className="text-base font-semibold text-secondary mb-3">Settings</Text>
@@ -231,6 +257,21 @@ export function SettingsSection({
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color="#718096" />
+      </Pressable>
+
+      <View className="h-px bg-[#EDF2F7]" />
+
+      <Pressable
+        onPress={handleResetProgress}
+        className="flex-row items-center justify-between py-3"
+      >
+        <View>
+          <Text className="text-sm text-textSecondary">Reading Progress</Text>
+          <Text className="text-base font-semibold text-red-500">
+            Reset progress
+          </Text>
+        </View>
+        <Ionicons name="refresh" size={18} color="#F97316" />
       </Pressable>
 
       {showPicker && Platform.OS === "ios" ? (
