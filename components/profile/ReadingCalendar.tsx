@@ -1,12 +1,10 @@
-import { Alert, Pressable, ScrollView, View, Text } from "react-native";
+import { View, Text } from "react-native";
 
 interface ReadingCalendarProps {
   readDates: string[];
   perfectDates: string[];
   timezone?: string | null;
 }
-
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function formatDate(date: Date, timezone: string) {
   return date.toLocaleDateString("en-CA", { timeZone: timezone });
@@ -66,105 +64,77 @@ export function ReadingCalendar({
         <Text className="text-xs text-textSecondary">Last 12 weeks</Text>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View>
-          <View className="flex-row mb-2 ml-8">
-            {monthLabels.map((label, index) => (
-              <Text
-                key={`month-${index}`}
-                className="text-[10px] text-textSecondary"
-                style={{ width: LABEL_WIDTH, textAlign: "center" }}
-              >
-                {label}
-              </Text>
-            ))}
-          </View>
-
-          <View className="flex-row">
-            <View className="mr-3">
-              {DAY_LABELS.map((label) => (
-                <Text
-                  key={label}
-                  className="text-[11px] text-textSecondary mb-[6px]"
-                  style={{ width: 32 }}
-                >
-                  {label}
-                </Text>
-              ))}
-            </View>
-
-            <View className="flex-row">
-              {weeks.map((week, weekIndex) => (
-                <View key={`week-${weekIndex}`} style={{ marginRight: CELL_GAP }}>
-                  {week.map((day, dayIndex) => {
-                    const dayNumber = day.date.getDate();
-                    const isToday = day.localDate === todayString;
-
-                    const backgroundColor = day.isFuture
-                      ? "#F8FAFC"
-                      : day.isPerfect
-                      ? "#F59E0B"
-                      : day.isRead
-                      ? "#1F9D55"
-                      : "#CBD5E1";
-
-                    const borderColor = isToday ? "#F97316" : "transparent";
-                    const textColor =
-                      day.isPerfect || day.isRead ? "#FFFFFF" : "#1F2937";
-
-                    return (
-                      <Pressable
-                        key={`day-${weekIndex}-${dayIndex}`}
-                        onPress={() =>
-                          Alert.alert(
-                            day.localDate,
-                            day.isFuture
-                              ? "Upcoming"
-                              : day.isPerfect
-                              ? "Perfect"
-                              : day.isRead
-                              ? "Read"
-                              : "Missed"
-                          )
-                        }
-                        accessibilityLabel={`${day.localDate} ${
-                          day.isPerfect
-                            ? "perfect"
-                            : day.isRead
-                            ? "read"
-                            : day.isFuture
-                            ? "upcoming"
-                            : "missed"
-                        }`}
-                        style={{ marginBottom: CELL_GAP }}
-                      >
-                        <View
-                          className="items-center justify-center"
-                          style={{
-                            height: CELL_SIZE,
-                            width: CELL_SIZE,
-                            borderRadius: 8,
-                            borderWidth: isToday ? 2 : 1,
-                            borderColor,
-                            backgroundColor,
-                          }}
-                        >
-                          <Text
-                            className="text-[10px] font-semibold"
-                            style={{ color: textColor }}
-                          >
-                            {dayNumber}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          </View>
+      <View>
+        <View className="flex-row mb-2">
+          {monthLabels.map((label, index) => (
+            <Text
+              key={`month-${index}`}
+              className="text-[10px] text-textSecondary"
+              style={{ width: LABEL_WIDTH, textAlign: "center" }}
+            >
+              {label}
+            </Text>
+          ))}
         </View>
-      </ScrollView>
+
+        <View className="flex-row">
+          {weeks.map((week, weekIndex) => (
+            <View key={`week-${weekIndex}`} style={{ marginRight: CELL_GAP }}>
+              {week.map((day, dayIndex) => {
+                const dayNumber = day.date.getDate();
+                const isToday = day.localDate === todayString;
+
+                const backgroundColor = day.isFuture
+                  ? "#F8FAFC"
+                  : day.isPerfect
+                  ? "#F59E0B"
+                  : day.isRead
+                  ? "#1F9D55"
+                  : "#CBD5E1";
+
+                const borderColor = isToday ? "#F97316" : "transparent";
+                const textColor =
+                  day.isPerfect || day.isRead ? "#FFFFFF" : "#1F2937";
+
+                return (
+                  <View
+                    key={`day-${weekIndex}-${dayIndex}`}
+                    accessibilityLabel={`${day.localDate} ${
+                      day.isPerfect
+                        ? "perfect"
+                        : day.isRead
+                        ? "read"
+                        : day.isFuture
+                        ? "upcoming"
+                        : "missed"
+                    }`}
+                    style={{ marginBottom: CELL_GAP }}
+                  >
+                    <View
+                      className="items-center justify-center"
+                      style={{
+                        height: CELL_SIZE,
+                        width: CELL_SIZE,
+                        borderRadius: 8,
+                        borderWidth: isToday ? 2 : 1,
+                        borderColor,
+                        backgroundColor,
+                      }}
+                    >
+                      <Text
+                        className="text-[10px] font-semibold"
+                        style={{ color: textColor }}
+                      >
+                        {dayNumber}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </View>
 
       <View className="flex-row items-center mt-3" style={{ columnGap: 12 }}>
         <LegendSwatch color="#F59E0B" label="Perfect" />
