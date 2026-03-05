@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import type { DailyTriggerInput } from "expo-notifications";
 
 // SecureStore keys must be alphanumeric with ., -, or _
 const REMINDER_ENABLED_KEY = "notifications_reminders_enabled";
@@ -6,6 +7,8 @@ const REMINDER_TIME_KEY = "notifications_reminder_time";
 const ANDROID_CHANNEL_ID = "default";
 
 const isWeb = Platform.OS === "web";
+type NotificationsModule = typeof import("expo-notifications");
+type DeviceModule = typeof import("expo-device");
 
 async function getSecureStore() {
   if (isWeb) return null;
@@ -17,7 +20,7 @@ async function getSecureStore() {
   }
 }
 
-async function getNotifications() {
+async function getNotifications(): Promise<NotificationsModule | null> {
   if (isWeb || typeof window === "undefined") return null;
   try {
     const mod = await import("expo-notifications");
@@ -27,7 +30,7 @@ async function getNotifications() {
   }
 }
 
-async function getDevice() {
+async function getDevice(): Promise<DeviceModule | null> {
   if (isWeb) return null;
   try {
     const mod = await import("expo-device");
@@ -146,7 +149,12 @@ export async function scheduleDailyReminder(
     throw new Error("Notifications are not available on web.");
   }
 
+  const Device = await getDevice();
   const Notifications = await getNotifications();
+  if (!Device || !Notifications) {
+    throw new Error("Notifications are unavailable on this platform.");
+  }
+
   if (!Device.isDevice) {
     throw new Error("Notifications require a physical device to schedule.");
   }
@@ -162,7 +170,7 @@ export async function scheduleDailyReminder(
   const targetTimeString = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   await setStoredReminderTime(targetTimeString);
 
-  const trigger: Notifications.DailyTriggerInput = {
+  const trigger: DailyTriggerInput = {
     type: Notifications.SchedulableTriggerInputTypes.DAILY,
     hour,
     minute,

@@ -23,6 +23,7 @@
       }
     },
     "android": {
+      "package": "com.mahagathe.saptagita",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

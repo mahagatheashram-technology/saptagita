@@ -479,7 +479,7 @@ export default function BookmarksScreen() {
                     Read your daily verses to build your library.
                   </Text>
                   <Pressable
-                    onPress={() => router.push("/(tabs)/index")}
+                    onPress={() => router.push("/")}
                     className="px-4 py-2 rounded-full bg-primary active:opacity-80"
                   >
                     <Text className="text-white font-medium">Go to Today</Text>
