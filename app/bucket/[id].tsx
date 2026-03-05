@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -54,7 +54,10 @@ export default function BucketDetailScreen() {
     userId && bucketId ? { bucketId, userId } : "skip"
   );
 
-  const isLoading = isUserLoading || !userId || !bucket || !bookmarks;
+  const isQueryLoading =
+    !!userId && (bucket === undefined || bookmarks === undefined);
+  const isLoading = isUserLoading || isQueryLoading;
+  const bookmarkItems = bookmarks ?? [];
 
   const handleBack = () => {
     router.back();
@@ -62,8 +65,14 @@ export default function BucketDetailScreen() {
 
   const handleRowPress = (item: any) => {
     setSelectedVerse(item);
-    detailSheetRef.current?.snapToIndex(0);
   };
+
+  useEffect(() => {
+    if (!selectedVerse) return;
+    requestAnimationFrame(() => {
+      detailSheetRef.current?.snapToIndex(0);
+    });
+  }, [selectedVerse]);
 
   const handleRemove = async () => {
     if (!userId || !selectedVerse) return;
@@ -103,7 +112,22 @@ export default function BucketDetailScreen() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>
-      ) : bookmarks.length === 0 ? (
+      ) : !userId || !bucket ? (
+        <View className="flex-1 items-center justify-center px-8">
+          <Text className="text-lg font-semibold text-textPrimary mb-2">
+            Could not load this bucket
+          </Text>
+          <Text className="text-sm text-textSecondary text-center mb-4">
+            Please go back and open it again.
+          </Text>
+          <Pressable
+            onPress={handleBack}
+            className="px-4 py-2 rounded-full bg-primary active:opacity-80"
+          >
+            <Text className="text-white font-medium">Go Back</Text>
+          </Pressable>
+        </View>
+      ) : bookmarkItems.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
           <Text style={{ fontSize: 40, marginBottom: 12 }}>📖</Text>
           <Text className="text-lg font-semibold text-textPrimary mb-2">
@@ -117,10 +141,11 @@ export default function BucketDetailScreen() {
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           <View className="flex-row items-center mb-3">
             <Text className="text-sm text-textSecondary">
-              {bookmarks.length} {bookmarks.length === 1 ? "verse" : "verses"}
+              {bookmarkItems.length}{" "}
+              {bookmarkItems.length === 1 ? "verse" : "verses"}
             </Text>
           </View>
-          {bookmarks.map((b: any) =>
+          {bookmarkItems.map((b: any) =>
             b.verse ? (
               <BookmarkRow
                 key={b._id}
