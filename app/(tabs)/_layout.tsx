@@ -36,6 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen name="social" options={{ title: 'Social' }} />
       <Tabs.Screen name="bookmarks" options={{ title: 'Library' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="bucket/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

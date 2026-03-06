@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   ScrollView,
   Text,
   View,
@@ -17,6 +16,7 @@ import BottomSheet from "@gorhom/bottom-sheet";
 import { BucketPickerModal } from "@/components/bookmarks";
 import { Ionicons } from "@expo/vector-icons";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function BucketDetailScreen() {
   const router = useRouter();
@@ -162,6 +162,7 @@ export default function BucketDetailScreen() {
         verse={selectedVerse?.verse ?? null}
         bucketName={`${headerEmoji} ${bucket?.name ?? ""}`}
         onRemove={handleRemove}
+        onClose={() => setSelectedVerse(null)}
         onManageBuckets={() => {
           detailSheetRef.current?.close();
           setShowMovePicker(true);

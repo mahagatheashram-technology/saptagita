@@ -13,12 +13,13 @@ interface BookmarkDetailSheetProps {
   bucketName: string;
   onRemove: () => void;
   onManageBuckets: () => void;
+  onClose?: () => void;
 }
 
 export const BookmarkDetailSheet = forwardRef<
   BottomSheet,
   BookmarkDetailSheetProps
->(({ verse, bucketName, onRemove, onManageBuckets }, ref) => {
+>(({ verse, bucketName, onRemove, onManageBuckets, onClose }, ref) => {
   const snapPoints = useMemo(() => ["65%"], []);
 
   const renderBackdrop = useCallback(
@@ -39,45 +40,69 @@ export const BookmarkDetailSheet = forwardRef<
     await shareText(message);
   }, [verse]);
 
-  if (!verse) return null;
-
   return (
     <BottomSheet
       ref={ref}
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      onClose={onClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF" }}
       handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
     >
       <BottomSheetView className="flex-1 px-4">
-        <View className="items-center pb-4">
-          <Text className="text-base font-semibold text-textPrimary">
-            {bucketName}
-          </Text>
-          <Text className="text-sm text-textSecondary mt-1">
-            Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
-          </Text>
-        </View>
+        {!verse ? (
+          <View className="flex-1 items-center justify-center py-10">
+            <Text className="text-base font-semibold text-textPrimary mb-2">
+              Select a verse
+            </Text>
+            <Text className="text-sm text-textSecondary text-center">
+              Tap any verse in this bucket to view actions.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View className="items-center pb-4">
+              <Text className="text-base font-semibold text-textPrimary">
+                {bucketName}
+              </Text>
+              <Text className="text-sm text-textSecondary mt-1">
+                Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
+              </Text>
+            </View>
 
-        <View className="bg-surface rounded-2xl p-3 shadow-sm mb-4">
-          <Text className="text-sm text-textSecondary mb-1">
-            {verse.sanskritDevanagari}
-          </Text>
-          <Text className="text-xs text-textSecondary italic mb-2">
-            {verse.transliteration}
-          </Text>
-          <Text className="text-base text-textPrimary">
-            {verse.translationEnglish}
-          </Text>
-        </View>
+            <View className="bg-surface rounded-2xl p-3 shadow-sm mb-4">
+              <Text className="text-sm text-textSecondary mb-1">
+                {verse.sanskritDevanagari}
+              </Text>
+              <Text className="text-xs text-textSecondary italic mb-2">
+                {verse.transliteration}
+              </Text>
+              <Text className="text-base text-textPrimary">
+                {verse.translationEnglish}
+              </Text>
+            </View>
 
-        <View className="space-y-2">
-          <SheetButton icon="folder-open-outline" label="Add / remove buckets" onPress={onManageBuckets} />
-          <SheetButton icon="share-outline" label="Share verse" onPress={handleShare} />
-          <SheetButton icon="trash-outline" label="Remove from bucket" onPress={onRemove} />
-        </View>
+            <View className="space-y-2">
+              <SheetButton
+                icon="folder-open-outline"
+                label="Add / remove buckets"
+                onPress={onManageBuckets}
+              />
+              <SheetButton
+                icon="share-outline"
+                label="Share verse"
+                onPress={handleShare}
+              />
+              <SheetButton
+                icon="trash-outline"
+                label="Remove from bucket"
+                onPress={onRemove}
+              />
+            </View>
+          </>
+        )}
       </BottomSheetView>
     </BottomSheet>
   );
