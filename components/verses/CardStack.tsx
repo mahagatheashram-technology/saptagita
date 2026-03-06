@@ -7,6 +7,8 @@ interface CardStackProps {
   currentIndex: number;
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
+  interactionsEnabled?: boolean;
+  microDemoNonce?: number;
 }
 
 export function CardStack({
@@ -14,6 +16,8 @@ export function CardStack({
   currentIndex,
   onSwipeRight,
   onSwipeLeft,
+  interactionsEnabled = true,
+  microDemoNonce = 0,
 }: CardStackProps) {
   // Safety check: ensure verses is an array
   if (!verses || verses.length === 0) {
@@ -98,6 +102,8 @@ export function CardStack({
             onSwipeLeft={onSwipeLeft}
             isTop={position === 0}
             cardWidth={cardWidth}
+            interactionsEnabled={interactionsEnabled}
+            microDemoNonce={position === 0 ? microDemoNonce : 0}
           />
         ))}
     </View>

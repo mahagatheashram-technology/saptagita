@@ -10,6 +10,7 @@ import { formatVerseShareMessage, shareText } from "@/lib/shareText";
 
 interface ReadVerseDetailSheetProps {
   verse: Verse | null;
+  isSavedToDefault: boolean;
   onAddToBucket: () => void;
   onQuickBookmark: () => void;
   onLogReadToday: () => void;
@@ -18,7 +19,7 @@ interface ReadVerseDetailSheetProps {
 export const ReadVerseDetailSheet = forwardRef<
   BottomSheet,
   ReadVerseDetailSheetProps
->(({ verse, onAddToBucket, onQuickBookmark, onLogReadToday }, ref) => {
+>(({ verse, isSavedToDefault, onAddToBucket, onQuickBookmark, onLogReadToday }, ref) => {
   const snapPoints = useMemo(() => ["65%"], []);
 
   const renderBackdrop = useCallback(
@@ -83,7 +84,7 @@ export const ReadVerseDetailSheet = forwardRef<
           />
           <SheetButton
             icon="bookmark-outline"
-            label="Quick bookmark"
+            label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
             onPress={onQuickBookmark}
           />
           <SheetButton

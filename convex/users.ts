@@ -90,6 +90,37 @@ export const getUserState = query({
   },
 });
 
+export const markTodayGestureCoachSeen = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && user.authId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    const userState = await ctx.db
+      .query("userState")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!userState) {
+      throw new Error("User state not found");
+    }
+
+    const seenAt = Date.now();
+    await ctx.db.patch(userState._id, {
+      todayGestureCoachSeenAt: seenAt,
+    });
+
+    return { todayGestureCoachSeenAt: seenAt };
+  },
+});
+
 export const updateReminderTime = mutation({
   args: { userId: v.id("users"), reminderTime: v.string() },
   handler: async (ctx, args) => {

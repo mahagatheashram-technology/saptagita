@@ -34,14 +34,17 @@ export function GoogleSignInButton({
     <TouchableOpacity
       onPress={handlePress}
       disabled={isLoading}
-      className="flex-row items-center justify-center bg-white border border-gray-300 py-3 px-4 rounded-lg"
+      className={`flex-row items-center justify-center border rounded-xl py-3.5 px-4 ${
+        isLoading ? "bg-[#F4E6D8]" : "bg-white"
+      }`}
+      style={{ borderColor: "#E8D4BF" }}
     >
       {isLoading ? (
-        <ActivityIndicator color="#4285F4" />
+        <ActivityIndicator color="#1A365D" />
       ) : (
         <>
           <Ionicons name="logo-google" size={20} color="#4285F4" />
-          <Text className="text-gray-700 font-semibold ml-2">
+          <Text className="text-[#2F3B4E] font-semibold ml-2 text-[16px]">
             Continue with Google
           </Text>
         </>

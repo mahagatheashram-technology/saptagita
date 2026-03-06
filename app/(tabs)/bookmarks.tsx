@@ -58,6 +58,12 @@ export default function BookmarksScreen() {
     api.bookmarks.getUserBuckets,
     userId ? { userId } : "skip"
   );
+  const selectedReadVerseBuckets = useQuery(
+    api.bookmarks.getVerseBuckets,
+    userId && selectedReadVerse?._id
+      ? { userId, verseId: selectedReadVerse._id }
+      : "skip"
+  );
 
   const readHistory = useReadHistory(activeTab === "read" ? userId : null);
 
@@ -201,6 +207,13 @@ export default function BookmarksScreen() {
     : 0;
   const readItems = readHistory?.items ?? [];
   const isReadLoading = activeTab === "read" && !readHistory;
+  const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
+  const isReadVerseSavedToDefault = Boolean(
+    defaultBucketId &&
+      selectedReadVerseBuckets?.some(
+        (bucketId) => String(bucketId) === String(defaultBucketId)
+      )
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -493,6 +506,7 @@ export default function BookmarksScreen() {
           <ReadVerseDetailSheet
             ref={readDetailSheetRef}
             verse={selectedReadVerse}
+            isSavedToDefault={isReadVerseSavedToDefault}
             onAddToBucket={handleAddToBucket}
             onQuickBookmark={handleQuickBookmark}
             onLogReadToday={handleLogReadToday}

@@ -8,6 +8,7 @@ interface ActionDrawerProps {
   verseId: string;
   chapterNumber: number;
   verseNumber: number;
+  isSavedToDefault: boolean;
   onBookmark: () => void;
   onAddToBucket: () => void;
   onShare: () => void;
@@ -19,6 +20,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
     {
       chapterNumber,
       verseNumber,
+      isSavedToDefault,
       onBookmark,
       onAddToBucket,
       onShare,
@@ -72,23 +74,20 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
               <Text className="text-lg font-semibold text-secondary">
                 {headerTitle}
               </Text>
-              <Text className="text-sm text-textSecondary mt-1">
-                Choose an action
-              </Text>
             </View>
 
             <View className="py-4">
               <ActionButton
                 icon="bookmark-outline"
-                label="Quick Bookmark"
-                subtitle="Save to your default collection"
+                label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
+                subtitle="Default bucket (Saved)"
                 onPress={() => handleAction(onBookmark)}
               />
 
               <ActionButton
                 icon="folder-outline"
                 label="Add to Bucket"
-                subtitle="Choose a specific collection"
+                subtitle="Choose one or more specific buckets"
                 onPress={() => handleAction(onAddToBucket, { closeAfter: false })}
               />
 

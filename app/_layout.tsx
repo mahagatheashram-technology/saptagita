@@ -176,8 +176,7 @@ function NotificationEffects() {
 function AuthStack() {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
-  const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
-  const isWelcomeRoute = pathname === "/welcome";
+  const isAuthRoute = pathname === "/sign-in";
 
   if (!isLoaded) {
     return (
@@ -188,11 +187,11 @@ function AuthStack() {
     );
   }
 
-  if (!isSignedIn && !isAuthRoute && !isWelcomeRoute) {
-    return <Redirect href="/welcome" />;
+  if (!isSignedIn && !isAuthRoute) {
+    return <Redirect href="/sign-in" />;
   }
 
-  if (isSignedIn && (isAuthRoute || isWelcomeRoute)) {
+  if (isSignedIn && isAuthRoute) {
     return <Redirect href="/" />;
   }
 
@@ -201,8 +200,6 @@ function AuthStack() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-up" options={{ headerShown: false }} />
-      <Stack.Screen name="welcome" options={{ headerShown: false }} />
     </Stack>
   );
 }

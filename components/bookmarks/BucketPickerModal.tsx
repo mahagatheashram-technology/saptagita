@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -37,6 +37,9 @@ export function BucketPickerModal({
 }: BucketPickerModalProps) {
   const [newBucketName, setNewBucketName] = useState("");
   const [newBucketIcon, setNewBucketIcon] = useState("📁");
+  const [bucketFeedback, setBucketFeedback] = useState<string | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const insets = useSafeAreaInsets();
 
   const buckets = useQuery(
@@ -58,18 +61,53 @@ export function BucketPickerModal({
     if (!visible) {
       setNewBucketName("");
       setNewBucketIcon("📁");
+      setBucketFeedback(null);
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = null;
+      }
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
     }
   }, [visible]);
+
+  useEffect(
+    () => () => {
+      if (feedbackTimerRef.current) {
+        clearTimeout(feedbackTimerRef.current);
+      }
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    },
+    []
+  );
 
   const selectedSet = useMemo(() => {
     if (!verseBuckets) return new Set<string>();
     return new Set(verseBuckets.map((id) => String(id)));
   }, [verseBuckets]);
+  const canCreateBucket = newBucketName.trim().length > 0;
+
+  const setTransientFeedback = (message: string) => {
+    setBucketFeedback(message);
+    if (feedbackTimerRef.current) {
+      clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = setTimeout(() => {
+      setBucketFeedback(null);
+    }, 1800);
+  };
 
   const handleToggle = async (bucketId: Id<"bookmarkBuckets">) => {
     if (!userId || !verseId) return;
     const key = String(bucketId);
     const isSelected = selectedSet.has(key);
+    const bucketName =
+      buckets?.find((bucket) => String(bucket._id) === String(bucketId))?.name ??
+      "this bucket";
 
     try {
       if (mode === "move" && sourceBucketId) {
@@ -79,12 +117,20 @@ export function BucketPickerModal({
           sourceBucketId,
           targetBucketId: bucketId,
         });
-        onMoved?.();
-        onClose();
+        setTransientFeedback(`Moved to ${bucketName}`);
+        if (closeTimerRef.current) {
+          clearTimeout(closeTimerRef.current);
+        }
+        closeTimerRef.current = setTimeout(() => {
+          onMoved?.();
+          onClose();
+        }, 450);
       } else if (isSelected) {
         await removeBookmark({ userId, bucketId, verseId });
+        setTransientFeedback(`Removed from ${bucketName}`);
       } else {
         await addToBucket({ userId, bucketId, verseId });
+        setTransientFeedback(`Saved to ${bucketName}`);
       }
     } catch (error: any) {
       Alert.alert("Bucket update failed", String(error?.message ?? error));
@@ -92,11 +138,12 @@ export function BucketPickerModal({
   };
 
   const handleCreate = async () => {
-    if (!userId || !newBucketName.trim()) return;
+    if (!userId || !canCreateBucket) return;
+    const name = newBucketName.trim();
     try {
       const bucket = await createBucket({
         userId,
-        name: newBucketName.trim(),
+        name,
         icon: newBucketIcon,
       });
       setNewBucketName("");
@@ -109,10 +156,17 @@ export function BucketPickerModal({
             sourceBucketId,
             targetBucketId: bucket._id,
           });
-          onMoved?.();
-          onClose();
+          setTransientFeedback(`Moved to ${name}`);
+          if (closeTimerRef.current) {
+            clearTimeout(closeTimerRef.current);
+          }
+          closeTimerRef.current = setTimeout(() => {
+            onMoved?.();
+            onClose();
+          }, 450);
         } else {
           await addToBucket({ userId, bucketId: bucket._id, verseId });
+          setTransientFeedback(`Saved to ${name}`);
         }
       }
     } catch (error: any) {
@@ -121,14 +175,22 @@ export function BucketPickerModal({
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    const isSelected = selectedSet.has(item._id);
+    const isSelected = selectedSet.has(String(item._id));
     return (
       <Pressable
-        className="flex-row items-center justify-between py-3"
+        className={`flex-row items-center justify-between px-3 py-3 rounded-xl border ${
+          isSelected
+            ? "bg-[#ECF8F1] border-[#B7E3CA]"
+            : "bg-white border-[#E2E8F0]"
+        }`}
         onPress={() => handleToggle(item._id)}
       >
         <View className="flex-row items-center">
-          <View className="w-9 h-9 rounded-full bg-primary/10 items-center justify-center mr-3">
+          <View
+            className={`w-9 h-9 rounded-full items-center justify-center mr-3 ${
+              isSelected ? "bg-[#2F855A]/15" : "bg-primary/10"
+            }`}
+          >
             {item.icon ? (
               <Text className="text-xl">{item.icon}</Text>
             ) : (
@@ -148,11 +210,24 @@ export function BucketPickerModal({
             )}
           </View>
         </View>
-        {isSelected ? (
-          <Ionicons name="checkmark-circle" size={20} color="#38A169" />
-        ) : (
-          <Ionicons name="ellipse-outline" size={20} color="#CBD5E0" />
-        )}
+        <View
+          className={`flex-row items-center px-2.5 py-1 rounded-full ${
+            isSelected ? "bg-[#2F855A]/15" : "bg-gray-100"
+          }`}
+        >
+          <Ionicons
+            name={isSelected ? "checkmark-circle" : "add-circle-outline"}
+            size={14}
+            color={isSelected ? "#2F855A" : "#718096"}
+          />
+          <Text
+            className={`text-xs font-medium ml-1 ${
+              isSelected ? "text-[#2F855A]" : "text-textSecondary"
+            }`}
+          >
+            {isSelected ? "Saved" : "Add"}
+          </Text>
+        </View>
       </Pressable>
     );
   };
@@ -191,14 +266,19 @@ export function BucketPickerModal({
                 ? "Choose a bucket to move this verse."
                 : "Tap to add or remove this verse from your collections."}
             </Text>
+            {bucketFeedback && (
+              <View className="mb-3 rounded-lg bg-[#ECF8F1] border border-[#B7E3CA] px-3 py-2">
+                <Text className="text-sm font-medium text-[#2F855A]">
+                  {bucketFeedback}
+                </Text>
+              </View>
+            )}
 
             <FlatList
               data={buckets ?? []}
               keyExtractor={(item) => item._id}
               renderItem={renderItem}
-              ItemSeparatorComponent={() => (
-                <View className="h-px bg-gray-100" />
-              )}
+              ItemSeparatorComponent={() => <View className="h-2" />}
               ListEmptyComponent={() => (
                 <Text className="text-textSecondary py-6 text-center">
                   No buckets yet.
@@ -220,17 +300,38 @@ export function BucketPickerModal({
                 <TextInput
                   value={newBucketName}
                   onChangeText={setNewBucketName}
-                  placeholder="Bucket name"
+                  placeholder="Type bucket name"
+                  placeholderTextColor="#94A3B8"
                   className="flex-1 text-base text-textPrimary"
                   returnKeyType="done"
-                  onSubmitEditing={handleCreate}
-                  style={{ paddingVertical: 10 }}
+                  onSubmitEditing={() => {
+                    if (canCreateBucket) {
+                      handleCreate();
+                    }
+                  }}
+                  style={{
+                    height: 44,
+                    lineHeight: 20,
+                    paddingTop: Platform.OS === "ios" ? 10 : 8,
+                    paddingBottom: Platform.OS === "ios" ? 10 : 8,
+                    includeFontPadding: false,
+                    textAlignVertical: "center",
+                  }}
                 />
                 <Pressable
                   onPress={handleCreate}
-                  className="px-3 py-2 rounded-lg bg-primary"
+                  disabled={!canCreateBucket}
+                  className={`px-3 py-2 rounded-lg ${
+                    canCreateBucket ? "bg-primary" : "bg-gray-300"
+                  }`}
                 >
-                  <Text className="text-white font-medium text-sm">Add</Text>
+                  <Text
+                    className={`font-medium text-sm ${
+                      canCreateBucket ? "text-white" : "text-gray-500"
+                    }`}
+                  >
+                    Add
+                  </Text>
                 </Pressable>
               </View>
               <View className="flex-row mt-2 space-x-2">

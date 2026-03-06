@@ -26,6 +26,7 @@ export default defineSchema({
     currentDailySetId: v.union(v.id("dailySets"), v.null()),
     reminderTime: v.optional(v.string()), // "HH:mm" 24h
     sequenceInitialized: v.optional(v.boolean()),
+    todayGestureCoachSeenAt: v.optional(v.number()),
   })
     .index("byUser", ["userId"]),
   dailySets: defineTable({

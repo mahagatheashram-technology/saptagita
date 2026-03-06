@@ -1,12 +1,13 @@
 import { View, Text, ActivityIndicator, Alert, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { CardStack } from "@/components/verses/CardStack";
 import {
   TodayHeader,
   SwipeHint,
+  GestureCoachOverlay,
   CompletionScreen,
 } from "@/components/today";
 import { useTodayReading } from "@/lib/hooks/useTodayReading";
@@ -30,11 +31,27 @@ export default function TodayScreen() {
     verse: number;
   } | null>(null);
   const [showBucketPicker, setShowBucketPicker] = useState(false);
+  const [showGestureCoach, setShowGestureCoach] = useState(false);
+  const [microDemoNonce, setMicroDemoNonce] = useState(0);
 
   const actionDrawerRef = useRef<BottomSheet>(null);
   const { user: currentUser, isLoading: isUserLoading, error: userError } = useCurrentUser();
   const userId = currentUser?._id ?? null;
   const { signOut } = useAuth();
+  const userState = useQuery(
+    api.users.getUserState,
+    userId ? { userId } : "skip"
+  );
+  const buckets = useQuery(
+    api.bookmarks.getUserBuckets,
+    userId ? { userId } : "skip"
+  );
+  const activeVerseBuckets = useQuery(
+    api.bookmarks.getVerseBuckets,
+    userId && activeVerse?.id
+      ? { userId, verseId: activeVerse.id as Id<"verses"> }
+      : "skip"
+  );
 
   const {
     verses,
@@ -50,6 +67,7 @@ export default function TodayScreen() {
 
   const ensureDefaultBucket = useMutation(api.bookmarks.ensureDefaultBucket);
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
+  const markGestureCoachSeen = useMutation(api.users.markTodayGestureCoachSeen);
   
   // Check and update streak on app open
   const checkStreak = useMutation(api.streaks.checkAndUpdateStreak);
@@ -90,6 +108,22 @@ export default function TodayScreen() {
       ensureDefaultBucket({ userId }).catch(console.error);
     }
   }, [userId, ensureDefaultBucket]);
+
+  useEffect(() => {
+    if (!userId || userState === undefined) return;
+    setShowGestureCoach(!userState?.todayGestureCoachSeenAt);
+  }, [userId, userState]);
+
+  const handleDismissGestureCoach = useCallback(async () => {
+    setShowGestureCoach(false);
+    setMicroDemoNonce((value) => value + 1);
+    if (!userId) return;
+    try {
+      await markGestureCoachSeen({ userId });
+    } catch (error) {
+      console.error("Failed to persist gesture coach state", error);
+    }
+  }, [markGestureCoachSeen, userId]);
 
   const handleBookmark = useCallback(async () => {
     if (!userId || !activeVerse) return;
@@ -138,6 +172,14 @@ export default function TodayScreen() {
     }
     setActiveVerse(null);
   }, [isWeb]);
+
+  const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
+  const isSavedToDefault = Boolean(
+    defaultBucketId &&
+      activeVerseBuckets?.some(
+        (bucketId) => String(bucketId) === String(defaultBucketId)
+      )
+  );
 
   // Loading state
   if (userError) {
@@ -205,16 +247,25 @@ export default function TodayScreen() {
           currentIndex={currentIndex}
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
+          interactionsEnabled={!showGestureCoach}
+          microDemoNonce={microDemoNonce}
         />
       </View>
 
-      {!isWeb && <SwipeHint />}
+      {!isWeb && (
+        <SwipeHint
+          onMoreOptions={handleSwipeLeft}
+          onMarkRead={handleSwipeRight}
+          disabled={showGestureCoach}
+        />
+      )}
 
       <ActionDrawer
         ref={actionDrawerRef}
         verseId={activeVerse?.id ?? ""}
         chapterNumber={activeVerse?.chapter ?? 0}
         verseNumber={activeVerse?.verse ?? 0}
+        isSavedToDefault={isSavedToDefault}
         onBookmark={handleBookmark}
         onAddToBucket={handleAddToBucket}
         onShare={handleShare}
@@ -228,6 +279,13 @@ export default function TodayScreen() {
         verseId={activeVerse ? (activeVerse.id as Id<"verses">) : null}
         key={activeVerse?.id ?? "bucket-picker"}
       />
+
+      {!isWeb && (
+        <GestureCoachOverlay
+          visible={showGestureCoach}
+          onDismiss={handleDismissGestureCoach}
+        />
+      )}
     </SafeAreaView>
   );
 }
