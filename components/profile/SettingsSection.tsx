@@ -23,7 +23,6 @@ import {
 interface SettingsSectionProps {
   userId: Id<"users">;
   reminderTime?: string | null;
-  mode?: string | null;
 }
 
 const DEFAULT_REMINDER_TIME = "20:00"; // 8:00 PM
@@ -60,7 +59,6 @@ function toDate(value?: string | null) {
 export function SettingsSection({
   userId,
   reminderTime,
-  mode,
 }: SettingsSectionProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [localReminderTime, setLocalReminderTime] = useState(reminderTime ?? null);
@@ -102,8 +100,6 @@ export function SettingsSection({
     () => toDisplayTime(localReminderTime),
     [localReminderTime]
   );
-  const modeLabel = mode === "random" ? "Random" : "Sequential";
-
   const saveReminderTime = async (date: Date) => {
     if (isWeb) {
       Alert.alert("Not available on web", "Notification reminders are disabled on web.");
@@ -238,26 +234,6 @@ export function SettingsSection({
           trackColor={{ false: "#E2E8F0", true: "#FBD38D" }}
         />
       </View>
-
-      <View className="h-px bg-[#EDF2F7]" />
-
-      <Pressable
-        onPress={() =>
-          Alert.alert(
-            "Random mode",
-            "Random mode coming soon. Stay tuned!"
-          )
-        }
-        className="flex-row items-center justify-between py-3"
-      >
-        <View>
-          <Text className="text-sm text-textSecondary">Reading Mode</Text>
-          <Text className="text-base font-semibold text-textPrimary">
-            {modeLabel}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color="#718096" />
-      </Pressable>
 
       <View className="h-px bg-[#EDF2F7]" />
 

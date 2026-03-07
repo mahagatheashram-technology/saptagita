@@ -169,7 +169,6 @@ export default function ProfileScreen() {
         <SettingsSection
           userId={user._id}
           reminderTime={userState?.reminderTime}
-          mode={userState?.mode}
         />
 
         <View className="h-4" />
