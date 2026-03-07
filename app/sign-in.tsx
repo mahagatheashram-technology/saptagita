@@ -9,11 +9,7 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  AuthHeader,
-  GoogleSignInButton,
-  EmailSignIn,
-} from "@/components/auth";
+import { GoogleSignInButton, EmailSignIn } from "@/components/auth";
 
 type AuthTab = "google" | "email";
 
@@ -29,19 +25,15 @@ export default function SignInScreen() {
         style={{ position: "absolute", inset: 0 }}
       />
 
-      {/* Decorative blobs — hidden on email tab so they don't compete with keyboard layout */}
-      {activeTab === "google" && (
-        <>
-          <View
-            className="absolute w-72 h-72 rounded-full"
-            style={{ backgroundColor: "rgba(255, 107, 53, 0.12)", top: -80, left: -70 }}
-          />
-          <View
-            className="absolute w-64 h-64 rounded-full"
-            style={{ backgroundColor: "rgba(214, 158, 46, 0.10)", bottom: -90, right: -50 }}
-          />
-        </>
-      )}
+      {/* Decorative blobs */}
+      <View
+        className="absolute w-72 h-72 rounded-full"
+        style={{ backgroundColor: "rgba(255, 107, 53, 0.12)", top: -80, left: -70 }}
+      />
+      <View
+        className="absolute w-64 h-64 rounded-full"
+        style={{ backgroundColor: "rgba(214, 158, 46, 0.10)", bottom: -90, right: -50 }}
+      />
 
       <KeyboardAvoidingView
         className="flex-1"
@@ -50,24 +42,19 @@ export default function SignInScreen() {
       >
         <View className="flex-1 justify-center px-6">
 
-          {/* Google tab: show full hero header */}
-          {activeTab === "google" && <AuthHeader />}
-
-          {/* Email tab: show compact brand mark instead of full headline */}
-          {activeTab === "email" && (
-            <View className="items-center mb-6">
-              <Image
-                source={require("@/assets/images/icon.png")}
-                style={{ width: 52, height: 52, borderRadius: 13, marginBottom: 10 }}
-              />
-              <Text
-                className="text-[12px] uppercase tracking-[2.5px] text-[#A56A4C]"
-                style={{ fontFamily: "SpaceMono" }}
-              >
-                Sapta Gita
-              </Text>
-            </View>
-          )}
+          {/* Brand mark — same for both tabs */}
+          <View className="items-center" style={{ marginBottom: 28, marginTop: -24 }}>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={{ width: 64, height: 64, borderRadius: 16, marginBottom: 14 }}
+            />
+            <Text
+              className="text-[17px] uppercase tracking-[3px] text-[#A56A4C]"
+              style={{ fontFamily: "SpaceMono" }}
+            >
+              Sapta Gita
+            </Text>
+          </View>
 
           {/* Auth card */}
           <View
@@ -120,15 +107,7 @@ export default function SignInScreen() {
             </View>
 
             {/* Google tab content */}
-            {activeTab === "google" && (
-              <View>
-                <Text className="text-[13px] text-[#7A8798] leading-5 mb-4">
-                  Your reading history and streak stay synced automatically after
-                  login.
-                </Text>
-                <GoogleSignInButton />
-              </View>
-            )}
+            {activeTab === "google" && <GoogleSignInButton />}
 
             {/* Email tab content */}
             {activeTab === "email" && <EmailSignIn />}
