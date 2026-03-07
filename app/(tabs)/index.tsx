@@ -20,6 +20,10 @@ import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
 import { clearBadge } from "@/lib/notifications";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
+import {
+  hasSeenTodayGestureCoach,
+  markTodayGestureCoachSeenLocally,
+} from "@/lib/gestureCoach";
 
 const DAILY_VERSE_COUNT = 7;
 
@@ -32,6 +36,7 @@ export default function TodayScreen() {
   } | null>(null);
   const [showBucketPicker, setShowBucketPicker] = useState(false);
   const [showGestureCoach, setShowGestureCoach] = useState(false);
+  const [gestureCoachResolved, setGestureCoachResolved] = useState(Platform.OS === "web");
   const [microDemoNonce, setMicroDemoNonce] = useState(0);
 
   const actionDrawerRef = useRef<BottomSheet>(null);
@@ -110,14 +115,70 @@ export default function TodayScreen() {
   }, [userId, ensureDefaultBucket]);
 
   useEffect(() => {
-    if (!userId || userState === undefined) return;
-    setShowGestureCoach(!userState?.todayGestureCoachSeenAt);
-  }, [userId, userState]);
+    let cancelled = false;
+
+    if (isWeb) {
+      setShowGestureCoach(false);
+      setGestureCoachResolved(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!userId) {
+      setShowGestureCoach(false);
+      setGestureCoachResolved(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const syncGestureCoachState = async () => {
+      const hasSeenLocally = await hasSeenTodayGestureCoach(userId);
+      if (cancelled) return;
+
+      if (hasSeenLocally) {
+        setShowGestureCoach(false);
+        setGestureCoachResolved(true);
+
+        if (userState && !userState.todayGestureCoachSeenAt) {
+          markGestureCoachSeen({ userId }).catch((error) => {
+            console.error("Failed to backfill gesture coach state", error);
+          });
+        }
+        return;
+      }
+
+      if (userState === undefined) {
+        return;
+      }
+
+      if (userState?.todayGestureCoachSeenAt) {
+        await markTodayGestureCoachSeenLocally(userId);
+        if (cancelled) return;
+        setShowGestureCoach(false);
+      } else {
+        setShowGestureCoach(true);
+      }
+
+      setGestureCoachResolved(true);
+    };
+
+    syncGestureCoachState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isWeb, markGestureCoachSeen, userId, userState]);
 
   const handleDismissGestureCoach = useCallback(async () => {
     setShowGestureCoach(false);
+    setGestureCoachResolved(true);
     setMicroDemoNonce((value) => value + 1);
     if (!userId) return;
+
+    await markTodayGestureCoachSeenLocally(userId);
+
     try {
       await markGestureCoachSeen({ userId });
     } catch (error) {
@@ -247,7 +308,7 @@ export default function TodayScreen() {
           currentIndex={currentIndex}
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
-          interactionsEnabled={!showGestureCoach}
+          interactionsEnabled={gestureCoachResolved && !showGestureCoach}
           microDemoNonce={microDemoNonce}
         />
       </View>
@@ -256,7 +317,7 @@ export default function TodayScreen() {
         <SwipeHint
           onMoreOptions={handleSwipeLeft}
           onMarkRead={handleSwipeRight}
-          disabled={showGestureCoach}
+          disabled={!gestureCoachResolved || showGestureCoach}
         />
       )}
 
