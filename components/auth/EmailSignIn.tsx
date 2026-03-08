@@ -3,6 +3,53 @@ import { Alert, Platform, Pressable, Text, TextInput, View } from "react-native"
 import { useSignIn, useSignUp } from "@clerk/clerk-expo";
 
 type FlowMode = "signin" | "signup";
+type PendingAttempt = { mode: FlowMode; email: string } | null;
+
+function formatFieldName(field: string) {
+  return field.replace(/_/g, " ").trim();
+}
+
+function parseClerkError(error: any): { code?: string; message: string } {
+  const first = error?.errors?.[0];
+  const code = first?.code ?? error?.code;
+  const message =
+    first?.longMessage ||
+    first?.message ||
+    error?.message ||
+    "An unexpected error occurred. Please try again.";
+  return { code, message: String(message) };
+}
+
+function getVerificationErrorMessage(error: any): string {
+  const { code, message } = parseClerkError(error);
+
+  if (
+    code === "form_code_incorrect" ||
+    code === "verification_failed" ||
+    code === "verification_invalid"
+  ) {
+    return "The verification code is incorrect. Please try again.";
+  }
+  if (code === "form_code_expired") {
+    return "This code has expired. Please request a new one.";
+  }
+  if (code === "too_many_requests" || code === "rate_limit_exceeded") {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  if (code === "client_state_invalid" || code === "session_exists") {
+    return "Your verification session is out of date. Please request a new code.";
+  }
+
+  return message;
+}
+
+function getSendCodeErrorMessage(error: any): string {
+  const { code, message } = parseClerkError(error);
+  if (code === "too_many_requests" || code === "rate_limit_exceeded") {
+    return "Too many requests. Please wait a moment before requesting another code.";
+  }
+  return message;
+}
 
 export function EmailSignIn() {
   const { isLoaded: signInLoaded, signIn, setActive: setSignInActive } = useSignIn();
@@ -10,12 +57,11 @@ export function EmailSignIn() {
 
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [sentTo, setSentTo] = useState("");
-  const [pendingCode, setPendingCode] = useState(false);
+  const [pendingAttempt, setPendingAttempt] = useState<PendingAttempt>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [flowMode, setFlowMode] = useState<FlowMode>("signin");
 
   const isLoaded = signInLoaded && signUpLoaded;
+  const pendingCode = pendingAttempt !== null;
 
   const sendCode = async () => {
     if (!isLoaded) return;
@@ -28,30 +74,27 @@ export function EmailSignIn() {
     try {
       // Try sign-in first (works for existing accounts)
       await signIn?.create({ identifier: trimmed, strategy: "email_code" });
-      setFlowMode("signin");
-      setSentTo(trimmed);
-      setPendingCode(true);
+      setPendingAttempt({ mode: "signin", email: trimmed });
       setCode("");
     } catch (err: any) {
       // If account doesn't exist, silently fall back to sign-up
+      const parsed = parseClerkError(err);
       const isNotFound =
-        err?.errors?.[0]?.code === "form_identifier_not_found" ||
-        err?.message?.toLowerCase().includes("couldn't find your account") ||
-        err?.message?.toLowerCase().includes("not found");
+        parsed.code === "form_identifier_not_found" ||
+        parsed.message.toLowerCase().includes("couldn't find your account") ||
+        parsed.message.toLowerCase().includes("not found");
 
       if (isNotFound) {
         try {
           await signUp?.create({ emailAddress: trimmed });
           await signUp?.prepareEmailAddressVerification({ strategy: "email_code" });
-          setFlowMode("signup");
-          setSentTo(trimmed);
-          setPendingCode(true);
+          setPendingAttempt({ mode: "signup", email: trimmed });
           setCode("");
         } catch (signUpErr: any) {
-          Alert.alert("Could not send code", String(signUpErr?.message ?? signUpErr));
+          Alert.alert("Could not send code", getSendCodeErrorMessage(signUpErr));
         }
       } else {
-        Alert.alert("Could not send code", String(err?.message ?? err));
+        Alert.alert("Could not send code", getSendCodeErrorMessage(err));
       }
     } finally {
       setIsSubmitting(false);
@@ -59,7 +102,7 @@ export function EmailSignIn() {
   };
 
   const verifyCode = async () => {
-    if (!isLoaded || !pendingCode) return;
+    if (!isLoaded || !pendingAttempt) return;
     const trimmedCode = code.trim();
     if (!trimmedCode) {
       Alert.alert("Enter verification code", "Type the code sent to your email.");
@@ -67,28 +110,70 @@ export function EmailSignIn() {
     }
     setIsSubmitting(true);
     try {
-      if (flowMode === "signin") {
+      if (pendingAttempt.mode === "signin") {
         const result = await signIn?.attemptFirstFactor({
           strategy: "email_code",
           code: trimmedCode,
         });
+
         if (result?.status === "complete") {
           await setSignInActive?.({ session: result.createdSessionId });
-        } else {
-          Alert.alert("Verification failed", "Please try again.");
+          return;
         }
+
+        if (result?.status === "needs_second_factor") {
+          Alert.alert(
+            "Additional verification required",
+            "This account requires a second verification factor. Please use an available sign-in method that supports it."
+          );
+          return;
+        }
+
+        if (result?.status === "needs_new_password") {
+          Alert.alert(
+            "Password reset required",
+            "This account requires a password reset before sign-in can complete."
+          );
+          return;
+        }
+
+        Alert.alert(
+          "Verification incomplete",
+          `Sign-in is currently in '${result?.status ?? "unknown"}' state. Please request a new code and try again.`
+        );
       } else {
         const result = await signUp?.attemptEmailAddressVerification({
           code: trimmedCode,
         });
+
         if (result?.status === "complete") {
           await setSignUpActive?.({ session: result.createdSessionId });
-        } else {
-          Alert.alert("Verification failed", "Please try again.");
+          return;
         }
+
+        if (result?.status === "missing_requirements") {
+          const missing = (result.missingFields ?? []).map(formatFieldName);
+          const unverified = (result.unverifiedFields ?? []).map(formatFieldName);
+          const details = [...missing, ...unverified];
+
+          Alert.alert(
+            "More information required",
+            details.length > 0
+              ? `Your account needs additional fields before verification can complete: ${details.join(
+                  ", "
+                )}.`
+              : "Your account needs additional setup before verification can complete."
+          );
+          return;
+        }
+
+        Alert.alert(
+          "Verification incomplete",
+          `Sign-up is currently in '${result?.status ?? "unknown"}' state. Please request a new code and try again.`
+        );
       }
     } catch (error: any) {
-      Alert.alert("Verification failed", String(error?.message ?? error));
+      Alert.alert("Verification failed", getVerificationErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -96,10 +181,8 @@ export function EmailSignIn() {
 
   const resetFlow = () => {
     if (isSubmitting) return;
-    setPendingCode(false);
+    setPendingAttempt(null);
     setCode("");
-    setSentTo("");
-    setFlowMode("signin");
   };
 
   const inputTextStyle = {
@@ -147,7 +230,7 @@ export function EmailSignIn() {
           <Text className="text-sm text-[#7A8798] leading-5 mb-3">
             We sent a 6-digit code to{" "}
             <Text className="font-semibold text-[#2D3748]">
-              {sentTo || email.trim().toLowerCase()}
+              {pendingAttempt?.email || email.trim().toLowerCase()}
             </Text>
             . Enter it below.
           </Text>

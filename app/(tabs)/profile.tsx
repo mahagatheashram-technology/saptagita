@@ -14,26 +14,37 @@ import {
 import { api } from "@/convex/_generated/api";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (!error) return fallback;
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return fallback;
+}
+
 export default function ProfileScreen() {
   const { signOut } = useAuth();
-  const { user, isLoading, error, clerkUser } = useCurrentUser();
   const [isDeleting, setIsDeleting] = useState(false);
+  const { user, isLoading, error, clerkUser } = useCurrentUser({
+    suspendSync: isDeleting,
+  });
   const [displayName, setDisplayName] = useState<string>("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
 
   const streakStats = useQuery(
     api.streaks.getStreakStats,
-    user ? { userId: user._id } : "skip"
+    !isDeleting && user ? { userId: user._id } : "skip"
   );
   const readingHistory = useQuery(
     api.dailySets.getReadingHistory,
-    user ? { userId: user._id, days: 90 } : "skip"
+    !isDeleting && user ? { userId: user._id, days: 90 } : "skip"
   );
   const userState = useQuery(
     api.users.getUserState,
-    user ? { userId: user._id } : "skip"
+    !isDeleting && user ? { userId: user._id } : "skip"
   );
-  const deleteUserData = useMutation(api.users.deleteUserData);
+  const deleteAccount = useMutation(api.users.deleteAccount);
   const updateDisplayName = useMutation(api.users.updateDisplayName);
 
   useEffect(() => {
@@ -63,17 +74,52 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             setIsDeleting(true);
+            let clerkDeleteError: unknown = null;
+            let signOutError: unknown = null;
             try {
-              await deleteUserData({ userId: user._id });
+              await deleteAccount({});
+
               if (clerkUser?.delete) {
-                await clerkUser.delete();
+                try {
+                  await clerkUser.delete();
+                } catch (error) {
+                  clerkDeleteError = error;
+                  console.error("Clerk account delete failed", error);
+                }
+              } else {
+                clerkDeleteError = new Error(
+                  "Auth account deletion is unavailable on this client."
+                );
               }
-              await signOut?.();
+
+              try {
+                await signOut?.();
+              } catch (error) {
+                signOutError = error;
+                console.error("Sign out after delete failed", error);
+              }
+
+              if (clerkDeleteError) {
+                const message = signOutError
+                  ? "Your app data was deleted, but we couldn't delete your authentication account and couldn't sign you out automatically."
+                  : "Your app data was deleted, but we couldn't delete your authentication account automatically. Please sign in again and retry account deletion, or contact support.";
+                Alert.alert("Account partially deleted", message);
+              } else if (signOutError) {
+                Alert.alert(
+                  "Account deleted",
+                  "Your account data was deleted, but automatic sign out failed. Please restart the app."
+                );
+              } else {
+                Alert.alert("Account deleted", "Your account and app data were deleted.");
+              }
             } catch (deleteError) {
               console.error("Delete account failed", deleteError);
               Alert.alert(
                 "Delete failed",
-                "We couldn't delete your account. Please try again."
+                getErrorMessage(
+                  deleteError,
+                  "We couldn't delete your account data. Please try again."
+                )
               );
             } finally {
               setIsDeleting(false);

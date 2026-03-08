@@ -417,7 +417,9 @@ export const getReadingHistory = query({
   args: { userId: v.id("users"), days: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
-    if (!user) throw new Error("User not found");
+    if (!user) {
+      return { readDates: [], perfectDates: [] };
+    }
 
     const days = args.days ?? 90;
     const timezone = user.timezone || "UTC";
