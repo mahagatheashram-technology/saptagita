@@ -7,6 +7,8 @@ import BottomSheet, {
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "../verses/VerseCard";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
+import { VerseAudioPlayer } from "../verses/VerseAudioPlayer";
+import { useVerseAudio } from "@/hooks/useVerseAudio";
 
 interface ReadVerseDetailSheetProps {
   verse: Verse | null;
@@ -20,7 +22,10 @@ export const ReadVerseDetailSheet = forwardRef<
   BottomSheet,
   ReadVerseDetailSheetProps
 >(({ verse, isSavedToDefault, onAddToBucket, onQuickBookmark, onLogReadToday }, ref) => {
-  const snapPoints = useMemo(() => ["65%"], []);
+  const snapPoints = useMemo(() => ["72%"], []);
+
+  // Stop audio when sheet closes
+  const { stop } = useVerseAudio(verse?.chapterNumber ?? 0, verse?.verseNumber ?? 0);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -33,6 +38,10 @@ export const ReadVerseDetailSheet = forwardRef<
     ),
     []
   );
+
+  const handleClose = useCallback(async () => {
+    await stop();
+  }, [stop]);
 
   const handleShare = useCallback(async () => {
     if (!verse) return;
@@ -48,6 +57,7 @@ export const ReadVerseDetailSheet = forwardRef<
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      onClose={handleClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF" }}
       handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
@@ -59,7 +69,8 @@ export const ReadVerseDetailSheet = forwardRef<
           </Text>
         </View>
 
-        <View className="bg-surface rounded-2xl p-3 shadow-sm mb-4">
+        {/* Verse content */}
+        <View className="bg-surface rounded-2xl p-3 shadow-sm mb-3">
           <Text className="text-sm text-textSecondary mb-1">
             {verse.sanskritDevanagari}
           </Text>
@@ -71,6 +82,16 @@ export const ReadVerseDetailSheet = forwardRef<
           </Text>
         </View>
 
+        {/* Audio player */}
+        <View className="mb-3">
+          <VerseAudioPlayer
+            chapterNumber={verse.chapterNumber}
+            verseNumber={verse.verseNumber}
+            variant="full"
+          />
+        </View>
+
+        {/* Actions */}
         <View className="space-y-2">
           <SheetButton
             icon="folder-open-outline"
