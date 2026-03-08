@@ -7,6 +7,8 @@ import BottomSheet, {
 import { Verse } from "../verses/VerseCard";
 import { Ionicons } from "@expo/vector-icons";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
+import { VerseAudioPlayer } from "../verses/VerseAudioPlayer";
+import { useVerseAudio } from "@/hooks/useVerseAudio";
 
 interface BookmarkDetailSheetProps {
   verse: Verse | null;
@@ -20,7 +22,10 @@ export const BookmarkDetailSheet = forwardRef<
   BottomSheet,
   BookmarkDetailSheetProps
 >(({ verse, bucketName, onRemove, onManageBuckets, onClose }, ref) => {
-  const snapPoints = useMemo(() => ["65%"], []);
+  const snapPoints = useMemo(() => ["72%"], []);
+
+  // Stop audio when sheet closes — falls back gracefully if verse is null
+  const { stop } = useVerseAudio(verse?.chapterNumber ?? 0, verse?.verseNumber ?? 0);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -34,6 +39,11 @@ export const BookmarkDetailSheet = forwardRef<
     []
   );
 
+  const handleClose = useCallback(async () => {
+    await stop();
+    onClose?.();
+  }, [stop, onClose]);
+
   const handleShare = useCallback(async () => {
     if (!verse) return;
     const message = formatVerseShareMessage(verse);
@@ -46,7 +56,7 @@ export const BookmarkDetailSheet = forwardRef<
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose
-      onClose={onClose}
+      onClose={handleClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF" }}
       handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
@@ -72,7 +82,8 @@ export const BookmarkDetailSheet = forwardRef<
               </Text>
             </View>
 
-            <View className="bg-surface rounded-2xl p-3 shadow-sm mb-4">
+            {/* Verse content */}
+            <View className="bg-surface rounded-2xl p-3 shadow-sm mb-3">
               <Text className="text-sm text-textSecondary mb-1">
                 {verse.sanskritDevanagari}
               </Text>
@@ -84,6 +95,16 @@ export const BookmarkDetailSheet = forwardRef<
               </Text>
             </View>
 
+            {/* Audio player */}
+            <View className="mb-3">
+              <VerseAudioPlayer
+                chapterNumber={verse.chapterNumber}
+                verseNumber={verse.verseNumber}
+                variant="full"
+              />
+            </View>
+
+            {/* Action buttons */}
             <View className="space-y-2">
               <SheetButton
                 icon="folder-open-outline"

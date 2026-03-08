@@ -6,6 +6,8 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { impact } from "@/lib/haptics";
+import { VerseAudioPlayer } from "./VerseAudioPlayer";
+import { useVerseAudio } from "@/hooks/useVerseAudio";
 
 interface ActionDrawerProps {
   verseId: string;
@@ -32,7 +34,8 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
     },
     ref
   ) => {
-    const snapPoints = useMemo(() => ["45%"], []);
+    const snapPoints = useMemo(() => ["52%"], []);
+    const { stop } = useVerseAudio(chapterNumber, verseNumber);
 
     const renderBackdrop = useCallback(
       (props: any) => (
@@ -46,6 +49,11 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       []
     );
 
+    const handleClose = useCallback(async () => {
+      await stop();
+      onClose();
+    }, [stop, onClose]);
+
     const handleAction = async (
       action: () => void | Promise<void>,
       options?: { closeAfter?: boolean }
@@ -53,7 +61,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       impact();
       await action();
       if (options?.closeAfter !== false) {
-        onClose();
+        handleClose();
       }
     };
 
@@ -64,7 +72,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
         snapPoints={snapPoints}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
-        onClose={onClose}
+        onClose={handleClose}
         containerStyle={{ zIndex: 50, elevation: 50 }}
         backgroundStyle={{ backgroundColor: "#FFFFFF" }}
         handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
@@ -77,8 +85,17 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
             </Text>
           </View>
 
+          {/* Audio player */}
+          <View className="pt-4">
+            <VerseAudioPlayer
+              chapterNumber={chapterNumber}
+              verseNumber={verseNumber}
+              variant="full"
+            />
+          </View>
+
           {/* Actions */}
-          <View className="py-4">
+          <View className="py-3">
             <ActionButton
               icon="bookmark-outline"
               label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
@@ -103,7 +120,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
 
           {/* Cancel button */}
           <Pressable
-            onPress={onClose}
+            onPress={handleClose}
             className="py-3 items-center border-t border-gray-100"
           >
             <Text className="text-textSecondary font-medium">Cancel</Text>

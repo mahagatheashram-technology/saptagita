@@ -1,5 +1,6 @@
-import { Dimensions, View, Text } from "react-native";
+import { Dimensions, Platform, View, Text } from "react-native";
 import Animated from "react-native-reanimated";
+import { VerseAudioPlayer } from "./VerseAudioPlayer";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 40; // 20px padding each side
@@ -61,6 +62,15 @@ export function VerseCard({ verse, index, totalCards }: VerseCardProps) {
       <Text className="text-base text-textPrimary leading-7">
         {verse.translationEnglish}
       </Text>
+
+      {/* Audio player — only on the top interactive card, not on native web */}
+      {index === 0 && Platform.OS !== "web" && (
+        <VerseAudioPlayer
+          chapterNumber={verse.chapterNumber}
+          verseNumber={verse.verseNumber}
+          variant="compact"
+        />
+      )}
     </Animated.View>
   );
 }
