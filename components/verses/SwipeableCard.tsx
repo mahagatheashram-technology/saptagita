@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Dimensions, View, Text } from "react-native";
+import { Dimensions, Platform, View, Text } from "react-native";
+import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
@@ -233,6 +234,15 @@ export function SwipeableCard({
         <Text className="text-base text-textPrimary leading-7">
           {verse.translationEnglish}
         </Text>
+
+        {/* Audio player — top card only, native only */}
+        {isTop && Platform.OS !== "web" && (
+          <VerseAudioPlayer
+            chapterNumber={verse.chapterNumber}
+            verseNumber={verse.verseNumber}
+            variant="compact"
+          />
+        )}
       </Animated.View>
     </GestureDetector>
   );
