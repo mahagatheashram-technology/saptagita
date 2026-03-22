@@ -37,12 +37,41 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore if the native splash screen isn't registered in this environment.
 });
 
+const SHIPPING_BUILD_PROFILES = new Set(["preview", "production"]);
+
+function assertShippingParity(publishableKey: string) {
+  const buildProfile = process.env.EAS_BUILD_PROFILE ?? "";
+  const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL ?? "";
+  const isReleaseRuntime = typeof __DEV__ !== "undefined" ? !__DEV__ : false;
+  const enforceShippingRules =
+    SHIPPING_BUILD_PROFILES.has(buildProfile) || isReleaseRuntime;
+
+  if (!enforceShippingRules) return;
+
+  if (publishableKey.startsWith("pk_test_")) {
+    throw new Error(
+      `Invalid Clerk configuration for shipping build (profile: ${
+        buildProfile || "unknown"
+      }): expected a live publishable key, got a test key.`
+    );
+  }
+
+  if (convexUrl.includes("joyous-warthog-33")) {
+    throw new Error(
+      `Invalid Convex configuration for shipping build (profile: ${
+        buildProfile || "unknown"
+      }): app is pointed at the dev deployment.`
+    );
+  }
+}
+
 export default function RootLayout() {
   const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
   if (!publishableKey) {
     throw new Error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in .env.local");
   }
+  assertShippingParity(publishableKey);
 
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
