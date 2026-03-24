@@ -16,8 +16,8 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { ActivityIndicator, Platform, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -204,8 +204,44 @@ function AuthStack() {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
   const isAuthRoute = pathname === "/sign-in";
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (isLoaded) {
+      setLoadTimedOut(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setLoadTimedOut(true);
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, [isLoaded]);
 
   if (!isLoaded) {
+    if (loadTimedOut) {
+      return (
+        <View className="flex-1 bg-background items-center justify-center px-6">
+          <Text className="text-base font-semibold text-textPrimary mb-2">
+            Auth failed to initialize
+          </Text>
+          <Text className="text-sm text-textSecondary text-center mb-4">
+            We couldn't load Clerk authentication. Check network/DNS and reinstall the latest preview build.
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-5">
+            Convex URL: {process.env.EXPO_PUBLIC_CONVEX_URL ?? "missing"}
+          </Text>
+          <Pressable
+            onPress={() => setLoadTimedOut(false)}
+            className="bg-primary rounded-xl py-3 px-4"
+          >
+            <Text className="text-white font-semibold">Retry auth init</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#FF6B35" />
