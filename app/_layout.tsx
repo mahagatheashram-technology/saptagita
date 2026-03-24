@@ -206,6 +206,7 @@ function AuthStack() {
   const isAuthRoute = pathname === "/sign-in";
   const [loadTimedOut, setLoadTimedOut] = useState(false);
   const [clerkProbe, setClerkProbe] = useState<string>("pending");
+  const [nativeApiDisabled, setNativeApiDisabled] = useState(false);
 
   const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
   const keyPreview = publishableKey
@@ -217,13 +218,31 @@ function AuthStack() {
     if (isLoaded) {
       setLoadTimedOut(false);
       setClerkProbe("loaded");
+      setNativeApiDisabled(false);
       return;
     }
 
     setClerkProbe("probing");
-    fetch(`${clerkDomain}/v1/client`)
+    fetch(`${clerkDomain}/v1/client?_is_native=1`, {
+      headers: {
+        "x-mobile": "1",
+      },
+    })
       .then(async (res) => {
         const body = await res.text();
+
+        try {
+          const parsed = JSON.parse(body);
+          const code = parsed?.errors?.[0]?.code;
+          if (code === "native_api_disabled") {
+            setNativeApiDisabled(true);
+            setClerkProbe("error native_api_disabled");
+            return;
+          }
+        } catch {
+          // Keep fallback probe text for non-JSON payloads.
+        }
+
         setClerkProbe(`ok ${res.status} (${body.slice(0, 80)}...)`);
       })
       .catch((error: any) => {
@@ -245,7 +264,9 @@ function AuthStack() {
             Auth failed to initialize
           </Text>
           <Text className="text-sm text-textSecondary text-center mb-4">
-            We couldn't load Clerk authentication. Check network/DNS and reinstall the latest preview build.
+            {nativeApiDisabled
+              ? "Clerk Native API is disabled for this instance. Enable it in Clerk Dashboard."
+              : "We couldn't load Clerk authentication. Check network/DNS and reinstall the latest preview build."}
           </Text>
           <Text className="text-xs text-textSecondary text-center mb-2">
             Convex URL: {process.env.EXPO_PUBLIC_CONVEX_URL ?? "missing"}
