@@ -205,19 +205,37 @@ function AuthStack() {
   const pathname = usePathname();
   const isAuthRoute = pathname === "/sign-in";
   const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const [clerkProbe, setClerkProbe] = useState<string>("pending");
+
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+  const keyPreview = publishableKey
+    ? `${publishableKey.slice(0, 12)}...${publishableKey.slice(-4)}`
+    : "missing";
+  const clerkDomain = "https://clerk.mahagathe.org";
 
   useEffect(() => {
     if (isLoaded) {
       setLoadTimedOut(false);
+      setClerkProbe("loaded");
       return;
     }
+
+    setClerkProbe("probing");
+    fetch(`${clerkDomain}/v1/client`)
+      .then(async (res) => {
+        const body = await res.text();
+        setClerkProbe(`ok ${res.status} (${body.slice(0, 80)}...)`);
+      })
+      .catch((error: any) => {
+        setClerkProbe(`error ${String(error?.message ?? error)}`);
+      });
 
     const timer = setTimeout(() => {
       setLoadTimedOut(true);
     }, 15000);
 
     return () => clearTimeout(timer);
-  }, [isLoaded]);
+  }, [isLoaded, clerkDomain]);
 
   if (!isLoaded) {
     if (loadTimedOut) {
@@ -229,8 +247,17 @@ function AuthStack() {
           <Text className="text-sm text-textSecondary text-center mb-4">
             We couldn't load Clerk authentication. Check network/DNS and reinstall the latest preview build.
           </Text>
-          <Text className="text-xs text-textSecondary text-center mb-5">
+          <Text className="text-xs text-textSecondary text-center mb-2">
             Convex URL: {process.env.EXPO_PUBLIC_CONVEX_URL ?? "missing"}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-2">
+            Clerk Domain: {clerkDomain}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-2">
+            Key: {keyPreview}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-5">
+            Clerk Probe: {clerkProbe}
           </Text>
           <Pressable
             onPress={() => setLoadTimedOut(false)}
