@@ -7,7 +7,7 @@ import {
   requestNotificationPermissions,
   scheduleDailyReminder,
 } from "@/lib/notifications";
-import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -109,15 +109,13 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
           publishableKey={publishableKey}
           tokenCache={tokenCache}
         >
-          <ClerkLoaded>
-            <ConvexAuthSync />
-            <NotificationEffects />
-            <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-              <ThemeProvider value={DefaultTheme}>
-                <AuthStack />
-              </ThemeProvider>
-            </ConvexProviderWithClerk>
-          </ClerkLoaded>
+          <ConvexAuthSync />
+          <NotificationEffects />
+          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+            <ThemeProvider value={DefaultTheme}>
+              <AuthStack />
+            </ThemeProvider>
+          </ConvexProviderWithClerk>
         </ClerkProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
