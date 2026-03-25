@@ -9,6 +9,7 @@ import { Verse } from "../verses/VerseCard";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
 import { VerseAudioPlayer } from "../verses/VerseAudioPlayer";
 import { useVerseAudio } from "@/hooks/useVerseAudio";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 interface ReadVerseDetailSheetProps {
   verse: Verse | null;
@@ -16,12 +17,13 @@ interface ReadVerseDetailSheetProps {
   onAddToBucket: () => void;
   onQuickBookmark: () => void;
   onLogReadToday: () => void;
+  scriptPreference?: ScriptPreference | null;
 }
 
 export const ReadVerseDetailSheet = forwardRef<
   BottomSheet,
   ReadVerseDetailSheetProps
->(({ verse, isSavedToDefault, onAddToBucket, onQuickBookmark, onLogReadToday }, ref) => {
+>(({ verse, isSavedToDefault, onAddToBucket, onQuickBookmark, onLogReadToday, scriptPreference }, ref) => {
   const snapPoints = useMemo(() => ["72%"], []);
 
   // Stop audio when sheet closes
@@ -45,11 +47,12 @@ export const ReadVerseDetailSheet = forwardRef<
 
   const handleShare = useCallback(async () => {
     if (!verse) return;
-    const message = formatVerseShareMessage(verse);
+    const message = formatVerseShareMessage(verse, scriptPreference);
     await shareText(message);
-  }, [verse]);
+  }, [scriptPreference, verse]);
 
   if (!verse) return null;
+  const verseText = getDisplayVerseText(verse, scriptPreference);
 
   return (
     <BottomSheet
@@ -72,7 +75,7 @@ export const ReadVerseDetailSheet = forwardRef<
         {/* Verse content */}
         <View className="bg-surface rounded-2xl p-3 shadow-sm mb-3">
           <Text className="text-sm text-textSecondary mb-1">
-            {verse.sanskritDevanagari}
+            {verseText}
           </Text>
           <Text className="text-xs text-textSecondary italic mb-2">
             {verse.transliteration}

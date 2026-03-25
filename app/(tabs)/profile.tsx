@@ -228,6 +228,7 @@ export default function ProfileScreen() {
         <SettingsSection
           userId={user._id}
           reminderTime={userState?.reminderTime}
+          scriptPreference={userState?.scriptPreference}
         />
 
         <View className="h-4" />

@@ -1,18 +1,26 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "../verses/VerseCard";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 interface ReadVerseRowProps {
   verse: Verse;
   meta: string;
   onPress?: () => void;
+  scriptPreference?: ScriptPreference | null;
 }
 
-export function ReadVerseRow({ verse, meta, onPress }: ReadVerseRowProps) {
+export function ReadVerseRow({
+  verse,
+  meta,
+  onPress,
+  scriptPreference,
+}: ReadVerseRowProps) {
   const truncate = (value: string, max: number) => {
     if (!value) return "";
     return value.length > max ? `${value.slice(0, max).trim()}…` : value;
   };
+  const verseText = getDisplayVerseText(verse, scriptPreference);
 
   return (
     <Pressable
@@ -25,7 +33,7 @@ export function ReadVerseRow({ verse, meta, onPress }: ReadVerseRowProps) {
           Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
         </Text>
         <Text className="text-base text-secondary mb-1" numberOfLines={2}>
-          {truncate(verse.sanskritDevanagari, 80)}
+          {truncate(verseText, 80)}
         </Text>
         <Text className="text-xs text-textSecondary mb-1" numberOfLines={1}>
           {meta}

@@ -30,6 +30,7 @@ async function ensureUser(ctx: any, args: {
     sequentialPointer: 0,
     lastDailyDate: "",
     currentDailySetId: null,
+    scriptPreference: "devanagari",
   });
 
   await ctx.db.insert("streaks", {
@@ -149,6 +150,39 @@ export const updateReminderTime = mutation({
     });
 
     return { reminderTime: args.reminderTime };
+  },
+});
+
+export const updateScriptPreference = mutation({
+  args: {
+    userId: v.id("users"),
+    scriptPreference: v.union(v.literal("devanagari"), v.literal("telugu")),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && user.authId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    const userState = await ctx.db
+      .query("userState")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+
+    if (!userState) {
+      throw new Error("User state not found");
+    }
+
+    await ctx.db.patch(userState._id, {
+      scriptPreference: args.scriptPreference,
+    });
+
+    return { scriptPreference: args.scriptPreference };
   },
 });
 
