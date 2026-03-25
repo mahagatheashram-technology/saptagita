@@ -294,6 +294,9 @@ function AuthStack() {
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#FF6B35" />
         <Text className="text-textSecondary mt-2">Loading account...</Text>
+        <Text className="text-textSecondary/50 text-xs mt-6">
+          A Mahagathe Foundation Initiative
+        </Text>
       </View>
     );
   }

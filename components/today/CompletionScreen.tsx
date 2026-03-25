@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { View, Text, Image } from "react-native";
 import { useEffect } from "react";
 import Animated, {
   useSharedValue,
@@ -87,19 +87,15 @@ export function CompletionScreen({
       {/* Success checkmark circle */}
       <Animated.View
         style={checkAnimatedStyle}
-        className="w-24 h-24 rounded-full bg-success items-center justify-center mb-6"
+        className="w-20 h-20 rounded-full bg-success items-center justify-center mb-4"
       >
-        <Ionicons name="checkmark" size={48} color="white" />
+        <Ionicons name="checkmark" size={40} color="white" />
       </Animated.View>
 
       {/* Main text */}
       <Animated.View style={textAnimatedStyle} className="items-center">
-        <Text className="text-3xl font-bold text-secondary mb-2">
+        <Text className="text-2xl font-bold text-secondary mb-6">
           Day Complete!
-        </Text>
-        <Text className="text-lg text-textSecondary text-center mb-8">
-          You've read all 7 verses today.{"\n"}
-          Come back tomorrow for more wisdom.
         </Text>
       </Animated.View>
 
@@ -121,7 +117,7 @@ export function CompletionScreen({
         </View>
 
         {/* Streak label */}
-        <Text className="text-center text-textSecondary mb-4">
+        <Text className="text-center text-textSecondary">
           {currentStreak === 1
             ? "You've started your journey!"
             : currentStreak < 7
@@ -133,7 +129,7 @@ export function CompletionScreen({
 
         {/* New record badge */}
         {isNewRecord && currentStreak > 1 && (
-          <View className="bg-accent/20 rounded-full py-2 px-4 self-center">
+          <View className="bg-accent/20 rounded-full py-2 px-4 self-center mt-4">
             <Text className="text-accent font-semibold">🎉 New Record!</Text>
           </View>
         )}
@@ -146,11 +142,18 @@ export function CompletionScreen({
         )}
       </Animated.View>
 
-      {/* Motivational quote - optional */}
-      <Animated.View style={textAnimatedStyle} className="mt-8">
-        <Text className="text-center text-textSecondary italic text-sm px-4">
-          "योगस्थः कुरु कर्माणि"{"\n"}
-          <Text className="text-xs">"Established in yoga, perform action"</Text>
+      {/* Foundation branding — prominent */}
+      <Animated.View style={textAnimatedStyle} className="mt-8 items-center">
+        <Image
+          source={require("@/assets/images/mahagathe-foundation-logo.png")}
+          style={{ width: 64, height: 64, marginBottom: 8 }}
+          resizeMode="contain"
+        />
+        <Text className="text-sm font-semibold text-secondary">
+          Sapta Gita
+        </Text>
+        <Text className="text-xs text-textSecondary/60 tracking-[0.5px] mt-1">
+          A Mahagathe Foundation Initiative
         </Text>
       </Animated.View>
     </View>

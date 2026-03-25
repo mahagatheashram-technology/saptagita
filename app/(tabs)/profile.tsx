@@ -1,10 +1,11 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { View, Text, Pressable, ScrollView, Alert, Image } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { DevPanel } from "@/components/dev/DevPanel";
 import {
+  AboutSection,
   AccountSection,
   ProfileHeader,
   ReadingCalendar,
@@ -183,8 +184,20 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-background">
       <ScrollView
         className="px-5 py-4"
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
+        {/* Compact foundation brand bar */}
+        <View className="flex-row items-center justify-center py-2 mb-2">
+          <Image
+            source={require("@/assets/images/mahagathe-foundation-logo.png")}
+            style={{ width: 20, height: 20, marginRight: 6 }}
+            resizeMode="contain"
+          />
+          <Text className="text-[11px] text-textSecondary/50 tracking-[0.5px]">
+            A Mahagathe Foundation Initiative
+          </Text>
+        </View>
+
         <ProfileHeader
           displayName={displayName || user.displayName}
           email={email}
@@ -224,6 +237,10 @@ export default function ProfileScreen() {
           onDeleteAccount={handleDeleteAccount}
           isDeleting={isDeleting}
         />
+
+        <View className="h-4" />
+
+        <AboutSection />
 
         {isDevUser && (
           <>

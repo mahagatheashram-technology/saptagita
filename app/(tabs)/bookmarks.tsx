@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -460,6 +461,20 @@ export default function BookmarksScreen() {
           />
         </View>
       )}
+
+      {/* Foundation branding footer */}
+      <View className="items-center py-2 pb-1">
+        <View className="flex-row items-center">
+          <Image
+            source={require("@/assets/images/mahagathe-foundation-logo.png")}
+            style={{ width: 16, height: 16, marginRight: 6 }}
+            resizeMode="contain"
+          />
+          <Text className="text-[10px] text-textSecondary/40 tracking-[0.5px]">
+            A Mahagathe Foundation Initiative
+          </Text>
+        </View>
+      </View>
 
       <Modal
         visible={Boolean(renamingId)}
