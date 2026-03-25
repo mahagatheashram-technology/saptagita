@@ -8,6 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "export:web": "expo export --platform web --output-dir dist-web",
+    "check:env-parity": "node scripts/check-env-parity.mjs",
     "seed": "npx ts-node --esm scripts/seedVerses.ts",
     "seed:verses": "npx tsx scripts/seedVerses.ts"
   },

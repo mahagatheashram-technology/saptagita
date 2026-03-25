@@ -45,7 +45,14 @@ function getVerificationErrorMessage(error: any): string {
 
 function getSendCodeErrorMessage(error: any): string {
   const { code, message } = parseClerkError(error);
+  const retryAfterSeconds =
+    Number(error?.errors?.[0]?.meta?.retry_after_seconds) ||
+    Number(error?.errors?.[0]?.meta?.retry_after) ||
+    0;
   if (code === "too_many_requests" || code === "rate_limit_exceeded") {
+    if (retryAfterSeconds > 0) {
+      return `Too many requests. Please wait about ${retryAfterSeconds} seconds before requesting another code.`;
+    }
     return "Too many requests. Please wait a moment before requesting another code.";
   }
   return message;
@@ -58,6 +65,7 @@ export function EmailSignIn() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [pendingAttempt, setPendingAttempt] = useState<PendingAttempt>(null);
+  const [pendingSignUpEmail, setPendingSignUpEmail] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isLoaded = signInLoaded && signUpLoaded;
@@ -72,8 +80,18 @@ export function EmailSignIn() {
     }
     setIsSubmitting(true);
     try {
+      if (pendingSignUpEmail === trimmed) {
+        await signUp?.create({ emailAddress: trimmed });
+        await signUp?.prepareEmailAddressVerification({ strategy: "email_code" });
+        setPendingAttempt({ mode: "signup", email: trimmed });
+        setPendingSignUpEmail(null);
+        setCode("");
+        return;
+      }
+
       // Try sign-in first (works for existing accounts)
       await signIn?.create({ identifier: trimmed, strategy: "email_code" });
+      setPendingSignUpEmail(null);
       setPendingAttempt({ mode: "signin", email: trimmed });
       setCode("");
     } catch (err: any) {
@@ -85,14 +103,11 @@ export function EmailSignIn() {
         parsed.message.toLowerCase().includes("not found");
 
       if (isNotFound) {
-        try {
-          await signUp?.create({ emailAddress: trimmed });
-          await signUp?.prepareEmailAddressVerification({ strategy: "email_code" });
-          setPendingAttempt({ mode: "signup", email: trimmed });
-          setCode("");
-        } catch (signUpErr: any) {
-          Alert.alert("Could not send code", getSendCodeErrorMessage(signUpErr));
-        }
+        setPendingSignUpEmail(trimmed);
+        Alert.alert(
+          "Create new account",
+          "We couldn't find an account for this email. Tap the button once more to create an account and send your verification code."
+        );
       } else {
         Alert.alert("Could not send code", getSendCodeErrorMessage(err));
       }
@@ -182,6 +197,7 @@ export function EmailSignIn() {
   const resetFlow = () => {
     if (isSubmitting) return;
     setPendingAttempt(null);
+    setPendingSignUpEmail(null);
     setCode("");
   };
 
@@ -204,7 +220,13 @@ export function EmailSignIn() {
           </Text>
           <TextInput
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(value) => {
+              setEmail(value);
+              const normalized = value.trim().toLowerCase();
+              if (pendingSignUpEmail && normalized !== pendingSignUpEmail) {
+                setPendingSignUpEmail(null);
+              }
+            }}
             placeholder="you@example.com"
             placeholderTextColor="#A0AEC0"
             keyboardType="email-address"
@@ -272,6 +294,8 @@ export function EmailSignIn() {
             ? "Please wait..."
             : pendingCode
             ? "Verify and continue"
+            : pendingSignUpEmail
+            ? "Create account and send code"
             : "Send verification code"}
         </Text>
       </Pressable>
