@@ -3,3 +3,4 @@ export { StreakStatsCard } from "./StreakStatsCard";
 export { ReadingCalendar } from "./ReadingCalendar";
 export { SettingsSection } from "./SettingsSection";
 export { AccountSection } from "./AccountSection";
+export { AboutSection } from "./AboutSection";

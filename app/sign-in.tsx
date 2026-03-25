@@ -54,6 +54,9 @@ export default function SignInScreen() {
             >
               Sapta Gita
             </Text>
+            <Text className="text-[11px] text-[#A56A4C]/60 tracking-[1px] mt-1.5">
+              A Mahagathe Foundation Initiative
+            </Text>
           </View>
 
           {/* Auth card */}
