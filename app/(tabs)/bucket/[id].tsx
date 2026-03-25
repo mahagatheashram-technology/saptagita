@@ -48,6 +48,10 @@ export default function BucketDetailScreen() {
     api.bookmarks.getBucketById,
     userId && bucketId ? { bucketId, userId } : "skip"
   );
+  const userState = useQuery(
+    api.users.getUserState,
+    userId ? { userId } : "skip"
+  );
 
   const bookmarks = useQuery(
     api.bookmarks.getBookmarksInBucket,
@@ -150,6 +154,7 @@ export default function BucketDetailScreen() {
               <BookmarkRow
                 key={b._id}
                 verse={b.verse}
+                scriptPreference={userState?.scriptPreference}
                 onPress={() => handleRowPress(b)}
               />
             ) : null
@@ -163,6 +168,7 @@ export default function BucketDetailScreen() {
         bucketName={`${headerEmoji} ${bucket?.name ?? ""}`}
         onRemove={handleRemove}
         onClose={() => setSelectedVerse(null)}
+        scriptPreference={userState?.scriptPreference}
         onManageBuckets={() => {
           detailSheetRef.current?.close();
           setShowMovePicker(true);

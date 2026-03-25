@@ -19,10 +19,12 @@ import {
   getStoredReminderTime,
   scheduleDailyReminder,
 } from "@/lib/notifications";
+import { ScriptPreference } from "@/lib/verseText";
 
 interface SettingsSectionProps {
   userId: Id<"users">;
   reminderTime?: string | null;
+  scriptPreference?: ScriptPreference | null;
 }
 
 const DEFAULT_REMINDER_TIME = "20:00"; // 8:00 PM
@@ -59,6 +61,7 @@ function toDate(value?: string | null) {
 export function SettingsSection({
   userId,
   reminderTime,
+  scriptPreference,
 }: SettingsSectionProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [localReminderTime, setLocalReminderTime] = useState(reminderTime ?? null);
@@ -67,7 +70,11 @@ export function SettingsSection({
   );
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [isLoadingPreference, setIsLoadingPreference] = useState(true);
+  const [localScriptPreference, setLocalScriptPreference] = useState<ScriptPreference>(
+    scriptPreference ?? "devanagari"
+  );
   const updateReminderTime = useMutation(api.users.updateReminderTime);
+  const updateScriptPreference = useMutation(api.users.updateScriptPreference);
   const resetReadingProgress = useMutation(api.users.resetReadingProgress);
   const isWeb = Platform.OS === "web";
 
@@ -75,6 +82,10 @@ export function SettingsSection({
     setLocalReminderTime(reminderTime ?? null);
     setPickerValue(toDate(reminderTime));
   }, [reminderTime]);
+
+  useEffect(() => {
+    setLocalScriptPreference(scriptPreference ?? "devanagari");
+  }, [scriptPreference]);
 
   useEffect(() => {
     const loadPreference = async () => {
@@ -175,6 +186,25 @@ export function SettingsSection({
     }
   };
 
+  const handleScriptPreferenceChange = async (nextPreference: ScriptPreference) => {
+    if (nextPreference === localScriptPreference) {
+      return;
+    }
+
+    const previousPreference = localScriptPreference;
+    setLocalScriptPreference(nextPreference);
+
+    try {
+      await updateScriptPreference({ userId, scriptPreference: nextPreference });
+    } catch (error: any) {
+      setLocalScriptPreference(previousPreference);
+      Alert.alert(
+        "Update failed",
+        String(error?.message ?? error ?? "Could not update verse script.")
+      );
+    }
+  };
+
   const handleResetProgress = () => {
     Alert.alert(
       "Reset reading progress?",
@@ -233,6 +263,67 @@ export function SettingsSection({
           thumbColor={remindersEnabled ? "#FF6B35" : "#CBD5E0"}
           trackColor={{ false: "#E2E8F0", true: "#FBD38D" }}
         />
+      </View>
+
+      <View className="h-px bg-[#EDF2F7]" />
+
+      <View className="py-3">
+        <View className="mb-3">
+          <Text className="text-sm text-textSecondary">Verse Script</Text>
+          <Text className="text-base font-semibold text-textPrimary">
+            {localScriptPreference === "telugu" ? "Telugu" : "Devanagari"}
+          </Text>
+        </View>
+        <View className="bg-[#F8F4EE] rounded-2xl p-1 flex-row">
+          <Pressable
+            onPress={() => handleScriptPreferenceChange("devanagari")}
+            className={`flex-1 rounded-[14px] px-4 py-3 ${
+              localScriptPreference === "devanagari" ? "bg-white" : ""
+            }`}
+            style={
+              localScriptPreference === "devanagari"
+                ? {
+                    shadowColor: "#D6C3AE",
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 1,
+                  }
+                : undefined
+            }
+          >
+            <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-1">
+              Classic
+            </Text>
+            <Text className="text-base font-semibold text-textPrimary">
+              Devanagari
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleScriptPreferenceChange("telugu")}
+            className={`flex-1 rounded-[14px] px-4 py-3 ${
+              localScriptPreference === "telugu" ? "bg-white" : ""
+            }`}
+            style={
+              localScriptPreference === "telugu"
+                ? {
+                    shadowColor: "#D6C3AE",
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 1,
+                  }
+                : undefined
+            }
+          >
+            <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-1">
+              Regional
+            </Text>
+            <Text className="text-base font-semibold text-textPrimary">
+              Telugu
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <View className="h-px bg-[#EDF2F7]" />

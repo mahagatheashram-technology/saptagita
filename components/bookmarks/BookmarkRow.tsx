@@ -1,17 +1,24 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "../verses/VerseCard";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 interface BookmarkRowProps {
   verse: Verse;
   onPress?: () => void;
+  scriptPreference?: ScriptPreference | null;
 }
 
-export function BookmarkRow({ verse, onPress }: BookmarkRowProps) {
+export function BookmarkRow({
+  verse,
+  onPress,
+  scriptPreference,
+}: BookmarkRowProps) {
   const truncate = (value: string, max: number) => {
     if (!value) return "";
     return value.length > max ? `${value.slice(0, max).trim()}…` : value;
   };
+  const verseText = getDisplayVerseText(verse, scriptPreference);
 
   return (
     <Pressable
@@ -24,7 +31,7 @@ export function BookmarkRow({ verse, onPress }: BookmarkRowProps) {
           Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
         </Text>
         <Text className="text-base text-secondary mb-1" numberOfLines={2}>
-          {truncate(verse.sanskritDevanagari, 80)}
+          {truncate(verseText, 80)}
         </Text>
         <Text className="text-sm text-textSecondary" numberOfLines={2}>
           {truncate(verse.translationEnglish, 120)}

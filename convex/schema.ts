@@ -6,6 +6,7 @@ export default defineSchema({
     chapterNumber: v.number(),
     verseNumber: v.number(),
     sanskritDevanagari: v.string(),
+    sanskritTelugu: v.optional(v.string()),
     transliteration: v.string(),
     translationEnglish: v.string(),
     sourceKey: v.string(),
@@ -25,6 +26,9 @@ export default defineSchema({
     lastDailyDate: v.string(), // YYYY-MM-DD format
     currentDailySetId: v.union(v.id("dailySets"), v.null()),
     reminderTime: v.optional(v.string()), // "HH:mm" 24h
+    scriptPreference: v.optional(
+      v.union(v.literal("devanagari"), v.literal("telugu"))
+    ),
     sequenceInitialized: v.optional(v.boolean()),
     todayGestureCoachSeenAt: v.optional(v.number()),
   })

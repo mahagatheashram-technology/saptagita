@@ -1,6 +1,7 @@
 import { Dimensions, Platform, View, Text } from "react-native";
 import Animated from "react-native-reanimated";
 import { VerseAudioPlayer } from "./VerseAudioPlayer";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 40; // 20px padding each side
@@ -10,6 +11,7 @@ export interface Verse {
   chapterNumber: number;
   verseNumber: number;
   sanskritDevanagari: string;
+  sanskritTelugu?: string | null;
   transliteration: string;
   translationEnglish: string;
 }
@@ -18,9 +20,15 @@ interface VerseCardProps {
   verse: Verse;
   index: number;
   totalCards: number;
+  scriptPreference?: ScriptPreference | null;
 }
 
-export function VerseCard({ verse, index, totalCards }: VerseCardProps) {
+export function VerseCard({
+  verse,
+  index,
+  totalCards,
+  scriptPreference,
+}: VerseCardProps) {
   // Only render top 3 cards for performance
   if (index > 2) return null;
 
@@ -29,6 +37,7 @@ export function VerseCard({ verse, index, totalCards }: VerseCardProps) {
   const translateY = index * 10;
   const opacity = 1 - index * 0.2;
   const zIndex = totalCards - index;
+  const verseText = getDisplayVerseText(verse, scriptPreference);
 
   return (
     <Animated.View
@@ -47,7 +56,7 @@ export function VerseCard({ verse, index, totalCards }: VerseCardProps) {
 
       {/* Sanskrit Text */}
       <Text className="text-xl text-secondary leading-9 mb-4">
-        {verse.sanskritDevanagari}
+        {verseText}
       </Text>
 
       {/* Transliteration */}

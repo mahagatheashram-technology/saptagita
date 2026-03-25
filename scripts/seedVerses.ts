@@ -23,7 +23,7 @@ if (!CONVEX_URL) {
 }
 
 const DATA_PATH =
-  process.env.GITA_JSON_PATH || path.join(process.cwd(), "data/gita.json");
+  process.env.GITA_JSON_PATH || path.join(process.cwd(), "data/gita_enriched.json");
 
 const client = new ConvexHttpClient(CONVEX_URL);
 
@@ -32,6 +32,7 @@ type VerseInput =
       chapter: number;
       verse: number;
       sanskrit: string;
+      sanskritTelugu?: string;
       transliteration: string;
       translation: string;
       sourceKey?: string;
@@ -40,6 +41,7 @@ type VerseInput =
       chapterNumber: number;
       verseNumber: number;
       sanskritDevanagari: string;
+      sanskritTelugu?: string;
       transliteration: string;
       translationEnglish: string;
       sourceKey?: string;
@@ -55,6 +57,7 @@ function normalizeVerse(input: VerseInput) {
     verseNumber,
     sanskritDevanagari:
       "sanskritDevanagari" in input ? input.sanskritDevanagari : input.sanskrit,
+    sanskritTelugu: input.sanskritTelugu,
     transliteration: input.transliteration,
     translationEnglish:
       "translationEnglish" in input

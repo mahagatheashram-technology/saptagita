@@ -10,7 +10,9 @@
     "export:web": "expo export --platform web --output-dir dist-web",
     "check:env-parity": "node scripts/check-env-parity.mjs",
     "seed": "npx ts-node --esm scripts/seedVerses.ts",
-    "seed:verses": "npx tsx scripts/seedVerses.ts"
+    "seed:verses": "npx tsx scripts/seedVerses.ts",
+    "merge:gita": "npx tsx scripts/mergeGitaDatasets.ts",
+    "scrape:telugu": "npx tsx scripts/scrapeTeluguVerses.ts"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.14",

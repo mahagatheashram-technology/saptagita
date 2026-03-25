@@ -8,15 +8,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { impact } from "@/lib/haptics";
 import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { useVerseAudio } from "@/hooks/useVerseAudio";
+import { ScriptPreference } from "@/lib/verseText";
 
 interface ActionDrawerProps {
   verseId: string;
   chapterNumber: number;
   verseNumber: number;
   isSavedToDefault: boolean;
+  scriptPreference?: ScriptPreference | null;
   onBookmark: () => void;
   onAddToBucket: () => void;
   onShare: () => void;
+  onScriptPreferenceChange: (value: ScriptPreference) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -27,14 +30,16 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       chapterNumber,
       verseNumber,
       isSavedToDefault,
+      scriptPreference,
       onBookmark,
       onAddToBucket,
       onShare,
+      onScriptPreferenceChange,
       onClose,
     },
     ref
   ) => {
-    const snapPoints = useMemo(() => ["52%"], []);
+    const snapPoints = useMemo(() => ["60%"], []);
     const { stop } = useVerseAudio(chapterNumber, verseNumber);
 
     const renderBackdrop = useCallback(
@@ -96,6 +101,34 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
 
           {/* Actions */}
           <View className="py-3">
+            <View className="px-2 pb-3 mb-1">
+              <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-2">
+                Verse Script
+              </Text>
+              <View className="bg-[#F8F4EE] rounded-2xl p-1 flex-row">
+                <ScriptChip
+                  label="Devanagari"
+                  subtitle="Classic"
+                  active={scriptPreference !== "telugu"}
+                  onPress={() =>
+                    handleAction(() => onScriptPreferenceChange("devanagari"), {
+                      closeAfter: false,
+                    })
+                  }
+                />
+                <ScriptChip
+                  label="Telugu"
+                  subtitle="Regional"
+                  active={scriptPreference === "telugu"}
+                  onPress={() =>
+                    handleAction(() => onScriptPreferenceChange("telugu"), {
+                      closeAfter: false,
+                    })
+                  }
+                />
+              </View>
+            </View>
+
             <ActionButton
               icon="bookmark-outline"
               label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
@@ -130,6 +163,41 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
     );
   }
 );
+
+function ScriptChip({
+  label,
+  subtitle,
+  active,
+  onPress,
+}: {
+  label: string;
+  subtitle: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-1 rounded-[14px] px-4 py-3 ${active ? "bg-white" : ""}`}
+      style={
+        active
+          ? {
+              shadowColor: "#D6C3AE",
+              shadowOpacity: 0.2,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 1,
+            }
+          : undefined
+      }
+    >
+      <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-1">
+        {subtitle}
+      </Text>
+      <Text className="text-base font-semibold text-textPrimary">{label}</Text>
+    </Pressable>
+  );
+}
 
 // Action button component
 function ActionButton({

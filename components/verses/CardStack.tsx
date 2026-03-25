@@ -1,6 +1,7 @@
 import { Dimensions, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 interface CardStackProps {
   verses: Verse[];
@@ -9,6 +10,7 @@ interface CardStackProps {
   onSwipeLeft: () => void;
   interactionsEnabled?: boolean;
   microDemoNonce?: number;
+  scriptPreference?: ScriptPreference | null;
 }
 
 export function CardStack({
@@ -18,6 +20,7 @@ export function CardStack({
   onSwipeLeft,
   interactionsEnabled = true,
   microDemoNonce = 0,
+  scriptPreference,
 }: CardStackProps) {
   // Safety check: ensure verses is an array
   if (!verses || verses.length === 0) {
@@ -43,6 +46,7 @@ export function CardStack({
   if (isWeb) {
     const top = remainingVerses[0];
     if (!top) return null;
+    const verseText = getDisplayVerseText(top, scriptPreference);
     return (
       <View className="w-full items-center justify-start pb-6">
         <View
@@ -59,7 +63,7 @@ export function CardStack({
             </Text>
 
             <Text className="text-xl text-secondary leading-9 mb-4">
-              {top.sanskritDevanagari}
+              {verseText}
             </Text>
 
             <Text className="text-base italic text-textSecondary mb-4">
@@ -104,6 +108,7 @@ export function CardStack({
             cardWidth={cardWidth}
             interactionsEnabled={interactionsEnabled}
             microDemoNonce={position === 0 ? microDemoNonce : 0}
+            scriptPreference={scriptPreference}
           />
         ))}
     </View>

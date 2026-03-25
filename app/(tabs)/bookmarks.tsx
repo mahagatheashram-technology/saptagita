@@ -73,6 +73,10 @@ export default function BookmarksScreen() {
     api.bookmarks.getUserBuckets,
     userId ? { userId } : "skip"
   );
+  const userState = useQuery(
+    api.users.getUserState,
+    userId ? { userId } : "skip"
+  );
   const selectedReadVerseBuckets = useQuery(
     api.bookmarks.getVerseBuckets,
     userId && selectedReadVerse?._id
@@ -395,6 +399,7 @@ export default function BookmarksScreen() {
                 <ReadVerseRow
                   verse={item.verse}
                   meta={lastRead ? `Last read ${lastRead}` : "Read"}
+                  scriptPreference={userState?.scriptPreference}
                   onPress={() => handleReadRowPress(item)}
                 />
               );
@@ -447,6 +452,7 @@ export default function BookmarksScreen() {
             onAddToBucket={handleAddToBucket}
             onQuickBookmark={handleQuickBookmark}
             onLogReadToday={handleLogReadToday}
+            scriptPreference={userState?.scriptPreference}
           />
 
           <BucketPickerModal

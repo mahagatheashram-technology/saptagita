@@ -24,6 +24,7 @@ import {
   hasSeenTodayGestureCoach,
   markTodayGestureCoachSeenLocally,
 } from "@/lib/gestureCoach";
+import { ScriptPreference } from "@/lib/verseText";
 
 const DAILY_VERSE_COUNT = 7;
 
@@ -73,6 +74,7 @@ export default function TodayScreen() {
   const ensureDefaultBucket = useMutation(api.bookmarks.ensureDefaultBucket);
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
   const markGestureCoachSeen = useMutation(api.users.markTodayGestureCoachSeen);
+  const updateScriptPreference = useMutation(api.users.updateScriptPreference);
   
   // Check and update streak on app open
   const checkStreak = useMutation(api.streaks.checkAndUpdateStreak);
@@ -213,9 +215,12 @@ export default function TodayScreen() {
     const verse = verses.find((v) => v._id === activeVerse.id);
     if (!verse) return;
 
-    const message = formatVerseShareMessage(verse);
+    const message = formatVerseShareMessage(
+      verse,
+      (userState?.scriptPreference as ScriptPreference | undefined) ?? "devanagari"
+    );
     await shareText(message);
-  }, [activeVerse, verses]);
+  }, [activeVerse, userState?.scriptPreference, verses]);
 
   const handleCloseDrawer = useCallback(() => {
     if (!isWeb) {
@@ -233,6 +238,15 @@ export default function TodayScreen() {
     }
     setActiveVerse(null);
   }, [isWeb]);
+
+  const handleScriptPreferenceChange = useCallback(
+    async (nextPreference: ScriptPreference) => {
+      if (!userId) return;
+      if ((userState?.scriptPreference ?? "devanagari") === nextPreference) return;
+      await updateScriptPreference({ userId, scriptPreference: nextPreference });
+    },
+    [updateScriptPreference, userId, userState?.scriptPreference]
+  );
 
   const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
   const isSavedToDefault = Boolean(
@@ -310,6 +324,7 @@ export default function TodayScreen() {
           onSwipeLeft={handleSwipeLeft}
           interactionsEnabled={gestureCoachResolved && !showGestureCoach}
           microDemoNonce={microDemoNonce}
+          scriptPreference={userState?.scriptPreference}
         />
       </View>
 
@@ -327,9 +342,11 @@ export default function TodayScreen() {
         chapterNumber={activeVerse?.chapter ?? 0}
         verseNumber={activeVerse?.verse ?? 0}
         isSavedToDefault={isSavedToDefault}
+        scriptPreference={userState?.scriptPreference}
         onBookmark={handleBookmark}
         onAddToBucket={handleAddToBucket}
         onShare={handleShare}
+        onScriptPreferenceChange={handleScriptPreferenceChange}
         onClose={handleCloseDrawer}
       />
 

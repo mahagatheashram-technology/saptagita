@@ -15,6 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "./VerseCard";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3; // 30% of screen width
@@ -29,6 +30,7 @@ interface SwipeableCardProps {
   cardWidth: number;
   interactionsEnabled?: boolean;
   microDemoNonce?: number;
+  scriptPreference?: ScriptPreference | null;
 }
 
 export function SwipeableCard({
@@ -41,6 +43,7 @@ export function SwipeableCard({
   cardWidth,
   interactionsEnabled = true,
   microDemoNonce = 0,
+  scriptPreference,
 }: SwipeableCardProps) {
   // Only render top 3 cards for performance
   if (index > 2) return null;
@@ -54,6 +57,7 @@ export function SwipeableCard({
   const baseTranslateY = index * 10;
   const baseOpacity = 1 - index * 0.2;
   const zIndex = totalCards - index;
+  const verseText = getDisplayVerseText(verse, scriptPreference);
 
   const resetPosition = () => {
     'worklet';
@@ -219,7 +223,7 @@ export function SwipeableCard({
 
         {/* Sanskrit Text */}
         <Text className="text-xl text-secondary leading-9 mb-4">
-          {verse.sanskritDevanagari}
+          {verseText}
         </Text>
 
         {/* Transliteration */}
