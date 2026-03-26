@@ -13,12 +13,23 @@ interface ConvexUser {
   createdAt: number;
 }
 
-export function useCurrentUser() {
+interface UseCurrentUserOptions {
+  suspendSync?: boolean;
+}
+
+export function useCurrentUser(options: UseCurrentUserOptions = {}) {
   const { isLoaded, isSignedIn, user } = useUser();
   const syncUser = useMutation(api.users.getOrCreateUserFromAuth);
+  const suspendSync = options.suspendSync ?? false;
 
   // ADD THIS DEBUG LOG
-  console.log("[useCurrentUser] Clerk state:", { isLoaded, isSignedIn, hasUser: !!user, userId: user?.id });
+  console.log("[useCurrentUser] Clerk state:", {
+    isLoaded,
+    isSignedIn,
+    hasUser: !!user,
+    userId: user?.id,
+    suspendSync,
+  });
 
   const [state, setState] = useState<{
     user: ConvexUser | null;
@@ -32,7 +43,17 @@ export function useCurrentUser() {
 
   useEffect(() => {
     // ADD THIS DEBUG LOG
-    console.log("[useCurrentUser] useEffect triggered:", { isLoaded, isSignedIn, hasUser: !!user });
+    console.log("[useCurrentUser] useEffect triggered:", {
+      isLoaded,
+      isSignedIn,
+      hasUser: !!user,
+      suspendSync,
+    });
+
+    if (suspendSync) {
+      setState((prev) => ({ ...prev, isLoading: false, error: null }));
+      return;
+    }
 
     if (!isLoaded || !isSignedIn || !user) {
       console.log("[useCurrentUser] Early return - not ready");
@@ -80,7 +101,7 @@ export function useCurrentUser() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, user, syncUser]);
+  }, [isLoaded, isSignedIn, user, syncUser, suspendSync]);
 
   return {
     user: state.user,
@@ -90,4 +111,3 @@ export function useCurrentUser() {
     clerkUser: user,
   };
 }
-

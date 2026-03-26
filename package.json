@@ -8,28 +8,32 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "export:web": "expo export --platform web --output-dir dist-web",
+    "check:env-parity": "node scripts/check-env-parity.mjs",
     "seed": "npx ts-node --esm scripts/seedVerses.ts",
-    "seed:verses": "npx tsx scripts/seedVerses.ts"
+    "seed:verses": "npx tsx scripts/seedVerses.ts",
+    "merge:gita": "npx tsx scripts/mergeGitaDatasets.ts",
+    "scrape:telugu": "npx tsx scripts/scrapeTeluguVerses.ts"
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.19.14",
     "@expo/cli": "^54.0.20",
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5.2.8",
-    "@react-native-community/datetimepicker": "^8.4.4",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@react-navigation/native": "^7.1.8",
     "convex": "^1.31.2",
-    "expo": "~54.0.30",
+    "expo": "~54.0.33",
     "expo-auth-session": "~7.0.10",
+    "expo-av": "~16.0.8",
     "expo-constants": "~18.0.12",
     "expo-device": "~8.0.10",
     "expo-font": "~14.0.10",
     "expo-haptics": "^15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",
-    "expo-notifications": "^0.32.15",
-    "expo-router": "~6.0.21",
-    "expo-secure-store": "~13.0.2",
+    "expo-notifications": "~0.32.16",
+    "expo-router": "~6.0.23",
+    "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.10",
@@ -52,5 +56,6 @@
     "tsx": "^4.19.2",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

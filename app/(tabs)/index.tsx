@@ -1,12 +1,13 @@
 import { View, Text, ActivityIndicator, Alert, Pressable, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { CardStack } from "@/components/verses/CardStack";
 import {
   TodayHeader,
   SwipeHint,
+  GestureCoachOverlay,
   CompletionScreen,
 } from "@/components/today";
 import { useTodayReading } from "@/lib/hooks/useTodayReading";
@@ -19,6 +20,11 @@ import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
 import { clearBadge } from "@/lib/notifications";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
+import {
+  hasSeenTodayGestureCoach,
+  markTodayGestureCoachSeenLocally,
+} from "@/lib/gestureCoach";
+import { ScriptPreference } from "@/lib/verseText";
 
 const DAILY_VERSE_COUNT = 7;
 
@@ -30,11 +36,28 @@ export default function TodayScreen() {
     verse: number;
   } | null>(null);
   const [showBucketPicker, setShowBucketPicker] = useState(false);
+  const [showGestureCoach, setShowGestureCoach] = useState(false);
+  const [gestureCoachResolved, setGestureCoachResolved] = useState(Platform.OS === "web");
+  const [microDemoNonce, setMicroDemoNonce] = useState(0);
 
   const actionDrawerRef = useRef<BottomSheet>(null);
   const { user: currentUser, isLoading: isUserLoading, error: userError } = useCurrentUser();
   const userId = currentUser?._id ?? null;
   const { signOut } = useAuth();
+  const userState = useQuery(
+    api.users.getUserState,
+    userId ? { userId } : "skip"
+  );
+  const buckets = useQuery(
+    api.bookmarks.getUserBuckets,
+    userId ? { userId } : "skip"
+  );
+  const activeVerseBuckets = useQuery(
+    api.bookmarks.getVerseBuckets,
+    userId && activeVerse?.id
+      ? { userId, verseId: activeVerse.id as Id<"verses"> }
+      : "skip"
+  );
 
   const {
     verses,
@@ -50,6 +73,8 @@ export default function TodayScreen() {
 
   const ensureDefaultBucket = useMutation(api.bookmarks.ensureDefaultBucket);
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
+  const markGestureCoachSeen = useMutation(api.users.markTodayGestureCoachSeen);
+  const updateScriptPreference = useMutation(api.users.updateScriptPreference);
   
   // Check and update streak on app open
   const checkStreak = useMutation(api.streaks.checkAndUpdateStreak);
@@ -91,6 +116,78 @@ export default function TodayScreen() {
     }
   }, [userId, ensureDefaultBucket]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    if (isWeb) {
+      setShowGestureCoach(false);
+      setGestureCoachResolved(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!userId) {
+      setShowGestureCoach(false);
+      setGestureCoachResolved(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const syncGestureCoachState = async () => {
+      const hasSeenLocally = await hasSeenTodayGestureCoach(userId);
+      if (cancelled) return;
+
+      if (hasSeenLocally) {
+        setShowGestureCoach(false);
+        setGestureCoachResolved(true);
+
+        if (userState && !userState.todayGestureCoachSeenAt) {
+          markGestureCoachSeen({ userId }).catch((error) => {
+            console.error("Failed to backfill gesture coach state", error);
+          });
+        }
+        return;
+      }
+
+      if (userState === undefined) {
+        return;
+      }
+
+      if (userState?.todayGestureCoachSeenAt) {
+        await markTodayGestureCoachSeenLocally(userId);
+        if (cancelled) return;
+        setShowGestureCoach(false);
+      } else {
+        setShowGestureCoach(true);
+      }
+
+      setGestureCoachResolved(true);
+    };
+
+    syncGestureCoachState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isWeb, markGestureCoachSeen, userId, userState]);
+
+  const handleDismissGestureCoach = useCallback(async () => {
+    setShowGestureCoach(false);
+    setGestureCoachResolved(true);
+    setMicroDemoNonce((value) => value + 1);
+    if (!userId) return;
+
+    await markTodayGestureCoachSeenLocally(userId);
+
+    try {
+      await markGestureCoachSeen({ userId });
+    } catch (error) {
+      console.error("Failed to persist gesture coach state", error);
+    }
+  }, [markGestureCoachSeen, userId]);
+
   const handleBookmark = useCallback(async () => {
     if (!userId || !activeVerse) return;
     const verseId = activeVerse.id as Id<"verses">;
@@ -118,9 +215,12 @@ export default function TodayScreen() {
     const verse = verses.find((v) => v._id === activeVerse.id);
     if (!verse) return;
 
-    const message = formatVerseShareMessage(verse);
+    const message = formatVerseShareMessage(
+      verse,
+      (userState?.scriptPreference as ScriptPreference | undefined) ?? "devanagari"
+    );
     await shareText(message);
-  }, [activeVerse, verses]);
+  }, [activeVerse, userState?.scriptPreference, verses]);
 
   const handleCloseDrawer = useCallback(() => {
     if (!isWeb) {
@@ -138,6 +238,23 @@ export default function TodayScreen() {
     }
     setActiveVerse(null);
   }, [isWeb]);
+
+  const handleScriptPreferenceChange = useCallback(
+    async (nextPreference: ScriptPreference) => {
+      if (!userId) return;
+      if ((userState?.scriptPreference ?? "devanagari") === nextPreference) return;
+      await updateScriptPreference({ userId, scriptPreference: nextPreference });
+    },
+    [updateScriptPreference, userId, userState?.scriptPreference]
+  );
+
+  const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
+  const isSavedToDefault = Boolean(
+    defaultBucketId &&
+      activeVerseBuckets?.some(
+        (bucketId) => String(bucketId) === String(defaultBucketId)
+      )
+  );
 
   // Loading state
   if (userError) {
@@ -205,19 +322,31 @@ export default function TodayScreen() {
           currentIndex={currentIndex}
           onSwipeRight={handleSwipeRight}
           onSwipeLeft={handleSwipeLeft}
+          interactionsEnabled={gestureCoachResolved && !showGestureCoach}
+          microDemoNonce={microDemoNonce}
+          scriptPreference={userState?.scriptPreference}
         />
       </View>
 
-      {!isWeb && <SwipeHint />}
+      {!isWeb && (
+        <SwipeHint
+          onMoreOptions={handleSwipeLeft}
+          onMarkRead={handleSwipeRight}
+          disabled={!gestureCoachResolved || showGestureCoach}
+        />
+      )}
 
       <ActionDrawer
         ref={actionDrawerRef}
         verseId={activeVerse?.id ?? ""}
         chapterNumber={activeVerse?.chapter ?? 0}
         verseNumber={activeVerse?.verse ?? 0}
+        isSavedToDefault={isSavedToDefault}
+        scriptPreference={userState?.scriptPreference}
         onBookmark={handleBookmark}
         onAddToBucket={handleAddToBucket}
         onShare={handleShare}
+        onScriptPreferenceChange={handleScriptPreferenceChange}
         onClose={handleCloseDrawer}
       />
 
@@ -228,6 +357,13 @@ export default function TodayScreen() {
         verseId={activeVerse ? (activeVerse.id as Id<"verses">) : null}
         key={activeVerse?.id ?? "bucket-picker"}
       />
+
+      {!isWeb && (
+        <GestureCoachOverlay
+          visible={showGestureCoach}
+          onDismiss={handleDismissGestureCoach}
+        />
+      )}
     </SafeAreaView>
   );
 }

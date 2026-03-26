@@ -19,11 +19,12 @@ import {
   getStoredReminderTime,
   scheduleDailyReminder,
 } from "@/lib/notifications";
+import { ScriptPreference } from "@/lib/verseText";
 
 interface SettingsSectionProps {
   userId: Id<"users">;
   reminderTime?: string | null;
-  mode?: string | null;
+  scriptPreference?: ScriptPreference | null;
 }
 
 const DEFAULT_REMINDER_TIME = "20:00"; // 8:00 PM
@@ -60,7 +61,7 @@ function toDate(value?: string | null) {
 export function SettingsSection({
   userId,
   reminderTime,
-  mode,
+  scriptPreference,
 }: SettingsSectionProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [localReminderTime, setLocalReminderTime] = useState(reminderTime ?? null);
@@ -69,7 +70,11 @@ export function SettingsSection({
   );
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [isLoadingPreference, setIsLoadingPreference] = useState(true);
+  const [localScriptPreference, setLocalScriptPreference] = useState<ScriptPreference>(
+    scriptPreference ?? "devanagari"
+  );
   const updateReminderTime = useMutation(api.users.updateReminderTime);
+  const updateScriptPreference = useMutation(api.users.updateScriptPreference);
   const resetReadingProgress = useMutation(api.users.resetReadingProgress);
   const isWeb = Platform.OS === "web";
 
@@ -77,6 +82,10 @@ export function SettingsSection({
     setLocalReminderTime(reminderTime ?? null);
     setPickerValue(toDate(reminderTime));
   }, [reminderTime]);
+
+  useEffect(() => {
+    setLocalScriptPreference(scriptPreference ?? "devanagari");
+  }, [scriptPreference]);
 
   useEffect(() => {
     const loadPreference = async () => {
@@ -102,8 +111,6 @@ export function SettingsSection({
     () => toDisplayTime(localReminderTime),
     [localReminderTime]
   );
-  const modeLabel = mode === "random" ? "Random" : "Sequential";
-
   const saveReminderTime = async (date: Date) => {
     if (isWeb) {
       Alert.alert("Not available on web", "Notification reminders are disabled on web.");
@@ -179,6 +186,25 @@ export function SettingsSection({
     }
   };
 
+  const handleScriptPreferenceChange = async (nextPreference: ScriptPreference) => {
+    if (nextPreference === localScriptPreference) {
+      return;
+    }
+
+    const previousPreference = localScriptPreference;
+    setLocalScriptPreference(nextPreference);
+
+    try {
+      await updateScriptPreference({ userId, scriptPreference: nextPreference });
+    } catch (error: any) {
+      setLocalScriptPreference(previousPreference);
+      Alert.alert(
+        "Update failed",
+        String(error?.message ?? error ?? "Could not update verse script.")
+      );
+    }
+  };
+
   const handleResetProgress = () => {
     Alert.alert(
       "Reset reading progress?",
@@ -241,23 +267,64 @@ export function SettingsSection({
 
       <View className="h-px bg-[#EDF2F7]" />
 
-      <Pressable
-        onPress={() =>
-          Alert.alert(
-            "Random mode",
-            "Random mode coming soon. Stay tuned!"
-          )
-        }
-        className="flex-row items-center justify-between py-3"
-      >
-        <View>
-          <Text className="text-sm text-textSecondary">Reading Mode</Text>
+      <View className="py-3">
+        <View className="mb-3">
+          <Text className="text-sm text-textSecondary">Verse Script</Text>
           <Text className="text-base font-semibold text-textPrimary">
-            {modeLabel}
+            {localScriptPreference === "telugu" ? "Telugu" : "Devanagari"}
           </Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#718096" />
-      </Pressable>
+        <View className="bg-[#F8F4EE] rounded-2xl p-1 flex-row">
+          <Pressable
+            onPress={() => handleScriptPreferenceChange("devanagari")}
+            className={`flex-1 rounded-[14px] px-4 py-3 ${
+              localScriptPreference === "devanagari" ? "bg-white" : ""
+            }`}
+            style={
+              localScriptPreference === "devanagari"
+                ? {
+                    shadowColor: "#D6C3AE",
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 1,
+                  }
+                : undefined
+            }
+          >
+            <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-1">
+              Classic
+            </Text>
+            <Text className="text-base font-semibold text-textPrimary">
+              Devanagari
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => handleScriptPreferenceChange("telugu")}
+            className={`flex-1 rounded-[14px] px-4 py-3 ${
+              localScriptPreference === "telugu" ? "bg-white" : ""
+            }`}
+            style={
+              localScriptPreference === "telugu"
+                ? {
+                    shadowColor: "#D6C3AE",
+                    shadowOpacity: 0.2,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 4 },
+                    elevation: 1,
+                  }
+                : undefined
+            }
+          >
+            <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-1">
+              Regional
+            </Text>
+            <Text className="text-base font-semibold text-textPrimary">
+              Telugu
+            </Text>
+          </Pressable>
+        </View>
+      </View>
 
       <View className="h-px bg-[#EDF2F7]" />
 

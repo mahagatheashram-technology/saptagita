@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as communities from "../communities.js";
 import type * as dailySets from "../dailySets.js";
@@ -23,6 +24,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   bookmarks: typeof bookmarks;
   communities: typeof communities;
   dailySets: typeof dailySets;

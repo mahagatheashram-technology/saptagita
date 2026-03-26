@@ -94,16 +94,7 @@ export function LeaderboardList({
             isCurrentUser={item.userId === currentUserId}
           />
         )}
-        ListHeaderComponent={
-          <View className="pb-2">
-            <Text className="text-lg font-semibold text-secondary">
-              {isGlobal ? "Global leaderboard" : "Community leaderboard"}
-            </Text>
-            <Text className="text-sm text-textSecondary mt-1">
-              {listSubtitle}
-            </Text>
-          </View>
-        }
+        ListHeaderComponent={<View className="pb-2" />}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: (pinnedUser ? 140 : 80) + insets.bottom,
