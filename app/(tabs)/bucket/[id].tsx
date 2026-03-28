@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -37,10 +37,11 @@ export default function BucketDetailScreen() {
 
   const { user: currentUser, isLoading: isUserLoading } = useCurrentUser();
   const userId = currentUser?._id ?? null;
-  const [selectedVerse, setSelectedVerse] = useState<any | null>(null);
+  const [selectedBookmark, setSelectedBookmark] = useState<any | null>(null);
   const [showMovePicker, setShowMovePicker] = useState(false);
 
   const detailSheetRef = useRef<BottomSheet>(null);
+  const pendingManageBucketsRef = useRef(false);
 
   const removeBookmark = useMutation(api.bookmarks.removeBookmark);
 
@@ -68,25 +69,32 @@ export default function BucketDetailScreen() {
   };
 
   const handleRowPress = (item: any) => {
-    setSelectedVerse(item);
-  };
-
-  useEffect(() => {
-    if (!selectedVerse) return;
+    if (!item?.verse) return;
+    setSelectedBookmark(item);
     requestAnimationFrame(() => {
       detailSheetRef.current?.snapToIndex(0);
     });
-  }, [selectedVerse]);
+  };
+
+  const selectedVerse = selectedBookmark?.verse ?? null;
 
   const handleRemove = async () => {
     if (!userId || !selectedVerse) return;
     await removeBookmark({
       userId,
       bucketId,
-      verseId: selectedVerse.verse._id,
+      verseId: selectedVerse._id,
     });
     detailSheetRef.current?.close();
-    setSelectedVerse(null);
+  };
+
+  const handleDetailSheetClose = () => {
+    if (pendingManageBucketsRef.current) {
+      pendingManageBucketsRef.current = false;
+      setShowMovePicker(true);
+      return;
+    }
+    setSelectedBookmark(null);
   };
 
   const headerEmoji = useMemo(() => bucket?.icon ?? "📁", [bucket]);
@@ -162,28 +170,34 @@ export default function BucketDetailScreen() {
         </ScrollView>
       )}
 
-      <BookmarkDetailSheet
-        ref={detailSheetRef}
-        verse={selectedVerse?.verse ?? null}
-        bucketName={`${headerEmoji} ${bucket?.name ?? ""}`}
-        onRemove={handleRemove}
-        onClose={() => setSelectedVerse(null)}
-        scriptPreference={userState?.scriptPreference}
-        onManageBuckets={() => {
-          detailSheetRef.current?.close();
-          setShowMovePicker(true);
-        }}
-      />
+      {selectedVerse ? (
+        <BookmarkDetailSheet
+          key={selectedVerse._id}
+          ref={detailSheetRef}
+          verse={selectedVerse}
+          bucketName={`${headerEmoji} ${bucket?.name ?? ""}`}
+          onRemove={handleRemove}
+          onClose={handleDetailSheetClose}
+          scriptPreference={userState?.scriptPreference}
+          onManageBuckets={() => {
+            pendingManageBucketsRef.current = true;
+            detailSheetRef.current?.close();
+          }}
+        />
+      ) : null}
 
       <BucketPickerModal
         visible={showMovePicker}
         onClose={() => {
           setShowMovePicker(false);
-          setSelectedVerse(null);
+          setSelectedBookmark(null);
         }}
         userId={userId}
-        verseId={selectedVerse?.verse?._id ?? null}
-        onMoved={() => setShowMovePicker(false)}
+        verseId={selectedVerse?._id ?? null}
+        onMoved={() => {
+          setShowMovePicker(false);
+          setSelectedBookmark(null);
+        }}
       />
     </SafeAreaView>
   );
