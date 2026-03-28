@@ -1,4 +1,5 @@
 import { Platform, Share } from "react-native";
+import { getDisplayVerseText, ScriptPreference } from "./verseText";
 
 export async function shareText(message: string) {
   if (Platform.OS !== "web") {
@@ -28,10 +29,12 @@ export function formatVerseShareMessage(input: {
   chapterNumber: number;
   verseNumber: number;
   sanskritDevanagari: string;
+  sanskritTelugu?: string | null;
   transliteration: string;
   translationEnglish: string;
-}) {
-  const { chapterNumber, verseNumber, sanskritDevanagari, transliteration, translationEnglish } =
+}, scriptPreference?: ScriptPreference | null) {
+  const { chapterNumber, verseNumber, transliteration, translationEnglish } =
     input;
-  return `Bhagavad Gita ${chapterNumber}.${verseNumber}\n\n${sanskritDevanagari}\n\n${transliteration}\n\n"${translationEnglish}"\n\n— Shared from Sapta Gita`;
+  const verseText = getDisplayVerseText(input, scriptPreference);
+  return `Bhagavad Gita ${chapterNumber}.${verseNumber}\n\n${verseText}\n\n${transliteration}\n\n"${translationEnglish}"\n\n— Shared from Sapta Gita`;
 }

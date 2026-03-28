@@ -6,14 +6,20 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { impact } from "@/lib/haptics";
+import { VerseAudioPlayer } from "./VerseAudioPlayer";
+import { useVerseAudio } from "@/hooks/useVerseAudio";
+import { ScriptPreference } from "@/lib/verseText";
 
 interface ActionDrawerProps {
   verseId: string;
   chapterNumber: number;
   verseNumber: number;
+  isSavedToDefault: boolean;
+  scriptPreference?: ScriptPreference | null;
   onBookmark: () => void;
   onAddToBucket: () => void;
   onShare: () => void;
+  onScriptPreferenceChange: (value: ScriptPreference) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -23,14 +29,18 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       verseId,
       chapterNumber,
       verseNumber,
+      isSavedToDefault,
+      scriptPreference,
       onBookmark,
       onAddToBucket,
       onShare,
+      onScriptPreferenceChange,
       onClose,
     },
     ref
   ) => {
-    const snapPoints = useMemo(() => ["45%"], []);
+    const snapPoints = useMemo(() => ["60%"], []);
+    const { stop } = useVerseAudio(chapterNumber, verseNumber);
 
     const renderBackdrop = useCallback(
       (props: any) => (
@@ -44,6 +54,11 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       []
     );
 
+    const handleClose = useCallback(async () => {
+      await stop();
+      onClose();
+    }, [stop, onClose]);
+
     const handleAction = async (
       action: () => void | Promise<void>,
       options?: { closeAfter?: boolean }
@@ -51,7 +66,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
       impact();
       await action();
       if (options?.closeAfter !== false) {
-        onClose();
+        handleClose();
       }
     };
 
@@ -62,7 +77,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
         snapPoints={snapPoints}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
-        onClose={onClose}
+        onClose={handleClose}
         containerStyle={{ zIndex: 50, elevation: 50 }}
         backgroundStyle={{ backgroundColor: "#FFFFFF" }}
         handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
@@ -73,24 +88,58 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
             <Text className="text-lg font-semibold text-secondary">
               Chapter {chapterNumber} • Verse {verseNumber}
             </Text>
-            <Text className="text-sm text-textSecondary mt-1">
-              Choose an action
-            </Text>
+          </View>
+
+          {/* Audio player */}
+          <View className="pt-4">
+            <VerseAudioPlayer
+              chapterNumber={chapterNumber}
+              verseNumber={verseNumber}
+              variant="full"
+            />
           </View>
 
           {/* Actions */}
-          <View className="py-4">
+          <View className="py-3">
+            <View className="px-2 pb-3 mb-1">
+              <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-2">
+                Verse Script
+              </Text>
+              <View className="bg-[#F8F4EE] rounded-2xl p-1 flex-row">
+                <ScriptChip
+                  label="Devanagari"
+                  subtitle="Classic"
+                  active={scriptPreference !== "telugu"}
+                  onPress={() =>
+                    handleAction(() => onScriptPreferenceChange("devanagari"), {
+                      closeAfter: false,
+                    })
+                  }
+                />
+                <ScriptChip
+                  label="Telugu"
+                  subtitle="Regional"
+                  active={scriptPreference === "telugu"}
+                  onPress={() =>
+                    handleAction(() => onScriptPreferenceChange("telugu"), {
+                      closeAfter: false,
+                    })
+                  }
+                />
+              </View>
+            </View>
+
             <ActionButton
               icon="bookmark-outline"
-              label="Quick Bookmark"
-              subtitle="Save to your default collection"
+              label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
+              subtitle="Default bucket (Saved)"
               onPress={() => handleAction(onBookmark)}
             />
 
             <ActionButton
               icon="folder-outline"
               label="Add to Bucket"
-              subtitle="Choose a specific collection"
+              subtitle="Choose one or more specific buckets"
               onPress={() => handleAction(onAddToBucket, { closeAfter: false })}
             />
 
@@ -104,7 +153,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
 
           {/* Cancel button */}
           <Pressable
-            onPress={onClose}
+            onPress={handleClose}
             className="py-3 items-center border-t border-gray-100"
           >
             <Text className="text-textSecondary font-medium">Cancel</Text>
@@ -114,6 +163,41 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
     );
   }
 );
+
+function ScriptChip({
+  label,
+  subtitle,
+  active,
+  onPress,
+}: {
+  label: string;
+  subtitle: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-1 rounded-[14px] px-4 py-3 ${active ? "bg-white" : ""}`}
+      style={
+        active
+          ? {
+              shadowColor: "#D6C3AE",
+              shadowOpacity: 0.2,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 1,
+            }
+          : undefined
+      }
+    >
+      <Text className="text-[11px] uppercase tracking-[1.2px] text-textSecondary mb-1">
+        {subtitle}
+      </Text>
+      <Text className="text-base font-semibold text-textPrimary">{label}</Text>
+    </Pressable>
+  );
+}
 
 // Action button component
 function ActionButton({

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Image, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -73,6 +73,20 @@ export default function SocialScreen() {
             currentUserId={user?._id ?? null}
           />
         )}
+      </View>
+
+      {/* Foundation branding footer */}
+      <View className="items-center py-2 pb-1">
+        <View className="flex-row items-center">
+          <Image
+            source={require("@/assets/images/mahagathe-foundation-logo.png")}
+            style={{ width: 16, height: 16, marginRight: 6 }}
+            resizeMode="contain"
+          />
+          <Text className="text-[10px] text-textSecondary/40 tracking-[0.5px]">
+            A Mahagathe Foundation Initiative
+          </Text>
+        </View>
       </View>
 
       <CreateCommunityModal

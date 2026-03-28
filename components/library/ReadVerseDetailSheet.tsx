@@ -7,19 +7,27 @@ import BottomSheet, {
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "../verses/VerseCard";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
+import { VerseAudioPlayer } from "../verses/VerseAudioPlayer";
+import { useVerseAudio } from "@/hooks/useVerseAudio";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 interface ReadVerseDetailSheetProps {
   verse: Verse | null;
+  isSavedToDefault: boolean;
   onAddToBucket: () => void;
   onQuickBookmark: () => void;
   onLogReadToday: () => void;
+  scriptPreference?: ScriptPreference | null;
 }
 
 export const ReadVerseDetailSheet = forwardRef<
   BottomSheet,
   ReadVerseDetailSheetProps
->(({ verse, onAddToBucket, onQuickBookmark, onLogReadToday }, ref) => {
-  const snapPoints = useMemo(() => ["65%"], []);
+>(({ verse, isSavedToDefault, onAddToBucket, onQuickBookmark, onLogReadToday, scriptPreference }, ref) => {
+  const snapPoints = useMemo(() => ["72%"], []);
+
+  // Stop audio when sheet closes
+  const { stop } = useVerseAudio(verse?.chapterNumber ?? 0, verse?.verseNumber ?? 0);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -33,13 +41,18 @@ export const ReadVerseDetailSheet = forwardRef<
     []
   );
 
+  const handleClose = useCallback(async () => {
+    await stop();
+  }, [stop]);
+
   const handleShare = useCallback(async () => {
     if (!verse) return;
-    const message = formatVerseShareMessage(verse);
+    const message = formatVerseShareMessage(verse, scriptPreference);
     await shareText(message);
-  }, [verse]);
+  }, [scriptPreference, verse]);
 
   if (!verse) return null;
+  const verseText = getDisplayVerseText(verse, scriptPreference);
 
   return (
     <BottomSheet
@@ -47,6 +60,7 @@ export const ReadVerseDetailSheet = forwardRef<
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      onClose={handleClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF" }}
       handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
@@ -58,9 +72,10 @@ export const ReadVerseDetailSheet = forwardRef<
           </Text>
         </View>
 
-        <View className="bg-surface rounded-2xl p-3 shadow-sm mb-4">
+        {/* Verse content */}
+        <View className="bg-surface rounded-2xl p-3 shadow-sm mb-3">
           <Text className="text-sm text-textSecondary mb-1">
-            {verse.sanskritDevanagari}
+            {verseText}
           </Text>
           <Text className="text-xs text-textSecondary italic mb-2">
             {verse.transliteration}
@@ -70,6 +85,16 @@ export const ReadVerseDetailSheet = forwardRef<
           </Text>
         </View>
 
+        {/* Audio player */}
+        <View className="mb-3">
+          <VerseAudioPlayer
+            chapterNumber={verse.chapterNumber}
+            verseNumber={verse.verseNumber}
+            variant="full"
+          />
+        </View>
+
+        {/* Actions */}
         <View className="space-y-2">
           <SheetButton
             icon="folder-open-outline"
@@ -83,7 +108,7 @@ export const ReadVerseDetailSheet = forwardRef<
           />
           <SheetButton
             icon="bookmark-outline"
-            label="Quick bookmark"
+            label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
             onPress={onQuickBookmark}
           />
           <SheetButton

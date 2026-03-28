@@ -7,19 +7,27 @@ import BottomSheet, {
 import { Verse } from "../verses/VerseCard";
 import { Ionicons } from "@expo/vector-icons";
 import { formatVerseShareMessage, shareText } from "@/lib/shareText";
+import { VerseAudioPlayer } from "../verses/VerseAudioPlayer";
+import { useVerseAudio } from "@/hooks/useVerseAudio";
+import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
 
 interface BookmarkDetailSheetProps {
   verse: Verse | null;
   bucketName: string;
   onRemove: () => void;
   onManageBuckets: () => void;
+  onClose?: () => void;
+  scriptPreference?: ScriptPreference | null;
 }
 
 export const BookmarkDetailSheet = forwardRef<
   BottomSheet,
   BookmarkDetailSheetProps
->(({ verse, bucketName, onRemove, onManageBuckets }, ref) => {
-  const snapPoints = useMemo(() => ["65%"], []);
+>(({ verse, bucketName, onRemove, onManageBuckets, onClose, scriptPreference }, ref) => {
+  const snapPoints = useMemo(() => ["72%"], []);
+
+  // Stop audio when sheet closes — falls back gracefully if verse is null
+  const { stop } = useVerseAudio(verse?.chapterNumber ?? 0, verse?.verseNumber ?? 0);
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -33,13 +41,17 @@ export const BookmarkDetailSheet = forwardRef<
     []
   );
 
+  const handleClose = useCallback(async () => {
+    await stop();
+    onClose?.();
+  }, [stop, onClose]);
+
   const handleShare = useCallback(async () => {
     if (!verse) return;
-    const message = formatVerseShareMessage(verse);
+    const message = formatVerseShareMessage(verse, scriptPreference);
     await shareText(message);
-  }, [verse]);
-
-  if (!verse) return null;
+  }, [scriptPreference, verse]);
+  const verseText = verse ? getDisplayVerseText(verse, scriptPreference) : "";
 
   return (
     <BottomSheet
@@ -47,37 +59,74 @@ export const BookmarkDetailSheet = forwardRef<
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      onClose={handleClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF" }}
       handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
     >
       <BottomSheetView className="flex-1 px-4">
-        <View className="items-center pb-4">
-          <Text className="text-base font-semibold text-textPrimary">
-            {bucketName}
-          </Text>
-          <Text className="text-sm text-textSecondary mt-1">
-            Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
-          </Text>
-        </View>
+        {!verse ? (
+          <View className="flex-1 items-center justify-center py-10">
+            <Text className="text-base font-semibold text-textPrimary mb-2">
+              Select a verse
+            </Text>
+            <Text className="text-sm text-textSecondary text-center">
+              Tap any verse in this bucket to view actions.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View className="items-center pb-4">
+              <Text className="text-base font-semibold text-textPrimary">
+                {bucketName}
+              </Text>
+              <Text className="text-sm text-textSecondary mt-1">
+                Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
+              </Text>
+            </View>
 
-        <View className="bg-surface rounded-2xl p-3 shadow-sm mb-4">
-          <Text className="text-sm text-textSecondary mb-1">
-            {verse.sanskritDevanagari}
-          </Text>
-          <Text className="text-xs text-textSecondary italic mb-2">
-            {verse.transliteration}
-          </Text>
-          <Text className="text-base text-textPrimary">
-            {verse.translationEnglish}
-          </Text>
-        </View>
+            {/* Verse content */}
+            <View className="bg-surface rounded-2xl p-3 shadow-sm mb-3">
+              <Text className="text-sm text-textSecondary mb-1">
+                {verseText}
+              </Text>
+              <Text className="text-xs text-textSecondary italic mb-2">
+                {verse.transliteration}
+              </Text>
+              <Text className="text-base text-textPrimary">
+                {verse.translationEnglish}
+              </Text>
+            </View>
 
-        <View className="space-y-2">
-          <SheetButton icon="folder-open-outline" label="Add / remove buckets" onPress={onManageBuckets} />
-          <SheetButton icon="share-outline" label="Share verse" onPress={handleShare} />
-          <SheetButton icon="trash-outline" label="Remove from bucket" onPress={onRemove} />
-        </View>
+            {/* Audio player */}
+            <View className="mb-3">
+              <VerseAudioPlayer
+                chapterNumber={verse.chapterNumber}
+                verseNumber={verse.verseNumber}
+                variant="full"
+              />
+            </View>
+
+            {/* Action buttons */}
+            <View className="space-y-2">
+              <SheetButton
+                icon="folder-open-outline"
+                label="Add / remove buckets"
+                onPress={onManageBuckets}
+              />
+              <SheetButton
+                icon="share-outline"
+                label="Share verse"
+                onPress={handleShare}
+              />
+              <SheetButton
+                icon="trash-outline"
+                label="Remove from bucket"
+                onPress={onRemove}
+              />
+            </View>
+          </>
+        )}
       </BottomSheetView>
     </BottomSheet>
   );

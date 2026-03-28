@@ -7,7 +7,7 @@ import {
   requestNotificationPermissions,
   scheduleDailyReminder,
 } from "@/lib/notifications";
-import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -16,8 +16,8 @@ import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { ActivityIndicator, Platform, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -37,12 +37,41 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore if the native splash screen isn't registered in this environment.
 });
 
+const SHIPPING_BUILD_PROFILES = new Set(["preview", "production"]);
+
+function assertShippingParity(publishableKey: string) {
+  const buildProfile = process.env.EAS_BUILD_PROFILE ?? "";
+  const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL ?? "";
+  const isReleaseRuntime = typeof __DEV__ !== "undefined" ? !__DEV__ : false;
+  const enforceShippingRules =
+    SHIPPING_BUILD_PROFILES.has(buildProfile) || isReleaseRuntime;
+
+  if (!enforceShippingRules) return;
+
+  if (publishableKey.startsWith("pk_test_")) {
+    throw new Error(
+      `Invalid Clerk configuration for shipping build (profile: ${
+        buildProfile || "unknown"
+      }): expected a live publishable key, got a test key.`
+    );
+  }
+
+  if (convexUrl.includes("joyous-warthog-33")) {
+    throw new Error(
+      `Invalid Convex configuration for shipping build (profile: ${
+        buildProfile || "unknown"
+      }): app is pointed at the dev deployment.`
+    );
+  }
+}
+
 export default function RootLayout() {
   const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
   if (!publishableKey) {
     throw new Error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in .env.local");
   }
+  assertShippingParity(publishableKey);
 
   const [loaded, error] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
@@ -80,15 +109,13 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
           publishableKey={publishableKey}
           tokenCache={tokenCache}
         >
-          <ClerkLoaded>
-            <ConvexAuthSync />
-            <NotificationEffects />
-            <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-              <ThemeProvider value={DefaultTheme}>
-                <AuthStack />
-              </ThemeProvider>
-            </ConvexProviderWithClerk>
-          </ClerkLoaded>
+          <ConvexAuthSync />
+          <NotificationEffects />
+          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+            <ThemeProvider value={DefaultTheme}>
+              <AuthStack />
+            </ThemeProvider>
+          </ConvexProviderWithClerk>
         </ClerkProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
@@ -176,23 +203,109 @@ function NotificationEffects() {
 function AuthStack() {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
-  const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
-  const isWelcomeRoute = pathname === "/welcome";
+  const isAuthRoute = pathname === "/sign-in";
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const [clerkProbe, setClerkProbe] = useState<string>("pending");
+  const [nativeApiDisabled, setNativeApiDisabled] = useState(false);
+
+  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
+  const keyPreview = publishableKey
+    ? `${publishableKey.slice(0, 12)}...${publishableKey.slice(-4)}`
+    : "missing";
+  const clerkDomain = "https://clerk.mahagathe.org";
+
+  useEffect(() => {
+    if (isLoaded) {
+      setLoadTimedOut(false);
+      setClerkProbe("loaded");
+      setNativeApiDisabled(false);
+      return;
+    }
+
+    setClerkProbe("probing");
+    fetch(`${clerkDomain}/v1/client?_is_native=1`, {
+      headers: {
+        "x-mobile": "1",
+      },
+    })
+      .then(async (res) => {
+        const body = await res.text();
+
+        try {
+          const parsed = JSON.parse(body);
+          const code = parsed?.errors?.[0]?.code;
+          if (code === "native_api_disabled") {
+            setNativeApiDisabled(true);
+            setClerkProbe("error native_api_disabled");
+            return;
+          }
+        } catch {
+          // Keep fallback probe text for non-JSON payloads.
+        }
+
+        setClerkProbe(`ok ${res.status} (${body.slice(0, 80)}...)`);
+      })
+      .catch((error: any) => {
+        setClerkProbe(`error ${String(error?.message ?? error)}`);
+      });
+
+    const timer = setTimeout(() => {
+      setLoadTimedOut(true);
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, [isLoaded, clerkDomain]);
 
   if (!isLoaded) {
+    if (loadTimedOut) {
+      return (
+        <View className="flex-1 bg-background items-center justify-center px-6">
+          <Text className="text-base font-semibold text-textPrimary mb-2">
+            Auth failed to initialize
+          </Text>
+          <Text className="text-sm text-textSecondary text-center mb-4">
+            {nativeApiDisabled
+              ? "Clerk Native API is disabled for this instance. Enable it in Clerk Dashboard."
+              : "We couldn't load Clerk authentication. Check network/DNS and reinstall the latest preview build."}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-2">
+            Convex URL: {process.env.EXPO_PUBLIC_CONVEX_URL ?? "missing"}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-2">
+            Clerk Domain: {clerkDomain}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-2">
+            Key: {keyPreview}
+          </Text>
+          <Text className="text-xs text-textSecondary text-center mb-5">
+            Clerk Probe: {clerkProbe}
+          </Text>
+          <Pressable
+            onPress={() => setLoadTimedOut(false)}
+            className="bg-primary rounded-xl py-3 px-4"
+          >
+            <Text className="text-white font-semibold">Retry auth init</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#FF6B35" />
         <Text className="text-textSecondary mt-2">Loading account...</Text>
+        <Text className="text-textSecondary/50 text-xs mt-6">
+          A Mahagathe Foundation Initiative
+        </Text>
       </View>
     );
   }
 
-  if (!isSignedIn && !isAuthRoute && !isWelcomeRoute) {
-    return <Redirect href="/welcome" />;
+  if (!isSignedIn && !isAuthRoute) {
+    return <Redirect href="/sign-in" />;
   }
 
-  if (isSignedIn && (isAuthRoute || isWelcomeRoute)) {
+  if (isSignedIn && isAuthRoute) {
     return <Redirect href="/" />;
   }
 

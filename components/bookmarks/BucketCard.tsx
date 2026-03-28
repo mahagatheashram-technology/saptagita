@@ -8,6 +8,7 @@ interface BucketCardProps {
   icon?: string;
   onPress?: () => void;
   onLongPress?: () => void;
+  onMenuPress?: () => void;
 }
 
 export function BucketCard({
@@ -17,6 +18,7 @@ export function BucketCard({
   icon,
   onPress,
   onLongPress,
+  onMenuPress,
 }: BucketCardProps) {
   return (
     <Pressable
@@ -49,6 +51,18 @@ export function BucketCard({
             <Text className="text-xs text-primary font-medium">Default</Text>
           </View>
         )}
+        {!isDefault && onMenuPress ? (
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              onMenuPress();
+            }}
+            className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center active:opacity-80"
+            hitSlop={8}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color="#718096" />
+          </Pressable>
+        ) : null}
       </View>
     </Pressable>
   );

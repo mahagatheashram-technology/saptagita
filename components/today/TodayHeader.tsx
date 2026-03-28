@@ -18,7 +18,12 @@ export function TodayHeader({
     <View className="px-5 pt-2 pb-4">
       {/* Top row: Title and Streak */}
       <View className="flex-row justify-between items-center mb-2">
-        <Text className="text-2xl font-bold text-secondary">Today's Reading</Text>
+        <View>
+          <Text className="text-2xl font-bold text-secondary">Today's Reading</Text>
+          <Text className="text-[10px] text-textSecondary/50 tracking-[0.5px] mt-0.5">
+            Mahagathe Foundation
+          </Text>
+        </View>
 
         {/* Streak Badge */}
         <View className="flex-row items-center bg-orange-50 px-3 py-1.5 rounded-full">

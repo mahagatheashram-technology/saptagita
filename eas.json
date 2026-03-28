@@ -7,25 +7,28 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://joyous-warthog-33.convex.cloud",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZW5vdWdoLXJvdWdoeS04MS5jbGVyay5hY2NvdW50cy5kZXYk"
+        "EXPO_PUBLIC_CONVEX_URL": "https://quick-tiger-684.convex.cloud"
       }
     },
     "preview": {
       "distribution": "internal",
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      },
       "ios": {
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://quick-tiger-684.convex.cloud",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZW5vdWdoLXJvdWdoeS04MS5jbGVyay5hY2NvdW50cy5kZXYk"
+        "EXPO_PUBLIC_CONVEX_URL": "https://quick-tiger-684.convex.cloud"
       }
     },
     "production": {
+      "environment": "production",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://quick-tiger-684.convex.cloud",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_ZW5vdWdoLXJvdWdoeS04MS5jbGVyay5hY2NvdW50cy5kZXYk"
+        "EXPO_PUBLIC_CONVEX_URL": "https://quick-tiger-684.convex.cloud"
       }
     }
   },
