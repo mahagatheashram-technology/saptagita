@@ -45,8 +45,9 @@ export default function SignInScreen() {
           {/* Brand mark — same for both tabs */}
           <View className="items-center" style={{ marginBottom: 28, marginTop: -24 }}>
             <Image
-              source={require("@/assets/images/icon.png")}
-              style={{ width: 64, height: 64, borderRadius: 16, marginBottom: 14 }}
+              source={require("@/assets/images/favicon.png")}
+              style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 14 }}
+              resizeMode="contain"
             />
             <Text
               className="text-[17px] uppercase tracking-[3px] text-[#A56A4C]"

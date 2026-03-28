@@ -2,6 +2,7 @@ import { Dimensions, Platform, Pressable, ScrollView, Text, View } from "react-n
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
+import { VerseAudioPlayer } from "./VerseAudioPlayer";
 
 interface CardStackProps {
   verses: Verse[];
@@ -75,6 +76,12 @@ export function CardStack({
             <Text className="text-base text-textPrimary leading-7">
               {top.translationEnglish}
             </Text>
+
+            <VerseAudioPlayer
+              chapterNumber={top.chapterNumber}
+              verseNumber={top.verseNumber}
+              variant="compact"
+            />
           </ScrollView>
 
           <View className="flex-row items-center justify-between px-6 py-4 border-t border-gray-100">
