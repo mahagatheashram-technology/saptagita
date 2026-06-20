@@ -7,6 +7,7 @@ import { DevPanel } from "@/components/dev/DevPanel";
 import {
   AboutSection,
   AccountSection,
+  getCalendarWindowStart,
   ProfileHeader,
   ReadingCalendar,
   SettingsSection,
@@ -47,6 +48,13 @@ export default function ProfileScreen() {
   );
   const deleteAccount = useMutation(api.users.deleteAccount);
   const updateDisplayName = useMutation(api.users.updateDisplayName);
+
+  // Count Perfect days only within the window the calendar renders, so the stat
+  // and the visible orange dots always agree.
+  const calendarWindowStart = getCalendarWindowStart(user?.timezone);
+  const visiblePerfectDays = (readingHistory?.perfectDates ?? []).filter(
+    (date) => date >= calendarWindowStart
+  ).length;
 
   useEffect(() => {
     if (user?.displayName) {
@@ -212,7 +220,7 @@ export default function ProfileScreen() {
         <StreakStatsCard
           currentStreak={streakStats?.currentStreak ?? 0}
           longestStreak={streakStats?.longestStreak ?? 0}
-          perfectDays={streakStats?.perfectDays ?? 0}
+          perfectDays={visiblePerfectDays}
         />
 
         <View className="h-4" />

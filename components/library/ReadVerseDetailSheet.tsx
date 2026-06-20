@@ -10,6 +10,11 @@ import { formatVerseShareMessage, shareText } from "@/lib/shareText";
 import { VerseAudioPlayer } from "../verses/VerseAudioPlayer";
 import { useVerseAudio } from "@/hooks/useVerseAudio";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
+import {
+  getVerseTextStyle,
+  translationTextStyle,
+  transliterationTextStyle,
+} from "@/lib/textStyles";
 
 interface ReadVerseDetailSheetProps {
   verse: Verse | null;
@@ -74,13 +79,19 @@ export const ReadVerseDetailSheet = forwardRef<
 
         {/* Verse content */}
         <View className="bg-surface rounded-2xl p-3 shadow-sm mb-3">
-          <Text className="text-sm text-textSecondary mb-1">
+          <Text
+            className="text-sm text-textSecondary mb-1"
+            style={getVerseTextStyle(scriptPreference)}
+          >
             {verseText}
           </Text>
-          <Text className="text-xs text-textSecondary italic mb-2">
+          <Text
+            className="text-xs text-textSecondary italic mb-2"
+            style={transliterationTextStyle}
+          >
             {verse.transliteration}
           </Text>
-          <Text className="text-base text-textPrimary">
+          <Text className="text-base text-textPrimary" style={translationTextStyle}>
             {verse.translationEnglish}
           </Text>
         </View>

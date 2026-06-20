@@ -2,6 +2,11 @@ import { Dimensions, Platform, Pressable, ScrollView, Text, View } from "react-n
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
+import {
+  getVerseTextStyle,
+  translationTextStyle,
+  transliterationTextStyle,
+} from "@/lib/textStyles";
 
 interface CardStackProps {
   verses: Verse[];
@@ -62,17 +67,23 @@ export function CardStack({
               Chapter {top.chapterNumber} • Verse {top.verseNumber}
             </Text>
 
-            <Text className="text-xl text-secondary leading-9 mb-4">
+            <Text
+              className="text-xl text-secondary mb-4"
+              style={getVerseTextStyle(scriptPreference)}
+            >
               {verseText}
             </Text>
 
-            <Text className="text-base italic text-textSecondary mb-4">
+            <Text
+              className="text-base italic text-textSecondary mb-4"
+              style={transliterationTextStyle}
+            >
               {top.transliteration}
             </Text>
 
             <View className="h-px bg-gray-200 my-4" />
 
-            <Text className="text-base text-textPrimary leading-7">
+            <Text className="text-base text-textPrimary" style={translationTextStyle}>
               {top.translationEnglish}
             </Text>
           </ScrollView>

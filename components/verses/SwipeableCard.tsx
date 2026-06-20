@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Dimensions, Platform, View, Text } from "react-native";
+import { Dimensions, Platform, ScrollView, View, Text } from "react-native";
 import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -16,6 +16,11 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "./VerseCard";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
+import {
+  getVerseTextStyle,
+  translationTextStyle,
+  transliterationTextStyle,
+} from "@/lib/textStyles";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3; // 30% of screen width
@@ -58,6 +63,7 @@ export function SwipeableCard({
   const baseOpacity = 1 - index * 0.2;
   const zIndex = totalCards - index;
   const verseText = getDisplayVerseText(verse, scriptPreference);
+  const maxCardHeight = Math.max(360, Dimensions.get("window").height - 245);
 
   const resetPosition = () => {
     'worklet';
@@ -184,7 +190,12 @@ export function SwipeableCard({
       <Animated.View
         className="absolute bg-surface rounded-2xl p-6 shadow-lg overflow-hidden"
         style={[
-          { width: cardWidth, borderWidth: 1, borderColor: "#E9DFD3" },
+          {
+            width: cardWidth,
+            maxHeight: maxCardHeight,
+            borderWidth: 1,
+            borderColor: "#E9DFD3",
+          },
           animatedStyle,
           cardFeedbackStyle,
         ]}
@@ -216,37 +227,52 @@ export function SwipeableCard({
           <Ionicons name="ellipsis-horizontal" size={24} color="white" />
         </Animated.View>
 
-        {/* Chapter & Verse Label */}
-        <Text className="text-sm text-textSecondary mb-2">
-          Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
-        </Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          contentContainerStyle={{ paddingBottom: 2 }}
+        >
+          {/* Chapter & Verse Label */}
+          <Text className="text-sm text-textSecondary mb-2">
+            Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
+          </Text>
 
-        {/* Sanskrit Text */}
-        <Text className="text-xl text-secondary leading-9 mb-4">
-          {verseText}
-        </Text>
+          {/* Sanskrit Text */}
+          <Text
+            className="text-xl text-secondary mb-4"
+            style={getVerseTextStyle(scriptPreference)}
+          >
+            {verseText}
+          </Text>
 
-        {/* Transliteration */}
-        <Text className="text-base italic text-textSecondary mb-4">
-          {verse.transliteration}
-        </Text>
+          {/* Transliteration */}
+          <Text
+            className="text-base italic text-textSecondary mb-4"
+            style={transliterationTextStyle}
+          >
+            {verse.transliteration}
+          </Text>
 
-        {/* Divider */}
-        <View className="h-px bg-gray-200 my-4" />
+          {/* Divider */}
+          <View className="h-px bg-gray-200 my-4" />
 
-        {/* English Translation */}
-        <Text className="text-base text-textPrimary leading-7">
-          {verse.translationEnglish}
-        </Text>
+          {/* English Translation */}
+          <Text
+            className="text-base text-textPrimary"
+            style={translationTextStyle}
+          >
+            {verse.translationEnglish}
+          </Text>
 
-        {/* Audio player — top card only, native only */}
-        {isTop && Platform.OS !== "web" && (
-          <VerseAudioPlayer
-            chapterNumber={verse.chapterNumber}
-            verseNumber={verse.verseNumber}
-            variant="compact"
-          />
-        )}
+          {/* Audio player — top card only, native only */}
+          {isTop && Platform.OS !== "web" && (
+            <VerseAudioPlayer
+              chapterNumber={verse.chapterNumber}
+              verseNumber={verse.verseNumber}
+              variant="compact"
+            />
+          )}
+        </ScrollView>
       </Animated.View>
     </GestureDetector>
   );
