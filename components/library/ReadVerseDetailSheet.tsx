@@ -119,7 +119,7 @@ export const ReadVerseDetailSheet = forwardRef<
           />
           <SheetButton
             icon="bookmark-outline"
-            label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
+            label={isSavedToDefault ? "Remove from Default" : "Save to Default"}
             onPress={onQuickBookmark}
           />
           <SheetButton

@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { Dimensions, Platform, ScrollView, View, Text } from "react-native";
+import { Dimensions, Platform, Pressable, ScrollView, View, Text } from "react-native";
 import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
+  FadeIn,
   interpolate,
   interpolateColor,
   runOnJS,
@@ -27,54 +28,53 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3; // 30% of screen width
 
 interface SwipeableCardProps {
   verse: Verse;
-  index: number;
-  totalCards: number;
-  onSwipeRight: () => void;
-  onSwipeLeft: () => void;
-  isTop: boolean;
+  scriptPreference?: ScriptPreference | null;
+  // viewing an already-read verse (vs. the current/live one)
+  isReviewing: boolean;
+  isSaved: boolean;
+  canPrev: boolean;
+  canNext: boolean;
+  onPrev: () => void;
+  onNext: () => void; // forward; marks read when on the live verse
+  onSave: () => void;
+  onShare: () => void;
   cardWidth: number;
   interactionsEnabled?: boolean;
   microDemoNonce?: number;
-  scriptPreference?: ScriptPreference | null;
 }
 
 export function SwipeableCard({
   verse,
-  index,
-  totalCards,
-  onSwipeRight,
-  onSwipeLeft,
-  isTop,
+  scriptPreference,
+  isReviewing,
+  isSaved,
+  canPrev,
+  canNext,
+  onPrev,
+  onNext,
+  onSave,
+  onShare,
   cardWidth,
   interactionsEnabled = true,
   microDemoNonce = 0,
-  scriptPreference,
 }: SwipeableCardProps) {
-  // Only render top 3 cards for performance
-  if (index > 2) return null;
-
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
 
-  // Stack positioning
-  const baseScale = 1 - index * 0.05;
-  const baseTranslateY = index * 10;
-  const baseOpacity = 1 - index * 0.2;
-  const zIndex = totalCards - index;
   const verseText = getDisplayVerseText(verse, scriptPreference);
   const maxCardHeight = Math.max(360, Dimensions.get("window").height - 245);
 
   const resetPosition = () => {
-    'worklet';
+    "worklet";
     translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
     translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
     rotation.value = withSpring(0, { damping: 15, stiffness: 150 });
   };
 
+  // Micro-demo nudge to hint the swipe affordance.
   useEffect(() => {
-    if (!isTop || !interactionsEnabled || microDemoNonce === 0) return;
-
+    if (!interactionsEnabled || microDemoNonce === 0) return;
     translateX.value = withSequence(
       withTiming(30, { duration: 170 }),
       withTiming(-24, { duration: 220 }),
@@ -85,78 +85,64 @@ export function SwipeableCard({
       withTiming(-4, { duration: 220 }),
       withTiming(0, { duration: 180 })
     );
-  }, [isTop, interactionsEnabled, microDemoNonce, rotation, translateX]);
+  }, [interactionsEnabled, microDemoNonce, rotation, translateX]);
 
   const panGesture = Gesture.Pan()
-    .enabled(isTop && interactionsEnabled) // Only top card is swipeable
+    .enabled(interactionsEnabled)
+    .activeOffsetX([-12, 12]) // let inner taps / vertical scroll win until clearly horizontal
     .onUpdate((event) => {
       translateX.value = event.translationX;
-      translateY.value = event.translationY * 0.5; // Dampen vertical movement
+      translateY.value = event.translationY * 0.5;
       rotation.value = interpolate(
         event.translationX,
         [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
-        [-15, 0, 15],
-        Extrapolation.CLAMP,
+        [-12, 0, 12],
+        Extrapolation.CLAMP
       );
     })
     .onEnd((event) => {
-      // Swipe RIGHT - Mark as read
-      if (event.translationX > SWIPE_THRESHOLD) {
-        runOnJS(onSwipeRight)();
-        translateX.value = withTiming(SCREEN_WIDTH + 100, { duration: 300 });
-        rotation.value = withTiming(20, { duration: 300 });
+      // Swipe RIGHT — forward (marks read on the live verse)
+      if (event.translationX > SWIPE_THRESHOLD && canNext) {
+        runOnJS(onNext)();
+        translateX.value = withTiming(SCREEN_WIDTH + 100, { duration: 250 });
+        rotation.value = withTiming(16, { duration: 250 });
       }
-      // Swipe LEFT - More options (animate but keep card)
-      else if (event.translationX < -SWIPE_THRESHOLD) {
-        runOnJS(onSwipeLeft)();
-        translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-        translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
-        rotation.value = withSpring(0, { damping: 15, stiffness: 150 });
-      }
-      // Return to center
-      else {
+      // Swipe LEFT — back to the previous verse
+      else if (event.translationX < -SWIPE_THRESHOLD && canPrev) {
+        runOnJS(onPrev)();
+        translateX.value = withTiming(-SCREEN_WIDTH - 100, { duration: 250 });
+        rotation.value = withTiming(-16, { duration: 250 });
+      } else {
         resetPosition();
       }
     });
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: translateX.value },
-        { translateY: translateY.value + baseTranslateY },
-        { rotate: `${rotation.value}deg` },
-        { scale: baseScale },
-      ],
-      opacity: baseOpacity,
-      zIndex,
-    };
-  });
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { rotate: `${rotation.value}deg` },
+    ],
+  }));
 
-  // Swipe indicator styles
   const rightIndicatorStyle = useAnimatedStyle(() => {
-    const progress = interpolate(
+    const p = interpolate(
       translateX.value,
       [0, SWIPE_THRESHOLD],
       [0, 1],
       Extrapolation.CLAMP
     );
-    return {
-      opacity: progress,
-      transform: [{ scale: 0.9 + progress * 0.15 }],
-    };
+    return { opacity: canNext ? p : 0, transform: [{ scale: 0.9 + p * 0.15 }] };
   });
 
   const leftIndicatorStyle = useAnimatedStyle(() => {
-    const progress = interpolate(
+    const p = interpolate(
       translateX.value,
       [-SWIPE_THRESHOLD, 0],
       [1, 0],
       Extrapolation.CLAMP
     );
-    return {
-      opacity: progress,
-      transform: [{ scale: 0.9 + progress * 0.15 }],
-    };
+    return { opacity: canPrev ? p : 0, transform: [{ scale: 0.9 + p * 0.15 }] };
   });
 
   const cardFeedbackStyle = useAnimatedStyle(() => ({
@@ -167,27 +153,10 @@ export function SwipeableCard({
     ),
   }));
 
-  const rightWashStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD],
-      [0, 0.14],
-      Extrapolation.CLAMP
-    ),
-  }));
-
-  const leftWashStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
-      translateX.value,
-      [-SWIPE_THRESHOLD, 0],
-      [0.14, 0],
-      Extrapolation.CLAMP
-    ),
-  }));
-
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View
+        entering={FadeIn.duration(160)}
         className="absolute bg-surface rounded-2xl p-6 shadow-lg overflow-hidden"
         style={[
           {
@@ -200,31 +169,28 @@ export function SwipeableCard({
           cardFeedbackStyle,
         ]}
       >
+        {/* Forward indicator */}
         <Animated.View
           pointerEvents="none"
-          className="absolute inset-0 bg-[#2F855A]"
-          style={rightWashStyle}
-        />
-        <Animated.View
-          pointerEvents="none"
-          className="absolute inset-0 bg-[#1A365D]"
-          style={leftWashStyle}
-        />
-
-        {/* Right swipe indicator - Mark as read */}
-        <Animated.View
-          className="absolute top-4 right-4 bg-green-500 rounded-full p-2"
-          style={rightIndicatorStyle}
+          className="absolute top-4 right-4 z-10 rounded-full p-2"
+          style={[
+            { backgroundColor: isReviewing ? "#1A365D" : "#2F855A" },
+            rightIndicatorStyle,
+          ]}
         >
-          <Ionicons name="checkmark" size={24} color="white" />
+          <Ionicons
+            name={isReviewing ? "arrow-forward" : "checkmark"}
+            size={22}
+            color="white"
+          />
         </Animated.View>
-
-        {/* Left swipe indicator - More options */}
+        {/* Back indicator */}
         <Animated.View
-          className="absolute top-4 left-4 bg-primary rounded-full p-2"
+          pointerEvents="none"
+          className="absolute top-4 left-4 z-10 bg-secondary rounded-full p-2"
           style={leftIndicatorStyle}
         >
-          <Ionicons name="ellipsis-horizontal" size={24} color="white" />
+          <Ionicons name="arrow-back" size={22} color="white" />
         </Animated.View>
 
         <ScrollView
@@ -232,12 +198,49 @@ export function SwipeableCard({
           nestedScrollEnabled
           contentContainerStyle={{ paddingBottom: 2 }}
         >
-          {/* Chapter & Verse Label */}
-          <Text className="text-sm text-textSecondary mb-2">
-            Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
-          </Text>
+          {/* Header: chapter/verse + read badge + actions */}
+          <View className="flex-row items-center justify-between mb-3">
+            <View className="flex-row items-center flex-1 mr-2">
+              <Text className="text-sm text-textSecondary">
+                Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
+              </Text>
+              {isReviewing && (
+                <View className="flex-row items-center bg-green-50 rounded-full px-2 py-0.5 ml-2">
+                  <Ionicons name="checkmark" size={12} color="#1F7A4D" />
+                  <Text className="text-[11px] text-[#1F7A4D] font-medium ml-0.5">
+                    Read
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View className="flex-row items-center">
+              <Pressable
+                onPress={onSave}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={isSaved ? "Remove bookmark" : "Save verse"}
+                className="w-10 h-10 rounded-xl items-center justify-center active:bg-gray-100"
+              >
+                <Ionicons
+                  name={isSaved ? "bookmark" : "bookmark-outline"}
+                  size={21}
+                  color={isSaved ? "#FF6B35" : "#5F5E5A"}
+                />
+              </Pressable>
+              <View className="w-2" />
+              <Pressable
+                onPress={onShare}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Share verse"
+                className="w-10 h-10 rounded-xl items-center justify-center active:bg-gray-100"
+              >
+                <Ionicons name="share-outline" size={21} color="#5F5E5A" />
+              </Pressable>
+            </View>
+          </View>
 
-          {/* Sanskrit Text */}
+          {/* Sanskrit */}
           <Text
             className="text-xl text-secondary mb-4"
             style={getVerseTextStyle(scriptPreference)}
@@ -253,19 +256,14 @@ export function SwipeableCard({
             {verse.transliteration}
           </Text>
 
-          {/* Divider */}
           <View className="h-px bg-gray-200 my-4" />
 
-          {/* English Translation */}
-          <Text
-            className="text-base text-textPrimary"
-            style={translationTextStyle}
-          >
+          {/* Translation */}
+          <Text className="text-base text-textPrimary" style={translationTextStyle}>
             {verse.translationEnglish}
           </Text>
 
-          {/* Audio player — top card only, native only */}
-          {isTop && Platform.OS !== "web" && (
+          {Platform.OS !== "web" && (
             <VerseAudioPlayer
               chapterNumber={verse.chapterNumber}
               verseNumber={verse.verseNumber}

@@ -219,9 +219,9 @@ export default function BookmarksScreen() {
         verseId: selectedReadVerse._id,
       });
       if (result?.removed) {
-        Alert.alert("Removed", "Verse removed from Saved.");
+        Alert.alert("Removed", "Removed from Default.");
       } else if (result?.added) {
-        Alert.alert("Saved", "Verse added to Saved.");
+        Alert.alert("Saved", "Saved to Default.");
       }
     } catch (error: any) {
       Alert.alert("Could not bookmark", String(error?.message ?? error));
