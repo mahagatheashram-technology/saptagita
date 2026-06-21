@@ -131,7 +131,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
 
             <ActionButton
               icon="bookmark-outline"
-              label={isSavedToDefault ? "Remove from Saved" : "Save to Saved"}
+              label={isSavedToDefault ? "Remove from Default" : "Save to Default"}
               subtitle="Default bucket (Saved)"
               onPress={() => handleAction(onBookmark)}
             />

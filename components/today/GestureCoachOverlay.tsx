@@ -43,10 +43,10 @@ export function GestureCoachOverlay({
               </View>
               <View className="flex-1">
                 <Text className="text-base font-semibold text-secondary">
-                  Swipe right to mark as read
+                  Swipe right to go forward
                 </Text>
                 <Text className="text-sm text-textSecondary mt-1">
-                  Moves to the next verse and updates progress.
+                  Moves to the next verse — and marks your current one read.
                 </Text>
               </View>
             </View>
@@ -59,10 +59,10 @@ export function GestureCoachOverlay({
               </View>
               <View className="flex-1">
                 <Text className="text-base font-semibold text-secondary">
-                  Swipe left for actions
+                  Swipe left to go back
                 </Text>
                 <Text className="text-sm text-textSecondary mt-1">
-                  Opens bookmark/share options. Left swipe does not mark unread.
+                  Revisit earlier verses anytime. Save & share live on the card.
                 </Text>
               </View>
             </View>

@@ -42,3 +42,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Claude Code agent state
+.claude/
+
+# Raw downloaded audio source (app bundles from assets/audio/)
+Bhagavad_Gita_Audio/
