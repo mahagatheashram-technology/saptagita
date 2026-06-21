@@ -22,8 +22,12 @@ if (!CONVEX_URL) {
   process.exit(1);
 }
 
+// Seeds from the qu-corrected copy (see scripts/applyQuFix.mjs). The pristine
+// data/gita_enriched.json is kept untouched as the backup/source of record.
+// Override with GITA_JSON_PATH to seed from a different file.
 const DATA_PATH =
-  process.env.GITA_JSON_PATH || path.join(process.cwd(), "data/gita_enriched.json");
+  process.env.GITA_JSON_PATH ||
+  path.join(process.cwd(), "data/gita_enriched.cleaned.json");
 
 const client = new ConvexHttpClient(CONVEX_URL);
 

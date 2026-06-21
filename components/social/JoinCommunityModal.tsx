@@ -194,11 +194,14 @@ export function JoinCommunityModal({
               paddingBottom: (insets.bottom || 0) + 18,
             }}
           >
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-semibold text-textPrimary">
+            <View className="flex-row items-start justify-between mb-3 gap-3">
+              <Text
+                className="text-lg font-semibold text-textPrimary flex-1"
+                numberOfLines={2}
+              >
                 Join a Community
               </Text>
-              <Pressable onPress={onClose} hitSlop={10}>
+              <Pressable onPress={onClose} hitSlop={10} className="shrink-0">
                 <Text className="text-base text-textSecondary">Close</Text>
               </Pressable>
             </View>

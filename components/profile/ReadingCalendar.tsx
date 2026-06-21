@@ -17,6 +17,23 @@ function formatMonthLabel(date: Date, timezone: string) {
 const CELL_SIZE = 22;
 const CELL_GAP = 4;
 const LABEL_WIDTH = CELL_SIZE + CELL_GAP;
+const WEEKS_SHOWN = 12;
+
+// First day rendered by the 12-week grid (the Sunday WEEKS_SHOWN-1 weeks back).
+function getCalendarStartDate(): Date {
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - ((WEEKS_SHOWN - 1) * 7 + today.getDay()));
+  return startDate;
+}
+
+// Earliest local date (YYYY-MM-DD) visible on the calendar. Used to keep the
+// Profile "Perfect" stat counting the same window the grid paints.
+export function getCalendarWindowStart(timezone?: string | null): string {
+  const resolvedTimezone =
+    timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  return formatDate(getCalendarStartDate(), resolvedTimezone);
+}
 
 export function ReadingCalendar({
   readDates,
@@ -29,10 +46,9 @@ export function ReadingCalendar({
   const perfectSet = new Set(perfectDates);
   const today = new Date();
   const todayString = formatDate(today, resolvedTimezone);
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - (11 * 7 + today.getDay()));
+  const startDate = getCalendarStartDate();
 
-  const weeks = Array.from({ length: 12 }, (_, weekIndex) => {
+  const weeks = Array.from({ length: WEEKS_SHOWN }, (_, weekIndex) => {
     return Array.from({ length: 7 }, (_, dayIndex) => {
       const date = new Date(startDate);
       date.setDate(startDate.getDate() + weekIndex * 7 + dayIndex);
@@ -64,7 +80,7 @@ export function ReadingCalendar({
         <Text className="text-xs text-textSecondary">Last 12 weeks</Text>
       </View>
 
-      <View>
+      <View style={{ alignSelf: "center" }}>
         <View className="flex-row mb-2">
           {monthLabels.map((label, index) => (
             <Text

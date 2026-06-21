@@ -2,6 +2,7 @@ import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Verse } from "../verses/VerseCard";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
+import { getVerseTextStyle, translationTextStyle } from "@/lib/textStyles";
 
 interface ReadVerseRowProps {
   verse: Verse;
@@ -32,13 +33,21 @@ export function ReadVerseRow({
         <Text className="text-xs text-textSecondary mb-1">
           Chapter {verse.chapterNumber} • Verse {verse.verseNumber}
         </Text>
-        <Text className="text-base text-secondary mb-1" numberOfLines={2}>
+        <Text
+          className="text-base text-secondary mb-1"
+          numberOfLines={2}
+          style={getVerseTextStyle(scriptPreference)}
+        >
           {truncate(verseText, 80)}
         </Text>
         <Text className="text-xs text-textSecondary mb-1" numberOfLines={1}>
           {meta}
         </Text>
-        <Text className="text-sm text-textSecondary" numberOfLines={2}>
+        <Text
+          className="text-sm text-textSecondary"
+          numberOfLines={2}
+          style={translationTextStyle}
+        >
           {truncate(verse.translationEnglish, 120)}
         </Text>
       </View>

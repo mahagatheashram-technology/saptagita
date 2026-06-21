@@ -2,21 +2,39 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
-const DEFAULT_BUCKET_NAME = "Saved";
+const DEFAULT_BUCKET_NAME = "Default";
+// Previous default-bucket name; matched so existing users are migrated in place.
+const LEGACY_DEFAULT_BUCKET_NAME = "Saved";
 const DEFAULT_BUCKET_ICON = "🔖";
 
 async function ensureDefaultBucketForUser(
   ctx: any,
   userId: Id<"users">
 ): Promise<Id<"bookmarkBuckets">> {
-  const existing = await ctx.db
+  // Resolve the default bucket by its isDefault flag (robust to renames), then
+  // fall back to matching the current/legacy name. This auto-migrates existing
+  // users from "Saved" to "Default" without creating a duplicate bucket.
+  const userBuckets = await ctx.db
     .query("bookmarkBuckets")
-    .withIndex("by_user_name", (q: any) =>
-      q.eq("userId", userId).eq("name", DEFAULT_BUCKET_NAME)
-    )
-    .first();
+    .withIndex("by_user", (q: any) => q.eq("userId", userId))
+    .collect();
 
-  if (existing) return existing._id;
+  let defaultBucket =
+    userBuckets.find((b: any) => b.isDefault) ??
+    userBuckets.find(
+      (b: any) =>
+        b.name === DEFAULT_BUCKET_NAME || b.name === LEGACY_DEFAULT_BUCKET_NAME
+    );
+
+  if (defaultBucket) {
+    const patch: { name?: string; isDefault?: boolean } = {};
+    if (defaultBucket.name !== DEFAULT_BUCKET_NAME) patch.name = DEFAULT_BUCKET_NAME;
+    if (!defaultBucket.isDefault) patch.isDefault = true;
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(defaultBucket._id, patch);
+    }
+    return defaultBucket._id;
+  }
 
   return await ctx.db.insert("bookmarkBuckets", {
     userId,

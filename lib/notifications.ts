@@ -7,6 +7,22 @@ const REMINDER_TIME_KEY = "notifications_reminder_time";
 const ANDROID_CHANNEL_ID = "default";
 
 const isWeb = Platform.OS === "web";
+
+// Serializes all schedule/cancel work. Without this, concurrent callers (app
+// init + Settings, or a re-fired effect) can each observe "not scheduled",
+// then each cancel-all and add — producing two daily notifications that fire
+// together. Chaining every operation through one promise makes cancel+schedule
+// atomic relative to other scheduling work.
+let schedulingChain: Promise<unknown> = Promise.resolve();
+function withSchedulingLock<T>(operation: () => Promise<T>): Promise<T> {
+  const run = schedulingChain.then(operation, operation);
+  // Keep the chain alive even if an operation rejects.
+  schedulingChain = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
 type NotificationsModule = typeof import("expo-notifications");
 type DeviceModule = typeof import("expo-device");
 
@@ -141,9 +157,25 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return true;
 }
 
-export async function scheduleDailyReminder(
+// Cancels all OS-scheduled notifications without touching the saved preference
+// or acquiring the lock. Used internally by locked operations.
+async function clearAllScheduledNotifications(): Promise<void> {
+  if (isWeb) return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
+  await Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+export function scheduleDailyReminder(
   hour = 20,
   minute = 0
+): Promise<string | null> {
+  return withSchedulingLock(() => scheduleDailyReminderInner(hour, minute));
+}
+
+async function scheduleDailyReminderInner(
+  hour: number,
+  minute: number
 ): Promise<string | null> {
   if (isWeb) {
     throw new Error("Notifications are not available on web.");
@@ -164,7 +196,7 @@ export async function scheduleDailyReminder(
     throw new Error("Notification permissions are required. Enable them in Settings.");
   }
 
-  await cancelDailyReminder();
+  await clearAllScheduledNotifications();
   await setReminderPreference(true);
 
   const targetTimeString = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
@@ -191,12 +223,12 @@ export async function scheduleDailyReminder(
   return id;
 }
 
-export async function cancelDailyReminder(): Promise<void> {
-  if (isWeb) return;
-  const Notifications = await getNotifications();
-  if (!Notifications) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  await setReminderPreference(false);
+export function cancelDailyReminder(): Promise<void> {
+  return withSchedulingLock(async () => {
+    if (isWeb) return;
+    await clearAllScheduledNotifications();
+    await setReminderPreference(false);
+  });
 }
 
 export async function isDailyReminderScheduled(): Promise<boolean> {

@@ -16,10 +16,15 @@ import BottomSheet from "@gorhom/bottom-sheet";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { BucketCard, BucketPickerModal } from "@/components/bookmarks";
-import { ReadVerseDetailSheet, ReadVerseRow } from "@/components/library";
+import {
+  ReadVerseDetailSheet,
+  ReadVerseRow,
+  VerseBrowser,
+} from "@/components/library";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useReadHistory } from "@/lib/hooks/useReadHistory";
+import { getUserFacingErrorMessage } from "@/lib/userFacingError";
 
 const BUCKET_ICONS = [
   "📁",
@@ -40,7 +45,7 @@ export default function BookmarksScreen() {
   const userId = currentUser?._id ?? null;
   const timezone = currentUser?.timezone ?? "UTC";
 
-  const [activeTab, setActiveTab] = useState<"bookmarks" | "read">(
+  const [activeTab, setActiveTab] = useState<"bookmarks" | "read" | "explore">(
     "bookmarks"
   );
   const [selectedReadVerse, setSelectedReadVerse] = useState<any | null>(null);
@@ -95,7 +100,7 @@ export default function BookmarksScreen() {
       setNewBucketName("");
       setNewBucketIcon("📁");
     } catch (error: any) {
-      Alert.alert("Could not create bucket", String(error?.message ?? error));
+      Alert.alert("Could not create bucket", getUserFacingErrorMessage(error));
     }
   };
 
@@ -128,7 +133,7 @@ export default function BookmarksScreen() {
       });
       closeRenameEditor();
     } catch (error: any) {
-      Alert.alert("Could not rename bucket", String(error?.message ?? error));
+      Alert.alert("Could not rename bucket", getUserFacingErrorMessage(error));
     }
   };
 
@@ -214,9 +219,9 @@ export default function BookmarksScreen() {
         verseId: selectedReadVerse._id,
       });
       if (result?.removed) {
-        Alert.alert("Removed", "Verse removed from Saved.");
+        Alert.alert("Removed", "Removed from Default.");
       } else if (result?.added) {
-        Alert.alert("Saved", "Verse added to Saved.");
+        Alert.alert("Saved", "Saved to Default.");
       }
     } catch (error: any) {
       Alert.alert("Could not bookmark", String(error?.message ?? error));
@@ -268,36 +273,31 @@ export default function BookmarksScreen() {
 
       <View className="px-5 pb-2">
         <View className="flex-row bg-gray-100 rounded-full p-1">
-          <Pressable
-            onPress={() => setActiveTab("bookmarks")}
-            className={`flex-1 py-2 rounded-full items-center ${
-              activeTab === "bookmarks" ? "bg-white shadow-sm" : ""
-            }`}
-          >
-            <Text
-              className={`text-sm font-medium ${
-                activeTab === "bookmarks"
-                  ? "text-secondary"
-                  : "text-textSecondary"
+          {(
+            [
+              { key: "bookmarks", label: "Bookmarks" },
+              { key: "read", label: "Read" },
+              { key: "explore", label: "Explore" },
+            ] as const
+          ).map((tab) => (
+            <Pressable
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              className={`flex-1 py-2 rounded-full items-center ${
+                activeTab === tab.key ? "bg-white shadow-sm" : ""
               }`}
             >
-              Bookmarks
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveTab("read")}
-            className={`flex-1 py-2 rounded-full items-center ${
-              activeTab === "read" ? "bg-white shadow-sm" : ""
-            }`}
-          >
-            <Text
-              className={`text-sm font-medium ${
-                activeTab === "read" ? "text-secondary" : "text-textSecondary"
-              }`}
-            >
-              Read
-            </Text>
-          </Pressable>
+              <Text
+                className={`text-sm font-medium ${
+                  activeTab === tab.key
+                    ? "text-secondary"
+                    : "text-textSecondary"
+                }`}
+              >
+                {tab.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
       </View>
 
@@ -388,7 +388,7 @@ export default function BookmarksScreen() {
             )}
           </View>
         </>
-      ) : (
+      ) : activeTab === "read" ? (
         <View className="flex-1 px-5 pt-2">
           <FlatList
             data={readItems}
@@ -466,6 +466,11 @@ export default function BookmarksScreen() {
             onMoved={() => setShowBucketPicker(false)}
           />
         </View>
+      ) : (
+        <VerseBrowser
+          userId={userId}
+          scriptPreference={userState?.scriptPreference}
+        />
       )}
 
       {/* Foundation branding footer */}

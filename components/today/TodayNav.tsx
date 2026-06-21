@@ -1,17 +1,21 @@
 import { Image, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-interface SwipeHintProps {
-  onMoreOptions: () => void;
-  onMarkRead: () => void;
+interface TodayNavProps {
+  canPrev: boolean;
+  isReviewing: boolean; // viewing an already-read verse
+  onPrev: () => void;
+  onNext: () => void; // forward; marks read on the live verse
   disabled?: boolean;
 }
 
-export function SwipeHint({
-  onMoreOptions,
-  onMarkRead,
+export function TodayNav({
+  canPrev,
+  isReviewing,
+  onPrev,
+  onNext,
   disabled = false,
-}: SwipeHintProps) {
+}: TodayNavProps) {
   return (
     <View className="px-5 pb-3">
       <View
@@ -20,34 +24,32 @@ export function SwipeHint({
       >
         <View className="flex-row items-center justify-between">
           <Pressable
-            onPress={onMoreOptions}
-            disabled={disabled}
-            className={`flex-row items-center px-3 py-2 rounded-full ${
-              disabled ? "opacity-50" : "active:bg-gray-100"
-            }`}
+            onPress={onPrev}
+            disabled={disabled || !canPrev}
+            className="flex-row items-center px-3 py-2 rounded-full active:bg-gray-100"
+            style={{ opacity: disabled || !canPrev ? 0.4 : 1 }}
           >
-            <Ionicons name="arrow-back" size={16} color="#718096" />
-            <Text className="text-textSecondary ml-1 text-sm font-medium">
-              More options
+            <Ionicons name="chevron-back" size={18} color="#1A365D" />
+            <Text className="text-secondary ml-1 text-sm font-medium">
+              Previous
             </Text>
           </Pressable>
 
           <Pressable
-            onPress={onMarkRead}
+            onPress={onNext}
             disabled={disabled}
-            className={`flex-row items-center px-3 py-2 rounded-full ${
-              disabled ? "opacity-50" : "active:bg-gray-100"
-            }`}
+            className="flex-row items-center px-4 py-2 rounded-full bg-primary active:opacity-80"
+            style={{ opacity: disabled ? 0.5 : 1 }}
           >
-            <Text className="text-secondary mr-1 text-sm font-semibold">
-              Mark as read
+            <Text className="text-white mr-1 text-sm font-semibold">
+              {isReviewing ? "Next" : "Mark as read"}
             </Text>
-            <Ionicons name="arrow-forward" size={16} color="#1A365D" />
+            <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
           </Pressable>
         </View>
 
         <Text className="text-xs text-textSecondary mt-2 text-center">
-          You can tap or swipe.
+          Swipe ← back · → forward · tap a dot to jump
         </Text>
       </View>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -27,7 +27,7 @@ export default function BucketDetailScreen() {
   if (!bucketIdValue) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <Pressable onPress={() => router.back()} className="mb-3">
+        <Pressable onPress={() => router.replace("/bookmarks")} className="mb-3">
           <Text className="text-primary">Go back</Text>
         </Pressable>
         <Text className="text-textSecondary">Bucket not found</Text>
@@ -41,6 +41,10 @@ export default function BucketDetailScreen() {
   const [showMovePicker, setShowMovePicker] = useState(false);
 
   const detailSheetRef = useRef<BottomSheet>(null);
+  // When we close the sheet to hand off to another flow (move picker), the
+  // resulting close event must NOT wipe the selection. This flag distinguishes
+  // a programmatic hand-off close from a genuine user dismiss.
+  const preserveSelectionRef = useRef(false);
 
   const removeBookmark = useMutation(api.bookmarks.removeBookmark);
 
@@ -64,19 +68,28 @@ export default function BucketDetailScreen() {
   const bookmarkItems = bookmarks ?? [];
 
   const handleBack = () => {
-    router.back();
+    // bucket/[id] is a hidden tab screen, so router.back() pops to the default
+    // tab (Today). Navigate to the Library (bookmarks) tab explicitly instead.
+    router.replace("/bookmarks");
   };
 
   const handleRowPress = (item: any) => {
     setSelectedVerse(item);
-  };
-
-  useEffect(() => {
-    if (!selectedVerse) return;
+    // Snap on the next frame so the sheet renders the freshly-selected verse
+    // before it animates open. Switching verses while open just re-snaps; the
+    // open sheet emits no close event, so selection stays in sync.
     requestAnimationFrame(() => {
       detailSheetRef.current?.snapToIndex(0);
     });
-  }, [selectedVerse]);
+  };
+
+  const handleSheetClose = () => {
+    if (preserveSelectionRef.current) {
+      preserveSelectionRef.current = false;
+      return;
+    }
+    setSelectedVerse(null);
+  };
 
   const handleRemove = async () => {
     if (!userId || !selectedVerse) return;
@@ -167,9 +180,11 @@ export default function BucketDetailScreen() {
         verse={selectedVerse?.verse ?? null}
         bucketName={`${headerEmoji} ${bucket?.name ?? ""}`}
         onRemove={handleRemove}
-        onClose={() => setSelectedVerse(null)}
+        onClose={handleSheetClose}
         scriptPreference={userState?.scriptPreference}
         onManageBuckets={() => {
+          // Hand off to the move picker without losing the selected verse.
+          preserveSelectionRef.current = true;
           detailSheetRef.current?.close();
           setShowMovePicker(true);
         }}

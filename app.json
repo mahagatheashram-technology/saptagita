@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "com.mahagathe.saptagita",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FF6B35"
@@ -41,6 +42,15 @@
       "expo-secure-store",
       "expo-av",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFBF5"
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
@@ -48,7 +58,8 @@
           "sounds": []
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "./plugins/withAdiRegistration"
     ],
     "experiments": {
       "typedRoutes": true
