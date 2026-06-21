@@ -6,15 +6,14 @@ import { api } from "@/convex/_generated/api";
 import { CardStack } from "@/components/verses/CardStack";
 import {
   TodayHeader,
-  SwipeHint,
+  TodayNav,
+  SaveSnackbar,
   GestureCoachOverlay,
   CompletionScreen,
 } from "@/components/today";
 import { useTodayReading } from "@/lib/hooks/useTodayReading";
 import { impact } from "@/lib/haptics";
 import { Id } from "@/convex/_generated/dataModel";
-import BottomSheet from "@gorhom/bottom-sheet";
-import { ActionDrawer } from "@/components/verses/ActionDrawer";
 import { BucketPickerModal } from "@/components/bookmarks";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
@@ -30,17 +29,17 @@ const DAILY_VERSE_COUNT = 7;
 
 export default function TodayScreen() {
   const isWeb = Platform.OS === "web";
-  const [activeVerse, setActiveVerse] = useState<{
-    id: string;
-    chapter: number;
-    verse: number;
-  } | null>(null);
+  const [viewIndex, setViewIndex] = useState(0);
   const [showBucketPicker, setShowBucketPicker] = useState(false);
   const [showGestureCoach, setShowGestureCoach] = useState(false);
   const [gestureCoachResolved, setGestureCoachResolved] = useState(Platform.OS === "web");
   const [microDemoNonce, setMicroDemoNonce] = useState(0);
+  const [snackbar, setSnackbar] = useState<{ visible: boolean; removed: boolean }>({
+    visible: false,
+    removed: false,
+  });
+  const snackbarTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const actionDrawerRef = useRef<BottomSheet>(null);
   const { user: currentUser, isLoading: isUserLoading, error: userError } = useCurrentUser();
   const userId = currentUser?._id ?? null;
   const { signOut } = useAuth();
@@ -52,12 +51,6 @@ export default function TodayScreen() {
     api.bookmarks.getUserBuckets,
     userId ? { userId } : "skip"
   );
-  const activeVerseBuckets = useQuery(
-    api.bookmarks.getVerseBuckets,
-    userId && activeVerse?.id
-      ? { userId, verseId: activeVerse.id as Id<"verses"> }
-      : "skip"
-  );
 
   const {
     verses,
@@ -65,56 +58,140 @@ export default function TodayScreen() {
     isComplete,
     isLoading,
     handleSwipeRight: markAsRead,
-    dailySetId,
     currentStreak,
     longestStreak,
     isNewRecord,
   } = useTodayReading(userId);
 
+  const frontier = currentIndex; // first unread verse
+  const viewedVerse = verses[viewIndex] ?? null;
+  const isReviewing = viewIndex < frontier;
+
+  const viewedVerseBuckets = useQuery(
+    api.bookmarks.getVerseBuckets,
+    userId && viewedVerse
+      ? { userId, verseId: viewedVerse._id as Id<"verses"> }
+      : "skip"
+  );
+  const defaultBucketId = buckets?.find((b) => b.isDefault)?._id ?? null;
+  const isViewedSaved = Boolean(
+    defaultBucketId &&
+      viewedVerseBuckets?.some(
+        (bucketId) => String(bucketId) === String(defaultBucketId)
+      )
+  );
+
   const ensureDefaultBucket = useMutation(api.bookmarks.ensureDefaultBucket);
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
   const markGestureCoachSeen = useMutation(api.users.markTodayGestureCoachSeen);
   const updateScriptPreference = useMutation(api.users.updateScriptPreference);
-  
-  // Check and update streak on app open
   const checkStreak = useMutation(api.streaks.checkAndUpdateStreak);
 
   useEffect(() => {
     clearBadge().catch(console.error);
   }, []);
-  
+
   useEffect(() => {
     if (userId) {
       checkStreak({ userId }).catch(console.error);
     }
   }, [userId, checkStreak]);
 
-  const handleSwipeRight = useCallback(async () => {
-    impact();
-    await markAsRead();
-  }, [markAsRead]);
-
-  const handleSwipeLeft = useCallback(() => {
-    if (!verses || verses.length === 0) return;
-
-    const currentVerse = verses[currentIndex];
-    if (!currentVerse) return;
-
-    setActiveVerse({
-      id: currentVerse._id,
-      chapter: currentVerse.chapterNumber,
-      verse: currentVerse.verseNumber,
-    });
-
-    impact();
-    actionDrawerRef.current?.snapToIndex(0);
-  }, [verses, currentIndex]);
-
   useEffect(() => {
     if (userId) {
       ensureDefaultBucket({ userId }).catch(console.error);
     }
   }, [userId, ensureDefaultBucket]);
+
+  // Follow the reading frontier forward: after marking a verse read (or on
+  // first load), move the view to the current verse. Reviewing earlier verses
+  // doesn't change the frontier, so the view stays put while you browse back.
+  useEffect(() => {
+    setViewIndex(currentIndex);
+  }, [currentIndex]);
+
+  useEffect(
+    () => () => {
+      if (snackbarTimer.current) clearTimeout(snackbarTimer.current);
+    },
+    []
+  );
+
+  const showSnackbar = useCallback((removed: boolean) => {
+    if (snackbarTimer.current) clearTimeout(snackbarTimer.current);
+    setSnackbar({ visible: true, removed });
+    snackbarTimer.current = setTimeout(() => {
+      setSnackbar((s) => ({ ...s, visible: false }));
+    }, 3200);
+  }, []);
+
+  const handleMarkRead = useCallback(async () => {
+    impact();
+    await markAsRead();
+  }, [markAsRead]);
+
+  const goNext = useCallback(() => {
+    if (viewIndex < frontier) {
+      impact();
+      setViewIndex((v) => Math.min(frontier, v + 1));
+    } else {
+      // On the live verse: marking it read advances the frontier (and view).
+      handleMarkRead();
+    }
+  }, [viewIndex, frontier, handleMarkRead]);
+
+  const goPrev = useCallback(() => {
+    if (viewIndex <= 0) return;
+    impact();
+    setViewIndex((v) => Math.max(0, v - 1));
+  }, [viewIndex]);
+
+  const seek = useCallback(
+    (i: number) => {
+      const target = Math.max(0, Math.min(frontier, i));
+      if (target === viewIndex) return;
+      impact();
+      setViewIndex(target);
+    },
+    [frontier, viewIndex]
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!userId || !viewedVerse) return;
+    try {
+      const result = await quickBookmark({
+        userId,
+        verseId: viewedVerse._id as Id<"verses">,
+      });
+      impact();
+      showSnackbar(Boolean(result?.removed));
+    } catch (error: any) {
+      Alert.alert("Could not bookmark", String(error?.message ?? error));
+    }
+  }, [userId, viewedVerse, quickBookmark, showSnackbar]);
+
+  const handleShare = useCallback(async () => {
+    if (!viewedVerse) return;
+    const message = formatVerseShareMessage(
+      viewedVerse,
+      (userState?.scriptPreference as ScriptPreference | undefined) ?? "devanagari"
+    );
+    await shareText(message);
+  }, [viewedVerse, userState?.scriptPreference]);
+
+  const handleMoveToCollection = useCallback(() => {
+    setSnackbar((s) => ({ ...s, visible: false }));
+    setShowBucketPicker(true);
+  }, []);
+
+  const handleScriptPreferenceChange = useCallback(
+    async (nextPreference: ScriptPreference) => {
+      if (!userId) return;
+      if ((userState?.scriptPreference ?? "devanagari") === nextPreference) return;
+      await updateScriptPreference({ userId, scriptPreference: nextPreference });
+    },
+    [updateScriptPreference, userId, userState?.scriptPreference]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -188,75 +265,7 @@ export default function TodayScreen() {
     }
   }, [markGestureCoachSeen, userId]);
 
-  const handleBookmark = useCallback(async () => {
-    if (!userId || !activeVerse) return;
-    const verseId = activeVerse.id as Id<"verses">;
-    try {
-      const result = await quickBookmark({ userId, verseId });
-      impact();
-      if (result?.removed) {
-        Alert.alert("Removed", "Verse removed from Saved.");
-      } else {
-        Alert.alert("Saved", "Verse added to Saved.");
-      }
-    } catch (error: any) {
-      Alert.alert("Could not bookmark", String(error?.message ?? error));
-    }
-  }, [activeVerse, quickBookmark, userId]);
-
-  const handleAddToBucket = useCallback(() => {
-    if (!userId || !activeVerse) return;
-    setShowBucketPicker(true);
-  }, [activeVerse, userId]);
-
-  const handleShare = useCallback(async () => {
-    if (!activeVerse || !verses) return;
-
-    const verse = verses.find((v) => v._id === activeVerse.id);
-    if (!verse) return;
-
-    const message = formatVerseShareMessage(
-      verse,
-      (userState?.scriptPreference as ScriptPreference | undefined) ?? "devanagari"
-    );
-    await shareText(message);
-  }, [activeVerse, userState?.scriptPreference, verses]);
-
-  const handleCloseDrawer = useCallback(() => {
-    if (!isWeb) {
-      actionDrawerRef.current?.close();
-    }
-    if (!showBucketPicker) {
-      setActiveVerse(null);
-    }
-  }, [isWeb, showBucketPicker]);
-
-  const handleCloseBucketPicker = useCallback(() => {
-    setShowBucketPicker(false);
-    if (!isWeb) {
-      actionDrawerRef.current?.close();
-    }
-    setActiveVerse(null);
-  }, [isWeb]);
-
-  const handleScriptPreferenceChange = useCallback(
-    async (nextPreference: ScriptPreference) => {
-      if (!userId) return;
-      if ((userState?.scriptPreference ?? "devanagari") === nextPreference) return;
-      await updateScriptPreference({ userId, scriptPreference: nextPreference });
-    },
-    [updateScriptPreference, userId, userState?.scriptPreference]
-  );
-
-  const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
-  const isSavedToDefault = Boolean(
-    defaultBucketId &&
-      activeVerseBuckets?.some(
-        (bucketId) => String(bucketId) === String(defaultBucketId)
-      )
-  );
-
-  // Loading state
+  // Error state
   if (userError) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
@@ -276,6 +285,7 @@ export default function TodayScreen() {
     );
   }
 
+  // Loading state
   if (isLoading || isUserLoading || !userId) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
@@ -308,54 +318,58 @@ export default function TodayScreen() {
     );
   }
 
+  const interactionsEnabled = gestureCoachResolved && !showGestureCoach;
+
   return (
     <SafeAreaView className="flex-1 bg-background">
       <TodayHeader
-        currentIndex={currentIndex}
+        frontier={frontier}
+        viewIndex={viewIndex}
         totalVerses={DAILY_VERSE_COUNT}
         streak={currentStreak}
+        scriptPreference={userState?.scriptPreference}
+        onSeek={seek}
+        onScriptChange={handleScriptPreferenceChange}
       />
 
       <View className="flex-1 px-5" style={isWeb ? { paddingBottom: 96 } : undefined}>
         <CardStack
           verses={verses}
-          currentIndex={currentIndex}
-          onSwipeRight={handleSwipeRight}
-          onSwipeLeft={handleSwipeLeft}
-          interactionsEnabled={gestureCoachResolved && !showGestureCoach}
+          viewIndex={viewIndex}
+          frontier={frontier}
+          isSaved={isViewedSaved}
+          onPrev={goPrev}
+          onNext={goNext}
+          onSave={handleSave}
+          onShare={handleShare}
+          interactionsEnabled={interactionsEnabled}
           microDemoNonce={microDemoNonce}
           scriptPreference={userState?.scriptPreference}
         />
       </View>
 
       {!isWeb && (
-        <SwipeHint
-          onMoreOptions={handleSwipeLeft}
-          onMarkRead={handleSwipeRight}
-          disabled={!gestureCoachResolved || showGestureCoach}
+        <TodayNav
+          canPrev={viewIndex > 0}
+          isReviewing={isReviewing}
+          onPrev={goPrev}
+          onNext={goNext}
+          disabled={!interactionsEnabled}
         />
       )}
 
-      <ActionDrawer
-        ref={actionDrawerRef}
-        verseId={activeVerse?.id ?? ""}
-        chapterNumber={activeVerse?.chapter ?? 0}
-        verseNumber={activeVerse?.verse ?? 0}
-        isSavedToDefault={isSavedToDefault}
-        scriptPreference={userState?.scriptPreference}
-        onBookmark={handleBookmark}
-        onAddToBucket={handleAddToBucket}
-        onShare={handleShare}
-        onScriptPreferenceChange={handleScriptPreferenceChange}
-        onClose={handleCloseDrawer}
+      <SaveSnackbar
+        visible={snackbar.visible}
+        removed={snackbar.removed}
+        onMoveToCollection={handleMoveToCollection}
       />
 
       <BucketPickerModal
         visible={showBucketPicker}
-        onClose={handleCloseBucketPicker}
+        onClose={() => setShowBucketPicker(false)}
         userId={userId}
-        verseId={activeVerse ? (activeVerse.id as Id<"verses">) : null}
-        key={activeVerse?.id ?? "bucket-picker"}
+        verseId={viewedVerse ? (viewedVerse._id as Id<"verses">) : null}
+        key={viewedVerse?._id ?? "bucket-picker"}
       />
 
       {!isWeb && (

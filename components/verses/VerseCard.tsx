@@ -2,6 +2,11 @@ import { Dimensions, Platform, View, Text } from "react-native";
 import Animated from "react-native-reanimated";
 import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
+import {
+  getVerseTextStyle,
+  translationTextStyle,
+  transliterationTextStyle,
+} from "@/lib/textStyles";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH - 40; // 20px padding each side
@@ -55,12 +60,18 @@ export function VerseCard({
       </Text>
 
       {/* Sanskrit Text */}
-      <Text className="text-xl text-secondary leading-9 mb-4">
+      <Text
+        className="text-xl text-secondary mb-4"
+        style={getVerseTextStyle(scriptPreference)}
+      >
         {verseText}
       </Text>
 
       {/* Transliteration */}
-      <Text className="text-base italic text-textSecondary mb-4">
+      <Text
+        className="text-base italic text-textSecondary mb-4"
+        style={transliterationTextStyle}
+      >
         {verse.transliteration}
       </Text>
 
@@ -68,7 +79,7 @@ export function VerseCard({
       <View className="h-px bg-gray-200 my-4" />
 
       {/* English Translation */}
-      <Text className="text-base text-textPrimary leading-7">
+      <Text className="text-base text-textPrimary" style={translationTextStyle}>
         {verse.translationEnglish}
       </Text>
 

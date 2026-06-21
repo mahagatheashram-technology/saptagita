@@ -1,4 +1,4 @@
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, ScrollView } from "react-native";
 import { useEffect } from "react";
 import Animated, {
   useSharedValue,
@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { notify } from "@/lib/haptics";
+import { DharmicSearchBox } from "./DharmicSearchBox";
 
 interface CompletionScreenProps {
   currentStreak: number;
@@ -83,79 +84,82 @@ export function CompletionScreen({
   }));
 
   return (
-    <View className="flex-1 items-center justify-center px-8">
-      {/* Success checkmark circle */}
-      <Animated.View
-        style={checkAnimatedStyle}
-        className="w-20 h-20 rounded-full bg-success items-center justify-center mb-4"
-      >
-        <Ionicons name="checkmark" size={40} color="white" />
-      </Animated.View>
+    <ScrollView
+      className="flex-1"
+      contentContainerStyle={{
+        flexGrow: 1,
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 24,
+        paddingVertical: 32,
+      }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Top: success + compact streak chip (secondary) */}
+      <View className="items-center w-full">
+        <Animated.View
+          style={checkAnimatedStyle}
+          className="w-14 h-14 rounded-full bg-success items-center justify-center mb-3"
+        >
+          <Ionicons name="checkmark" size={28} color="white" />
+        </Animated.View>
 
-      {/* Main text */}
-      <Animated.View style={textAnimatedStyle} className="items-center">
-        <Text className="text-2xl font-bold text-secondary mb-6">
-          Day Complete!
-        </Text>
-      </Animated.View>
+        <Animated.View style={textAnimatedStyle} className="items-center">
+          <Text className="text-xl font-bold text-secondary mb-3">
+            Day Complete!
+          </Text>
+        </Animated.View>
 
-      {/* Streak card */}
-      <Animated.View
-        style={streakAnimatedStyle}
-        className="bg-surface rounded-2xl p-6 shadow-lg w-full max-w-xs"
-      >
-        <View className="flex-row items-center justify-center mb-4">
+        <Animated.View
+          style={streakAnimatedStyle}
+          className="flex-row items-center bg-surface rounded-full px-4 py-2 shadow-sm"
+        >
           <Animated.View style={flameAnimatedStyle}>
-            <Ionicons name="flame" size={32} color="#FF6B35" />
+            <Ionicons name="flame" size={18} color="#FF6B35" />
           </Animated.View>
-          <Text className="text-4xl font-bold text-primary ml-2">
+          <Text className="text-base font-bold text-primary ml-1.5">
             {currentStreak}
           </Text>
-          <Text className="text-lg text-textSecondary ml-2">
-            day{currentStreak !== 1 ? "s" : ""}
+          <Text className="text-sm text-textSecondary ml-1">
+            day{currentStreak !== 1 ? "s" : ""} streak
           </Text>
-        </View>
+          {isNewRecord && currentStreak > 1 && (
+            <Text className="text-sm font-semibold text-accent ml-2">
+              · 🎉 New record
+            </Text>
+          )}
+        </Animated.View>
 
-        {/* Streak label */}
-        <Text className="text-center text-textSecondary">
-          {currentStreak === 1
-            ? "You've started your journey!"
-            : currentStreak < 7
-            ? "Keep the momentum going!"
-            : currentStreak < 30
-            ? "You're building a great habit!"
-            : "Incredible dedication! 🙏"}
-        </Text>
-
-        {/* New record badge */}
-        {isNewRecord && currentStreak > 1 && (
-          <View className="bg-accent/20 rounded-full py-2 px-4 self-center mt-4">
-            <Text className="text-accent font-semibold">🎉 New Record!</Text>
-          </View>
-        )}
-
-        {/* Longest streak (if different from current) */}
         {!isNewRecord && longestStreak > currentStreak && (
-          <Text className="text-center text-textSecondary text-sm mt-2">
-            Longest streak: {longestStreak} days
-          </Text>
+          <Animated.View style={streakAnimatedStyle}>
+            <Text className="text-xs text-textSecondary mt-2">
+              Longest streak: {longestStreak} days
+            </Text>
+          </Animated.View>
         )}
+      </View>
+
+      {/* Hero: Dharmic search — front and center */}
+      <Animated.View
+        style={textAnimatedStyle}
+        className="w-full items-center my-6"
+      >
+        <DharmicSearchBox />
       </Animated.View>
 
-      {/* Foundation branding — prominent */}
-      <Animated.View style={textAnimatedStyle} className="mt-8 items-center">
+      {/* Bottom: foundation branding (secondary) */}
+      <Animated.View style={textAnimatedStyle} className="items-center">
         <Image
           source={require("@/assets/images/mahagathe-foundation-logo.png")}
-          style={{ width: 64, height: 64, marginBottom: 8 }}
+          style={{ width: 44, height: 44, marginBottom: 6 }}
           resizeMode="contain"
         />
-        <Text className="text-sm font-semibold text-secondary">
-          Sapta Gita
-        </Text>
+        <Text className="text-sm font-semibold text-secondary">Sapta Gita</Text>
         <Text className="text-xs text-textSecondary/60 tracking-[0.5px] mt-1">
           A Mahagathe Foundation Initiative
         </Text>
       </Animated.View>
-    </View>
+    </ScrollView>
   );
 }
