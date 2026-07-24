@@ -1,10 +1,11 @@
 import { Platform } from "react-native";
-import type { DailyTriggerInput } from "expo-notifications";
+import { getDeviceLocalDate, getReminderDates } from "./reminderSchedule";
 
 // SecureStore keys must be alphanumeric with ., -, or _
 const REMINDER_ENABLED_KEY = "notifications_reminders_enabled";
 const REMINDER_TIME_KEY = "notifications_reminder_time";
 const ANDROID_CHANNEL_ID = "default";
+const REMINDER_DATA_KEY = "saptaGitaDailyReminder";
 
 const isWeb = Platform.OS === "web";
 
@@ -157,8 +158,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return true;
 }
 
-// Cancels all OS-scheduled notifications without touching the saved preference
-// or acquiring the lock. Used internally by locked operations.
+// Cancels OS-scheduled notifications without touching the saved preference or
+// acquiring the lock. cancel-all also removes the legacy repeating reminder,
+// which did not carry identifying data.
 async function clearAllScheduledNotifications(): Promise<void> {
   if (isWeb) return;
   const Notifications = await getNotifications();
@@ -168,14 +170,18 @@ async function clearAllScheduledNotifications(): Promise<void> {
 
 export function scheduleDailyReminder(
   hour = 20,
-  minute = 0
+  minute = 0,
+  options: { completedLocalDate?: string | null } = {}
 ): Promise<string | null> {
-  return withSchedulingLock(() => scheduleDailyReminderInner(hour, minute));
+  return withSchedulingLock(() =>
+    scheduleDailyReminderInner(hour, minute, options.completedLocalDate)
+  );
 }
 
 async function scheduleDailyReminderInner(
   hour: number,
-  minute: number
+  minute: number,
+  completedLocalDate?: string | null
 ): Promise<string | null> {
   if (isWeb) {
     throw new Error("Notifications are not available on web.");
@@ -202,25 +208,61 @@ async function scheduleDailyReminderInner(
   const targetTimeString = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   await setStoredReminderTime(targetTimeString);
 
-  const trigger: DailyTriggerInput = {
-    type: Notifications.SchedulableTriggerInputTypes.DAILY,
+  const reminderDates = getReminderDates({
     hour,
     minute,
-    channelId: ANDROID_CHANNEL_ID,
-  };
-
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Your verses await",
-      body: "Read today to keep your streak alive!",
-      sound: true,
-      badge: 1,
-    },
-    trigger,
+    completedLocalDate,
   });
+  let firstId: string | null = null;
 
-  console.log("Scheduled daily reminder with ID:", id);
-  return id;
+  for (const date of reminderDates) {
+    const id = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Your verses await",
+        body: "Complete today's seven verses to keep your streak alive.",
+        sound: true,
+        badge: 1,
+        data: {
+          [REMINDER_DATA_KEY]: true,
+          reminderLocalDate: getDeviceLocalDate(date),
+        },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date,
+        channelId: ANDROID_CHANNEL_ID,
+      },
+    });
+    firstId ??= id;
+  }
+
+  console.log(`Scheduled ${reminderDates.length} daily reminders`);
+  return firstId;
+}
+
+export function reconcileDailyReminder(options: {
+  completedLocalDate?: string | null;
+} = {}): Promise<string | null> {
+  return withSchedulingLock(async () => {
+    if (isWeb) return null;
+
+    const enabled = await getReminderPreference();
+    if (!enabled) {
+      await clearAllScheduledNotifications();
+      return null;
+    }
+
+    const storedTime = await getStoredReminderTime();
+    const [hour, minute] = (storedTime ?? "20:00")
+      .split(":")
+      .map((value) => Number(value));
+
+    return scheduleDailyReminderInner(
+      Number.isInteger(hour) ? hour : 20,
+      Number.isInteger(minute) ? minute : 0,
+      options.completedLocalDate
+    );
+  });
 }
 
 export function cancelDailyReminder(): Promise<void> {
@@ -229,14 +271,6 @@ export function cancelDailyReminder(): Promise<void> {
     await clearAllScheduledNotifications();
     await setReminderPreference(false);
   });
-}
-
-export async function isDailyReminderScheduled(): Promise<boolean> {
-  if (isWeb) return false;
-  const Notifications = await getNotifications();
-  if (!Notifications) return false;
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  return scheduled.length > 0;
 }
 
 export async function getScheduledNotifications() {

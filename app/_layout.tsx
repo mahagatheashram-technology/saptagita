@@ -2,22 +2,29 @@ import { convex } from "@/lib/convex";
 import {
   cancelDailyReminder,
   getReminderPreference,
-  getStoredReminderTime,
-  isDailyReminderScheduled,
+  reconcileDailyReminder,
   requestNotificationPermissions,
-  scheduleDailyReminder,
 } from "@/lib/notifications";
-import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 import "react-native-gesture-handler";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -110,8 +117,8 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
           tokenCache={tokenCache}
         >
           <ConvexAuthSync />
-          <NotificationEffects />
           <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+            <NotificationEffects />
             <ThemeProvider value={DefaultTheme}>
               <AuthStack />
             </ThemeProvider>
@@ -150,13 +157,33 @@ function ConvexAuthSync() {
 
 function NotificationEffects() {
   const { isSignedIn } = useAuth();
+  const { user: clerkUser } = useUser();
+  const currentUser = useQuery(
+    api.users.getUserByAuthId,
+    isSignedIn && clerkUser ? { authId: clerkUser.id } : "skip"
+  );
+  const todayProgress = useQuery(
+    api.dailySets.getTodayProgress,
+    currentUser ? { userId: currentUser._id } : "skip"
+  );
 
   useEffect(() => {
     if (Platform.OS === "web") return;
     if (!isSignedIn) return;
+    if (!currentUser || todayProgress === undefined) return;
 
     let Notifications: typeof import("expo-notifications") | null = null;
     let subscription: import("expo-notifications").Subscription | null = null;
+    let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null =
+      null;
+
+    const reconcile = async () => {
+      await reconcileDailyReminder({
+        completedLocalDate: todayProgress.isComplete
+          ? todayProgress.localDate
+          : null,
+      });
+    };
 
     const setupNotifications = async () => {
       try {
@@ -171,20 +198,20 @@ function NotificationEffects() {
         const granted = await requestNotificationPermissions();
         if (!granted) return;
 
-        const alreadyScheduled = await isDailyReminderScheduled();
-        if (!alreadyScheduled) {
-          const storedTime = await getStoredReminderTime();
-          const [storedHour, storedMinute] = (storedTime ?? "20:00")
-            .split(":")
-            .map((v: string) => Number(v) || 0);
-          await scheduleDailyReminder(storedHour, storedMinute);
-        }
+        await reconcile();
 
         subscription = Notifications.addNotificationResponseReceivedListener(
           () => {
             router.replace("/(tabs)");
           }
         );
+        appStateSubscription = AppState.addEventListener("change", (state) => {
+          if (state === "active") {
+            reconcile().catch((error) => {
+              console.log("Notification reconciliation failed", error);
+            });
+          }
+        });
       } catch (error) {
         console.log("Notification setup failed", error);
       }
@@ -194,8 +221,14 @@ function NotificationEffects() {
 
     return () => {
       subscription?.remove();
+      appStateSubscription?.remove();
     };
-  }, [isSignedIn]);
+  }, [
+    currentUser?._id,
+    isSignedIn,
+    todayProgress?.isComplete,
+    todayProgress?.localDate,
+  ]);
 
   return null;
 }

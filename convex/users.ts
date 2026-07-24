@@ -13,6 +13,11 @@ async function ensureUser(ctx: any, args: {
     .first();
 
   if (existingUser) {
+    const nextTimezone = args.timezone ?? existingUser.timezone;
+    if (nextTimezone !== existingUser.timezone) {
+      await ctx.db.patch(existingUser._id, { timezone: nextTimezone });
+      return { ...existingUser, timezone: nextTimezone };
+    }
     return existingUser;
   }
 

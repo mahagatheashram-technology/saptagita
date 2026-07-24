@@ -22,15 +22,18 @@ export function TodayNav({
         className="rounded-2xl px-4 py-3"
         style={{ backgroundColor: "rgba(255, 255, 255, 0.86)" }}
       >
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-stretch">
           <Pressable
             onPress={onPrev}
             disabled={disabled || !canPrev}
-            className="flex-row items-center px-3 py-2 rounded-full active:bg-gray-100"
+            className="flex-1 flex-row items-center px-2 py-2 rounded-full active:bg-gray-100"
             style={{ opacity: disabled || !canPrev ? 0.4 : 1 }}
           >
             <Ionicons name="chevron-back" size={18} color="#1A365D" />
-            <Text className="text-secondary ml-1 text-sm font-medium">
+            <Text
+              className="text-secondary ml-1 text-sm font-medium flex-shrink"
+              numberOfLines={2}
+            >
               Previous
             </Text>
           </Pressable>
@@ -38,10 +41,13 @@ export function TodayNav({
           <Pressable
             onPress={onNext}
             disabled={disabled}
-            className="flex-row items-center px-4 py-2 rounded-full bg-primary active:opacity-80"
+            className="flex-1 flex-row items-center justify-center px-2 py-2 rounded-full bg-primary active:opacity-80 ml-2"
             style={{ opacity: disabled ? 0.5 : 1 }}
           >
-            <Text className="text-white mr-1 text-sm font-semibold">
+            <Text
+              className="text-white mr-1 text-sm font-semibold text-center flex-shrink"
+              numberOfLines={2}
+            >
               {isReviewing ? "Next" : "Mark as read"}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />

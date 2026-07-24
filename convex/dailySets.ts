@@ -180,6 +180,7 @@ export const markVerseRead = mutation({
     versesRead: number;
     totalVerses: number;
     isComplete: boolean;
+    completedLocalDate: string | null;
     streakUpdate: StreakUpdate | null;
   }> => {
     // Check if all verses in the set are now read
@@ -217,6 +218,7 @@ export const markVerseRead = mutation({
         versesRead: sequenceReads.length,
         totalVerses: dailySet.verseIds.length,
         isComplete,
+        completedLocalDate: isComplete ? dailySet.localDate : null,
         streakUpdate: null,
       };
     }
@@ -228,6 +230,7 @@ export const markVerseRead = mutation({
         versesRead: sequenceReads.length,
         totalVerses: dailySet.verseIds.length,
         isComplete: true,
+        completedLocalDate: dailySet.localDate,
         streakUpdate: null,
       };
     }
@@ -235,8 +238,6 @@ export const markVerseRead = mutation({
     if (String(expectedVerseId) !== String(args.verseId)) {
       throw new Error("Verse is not next in sequence");
     }
-
-    const firstReadOfDay = readEvents.length === 0;
 
     // Create read event
     await ctx.db.insert("readEvents", {
@@ -251,13 +252,6 @@ export const markVerseRead = mutation({
     const isComplete = newReadCount >= dailySet.verseIds.length;
     let streakUpdate: StreakUpdate | null = null;
 
-    if (firstReadOfDay) {
-      streakUpdate = await ctx.runMutation(
-        internal.streaks.updateStreakOnReadInternal,
-        { userId: args.userId, localDate: dailySet.localDate }
-      );
-    }
-
     await ctx.db.patch(userState._id, {
       sequentialPointer: ((userState.sequentialPointer ?? 0) + 1) % TOTAL_VERSES,
     });
@@ -267,18 +261,10 @@ export const markVerseRead = mutation({
       await ctx.db.patch(args.dailySetId, {
         completedAt: Date.now(),
       });
-
-      const streakRecord = await ctx.db
-        .query("streaks")
-        .withIndex("byUser", (q) => q.eq("userId", args.userId))
-        .first();
-
-      if (streakRecord) {
-        await ctx.db.patch(streakRecord._id, {
-          lastCompletedLocalDate: dailySet.localDate,
-          updatedAt: Date.now(),
-        });
-      }
+      streakUpdate = await ctx.runMutation(
+        internal.streaks.updateStreakOnCompletionInternal,
+        { userId: args.userId, localDate: dailySet.localDate }
+      );
     }
 
     return {
@@ -286,6 +272,7 @@ export const markVerseRead = mutation({
       versesRead: newReadCount,
       totalVerses: dailySet.verseIds.length,
       isComplete,
+      completedLocalDate: isComplete ? dailySet.localDate : null,
       streakUpdate,
     };
   },
@@ -351,13 +338,6 @@ export const logReread = mutation({
     }
     if (!dailySet) throw new Error("Daily set not found");
 
-    const existingEvents = await ctx.db
-      .query("readEvents")
-      .withIndex("by_dailySet", (q) => q.eq("dailySetId", dailySet._id))
-      .collect();
-
-    const firstReadOfDay = existingEvents.length === 0;
-
     await ctx.db.insert("readEvents", {
       userId: args.userId,
       dailySetId: dailySet._id,
@@ -366,15 +346,7 @@ export const logReread = mutation({
       kind: "reread",
     });
 
-    let streakUpdate: StreakUpdate | null = null;
-    if (firstReadOfDay) {
-      streakUpdate = await ctx.runMutation(
-        internal.streaks.updateStreakOnReadInternal,
-        { userId: args.userId, localDate: dailySet.localDate }
-      );
-    }
-
-    return { streakUpdate };
+    return { streakUpdate: null };
   },
 });
 
@@ -388,12 +360,22 @@ export const getTodayProgress = query({
       .first();
 
     if (!userState?.currentDailySetId) {
-      return { versesRead: 0, totalVerses: DAILY_VERSE_COUNT, isComplete: false };
+      return {
+        versesRead: 0,
+        totalVerses: DAILY_VERSE_COUNT,
+        isComplete: false,
+        localDate: null,
+      };
     }
 
     const dailySet = await ctx.db.get(userState.currentDailySetId);
     if (!dailySet) {
-      return { versesRead: 0, totalVerses: DAILY_VERSE_COUNT, isComplete: false };
+      return {
+        versesRead: 0,
+        totalVerses: DAILY_VERSE_COUNT,
+        isComplete: false,
+        localDate: null,
+      };
     }
 
     const readEvents = await ctx.db
@@ -409,6 +391,7 @@ export const getTodayProgress = query({
       versesRead: sequenceReads.length,
       totalVerses: dailySet.verseIds.length,
       isComplete: dailySet.completedAt != null,
+      localDate: dailySet.localDate,
     };
   },
 });
@@ -433,10 +416,12 @@ export const getReadingHistory = query({
       targetDates.add(localDate);
     }
 
-    const readEvents = await ctx.db
+    const readEvents = (
+      await ctx.db
       .query("readEvents")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect();
+      .collect()
+    ).filter((event: any) => event.kind !== "reread");
 
     if (readEvents.length === 0) {
       return { readDates: [], perfectDates: [] };

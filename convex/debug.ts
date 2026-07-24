@@ -190,7 +190,7 @@ export const forceCompleteToday = mutation({
     }
 
     // Update streak anchored to the set's local date to avoid misattribution across midnights
-    await ctx.runMutation(internal.streaks.updateStreakOnReadInternal, {
+    await ctx.runMutation(internal.streaks.updateStreakOnCompletionInternal, {
       userId: args.userId,
       localDate: dailySet.localDate,
     });

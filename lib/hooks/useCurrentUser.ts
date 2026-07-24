@@ -67,8 +67,8 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
       try {
         const timezone =
-          (user.publicMetadata as any)?.timezone ||
           Intl.DateTimeFormat().resolvedOptions().timeZone ||
+          (user.publicMetadata as any)?.timezone ||
           "UTC";
 
         console.log("[useCurrentUser] Calling syncUser with:", { authId: user.id, timezone });

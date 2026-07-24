@@ -60,7 +60,6 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
   );
 
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
-  const logReread = useMutation(api.dailySets.logReread);
 
   // Open the sheet once the requested verse has loaded.
   useEffect(() => {
@@ -111,17 +110,6 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
       }
     } catch (error: any) {
       Alert.alert("Could not bookmark", String(error?.message ?? error));
-    }
-  };
-
-  const handleLogReadToday = async () => {
-    if (!loadedVerse?._id) return;
-    try {
-      await logReread({ userId, verseId: loadedVerse._id });
-      sheetRef.current?.close();
-      Alert.alert("Logged", "Counted your reading for today.");
-    } catch (error: any) {
-      Alert.alert("Could not log read", String(error?.message ?? error));
     }
   };
 
@@ -246,7 +234,6 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
         isSavedToDefault={isSavedToDefault}
         onAddToBucket={handleAddToBucket}
         onQuickBookmark={handleQuickBookmark}
-        onLogReadToday={handleLogReadToday}
         scriptPreference={scriptPreference}
       />
 

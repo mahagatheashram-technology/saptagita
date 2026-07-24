@@ -1,4 +1,11 @@
-import { Dimensions, Platform, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
@@ -36,6 +43,8 @@ export function CardStack({
   microDemoNonce = 0,
   scriptPreference,
 }: CardStackProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+
   if (!verses || verses.length === 0) return null;
 
   const verse = verses[viewIndex];
@@ -45,10 +54,8 @@ export function CardStack({
   const canPrev = viewIndex > 0;
   const canNext = viewIndex < verses.length; // forward always available while reading
 
-  const screenWidth = Dimensions.get("window").width;
-  const screenHeight = Dimensions.get("window").height;
   const cardWidth = Math.min(screenWidth - 32, 720);
-  const maxCardHeight = Math.max(320, screenHeight - 260);
+  const maxCardHeight = Math.max(240, screenHeight - 260);
 
   const isWeb = Platform.OS === "web";
 
@@ -138,7 +145,10 @@ export function CardStack({
   }
 
   return (
-    <View className="flex-1 items-center justify-center relative w-full">
+    <View
+      className="flex-1 items-center justify-start relative w-full py-1"
+      style={{ minHeight: 0 }}
+    >
       <SwipeableCard
         key={verse._id}
         verse={verse}
