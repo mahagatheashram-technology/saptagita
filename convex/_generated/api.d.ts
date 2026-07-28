@@ -9,12 +9,18 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as auth from "../auth.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as communities from "../communities.js";
 import type * as dailySets from "../dailySets.js";
 import type * as debug from "../debug.js";
+import type * as integrityMigration from "../integrityMigration.js";
+import type * as integrityRules from "../integrityRules.js";
+import type * as streakMath from "../streakMath.js";
 import type * as streaks from "../streaks.js";
 import type * as users from "../users.js";
+import type * as validators from "../validators.js";
+import type * as verseSequence from "../verseSequence.js";
 import type * as verses from "../verses.js";
 
 import type {
@@ -25,12 +31,18 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  auth: typeof auth;
   bookmarks: typeof bookmarks;
   communities: typeof communities;
   dailySets: typeof dailySets;
   debug: typeof debug;
+  integrityMigration: typeof integrityMigration;
+  integrityRules: typeof integrityRules;
+  streakMath: typeof streakMath;
   streaks: typeof streaks;
   users: typeof users;
+  validators: typeof validators;
+  verseSequence: typeof verseSequence;
   verses: typeof verses;
 }>;
 

@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ScriptPreference } from "@/lib/verseText";
 
@@ -26,15 +26,28 @@ export function TodayHeader({
   onSeek,
   onScriptChange,
 }: TodayHeaderProps) {
+  const { height, fontScale } = useWindowDimensions();
   const isReviewing = viewIndex < frontier;
   const activeScript = scriptPreference ?? "devanagari";
+  const compact = height < 700 || fontScale > 1.2;
 
   return (
-    <View className="px-5 pt-2 pb-4">
+    <View
+      className="px-5 pt-1"
+      style={{ paddingBottom: compact ? 8 : 16 }}
+    >
       {/* Top row: Title + script toggle + streak */}
-      <View className="flex-row justify-between items-center mb-3">
+      <View
+        className="flex-row justify-between items-center"
+        style={{ marginBottom: compact ? 6 : 12 }}
+      >
         <View className="flex-1">
-          <Text className="text-2xl font-bold text-secondary">
+          <Text
+            className="text-2xl font-bold text-secondary"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+          >
             Today's Reading
           </Text>
           <Text className="text-[10px] text-textSecondary/50 tracking-[0.5px] mt-0.5">
@@ -78,7 +91,11 @@ export function TodayHeader({
       </View>
 
       {/* Progress label */}
-      <Text className="text-textSecondary mb-2">
+      <Text
+        className="text-textSecondary"
+        style={{ marginBottom: compact ? 4 : 8 }}
+        numberOfLines={2}
+      >
         {isReviewing
           ? `Reviewing verse ${viewIndex + 1} of ${totalVerses}`
           : `${frontier} of ${totalVerses} verses read`}

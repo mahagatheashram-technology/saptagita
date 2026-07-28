@@ -1,9 +1,8 @@
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, Pressable, ScrollView, Alert, Image } from "react-native";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth, useSession } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { DevPanel } from "@/components/dev/DevPanel";
 import {
   AboutSection,
   AccountSection,
@@ -14,22 +13,23 @@ import {
   StreakStatsCard,
 } from "@/components/profile";
 import { api } from "@/convex/_generated/api";
+import {
+  AccountDeletionCheckpoint,
+  AccountDeletionResult,
+  EMPTY_DELETION_CHECKPOINT,
+  runAccountDeletion,
+} from "@/lib/accountDeletion";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (!error) return fallback;
-  if (typeof error === "string") return error;
-  if (typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-  return fallback;
-}
+import { clearUserSyncCache } from "@/lib/userSyncCoordinator";
 
 export default function ProfileScreen() {
   const { signOut } = useAuth();
+  const { session } = useSession();
   const [isDeleting, setIsDeleting] = useState(false);
-  const { user, isLoading, error, clerkUser } = useCurrentUser({
-    suspendSync: isDeleting,
+  const [deletionCheckpoint, setDeletionCheckpoint] =
+    useState<AccountDeletionCheckpoint>(EMPTY_DELETION_CHECKPOINT);
+  const { user, isLoading, error, clerkUser, retrySync } = useCurrentUser({
+    suspendSync: isDeleting || deletionCheckpoint.appDataDeleted,
   });
   const [displayName, setDisplayName] = useState<string>("");
   const [isUpdatingName, setIsUpdatingName] = useState(false);
@@ -64,76 +64,96 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     try {
-      await signOut?.();
+      await signOut();
+      clearUserSyncCache();
     } catch (signOutError) {
       console.error("Sign out failed", signOutError);
+      Alert.alert(
+        "Sign out failed",
+        "We couldn't finish signing out. Check your connection and retry.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Retry", onPress: handleSignOut },
+        ]
+      );
     }
   };
 
+  const performAccountDeletion = async (
+    checkpoint: AccountDeletionCheckpoint
+  ) => {
+    if (!clerkUser) return;
+
+    setIsDeleting(true);
+    const result: AccountDeletionResult = await runAccountDeletion(
+      {
+        canDeleteClerkIdentity: clerkUser.deleteSelfEnabled,
+        requiresRecentSignIn:
+          typeof session?.factorVerificationAge?.[0] === "number" &&
+          session.factorVerificationAge[0] >= 10,
+        deleteAppData: async () => {
+          const deletion = await deleteAccount({});
+          clearUserSyncCache();
+          return deletion;
+        },
+        deleteClerkIdentity: () => clerkUser.delete(),
+        signOut: async () => {
+          await signOut();
+          clearUserSyncCache();
+        },
+      },
+      checkpoint
+    );
+    setDeletionCheckpoint(result.checkpoint);
+    setIsDeleting(false);
+
+    if (!result.ok) {
+      console.error("Delete account failed", {
+        phase: result.phase,
+        cause: result.cause,
+      });
+      Alert.alert(
+        result.phase === "configuration"
+          ? "Deletion unavailable"
+          : "Deletion needs attention",
+        result.message,
+        [
+          { text: "Close", style: "cancel" },
+          ...(result.phase === "configuration"
+            ? []
+            : result.requiresSignInAgain
+              ? [
+                  {
+                    text: "Sign out",
+                    onPress: handleSignOut,
+                  },
+                ]
+            : [
+                {
+                  text: "Retry",
+                  onPress: () => performAccountDeletion(result.checkpoint),
+                },
+              ]),
+        ]
+      );
+      return;
+    }
+
+    Alert.alert("Account deleted", "Your account and app data were deleted.");
+  };
+
   const handleDeleteAccount = () => {
-    if (!user) return;
+    if (!user || !clerkUser) return;
 
     Alert.alert(
       "Delete account?",
-      "This will delete your reading history, streaks, and bookmarks.",
+      "This will permanently delete your reading history, streaks, bookmarks, communities, and sign-in identity.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            let clerkDeleteError: unknown = null;
-            let signOutError: unknown = null;
-            try {
-              await deleteAccount({});
-
-              if (clerkUser?.delete) {
-                try {
-                  await clerkUser.delete();
-                } catch (error) {
-                  clerkDeleteError = error;
-                  console.error("Clerk account delete failed", error);
-                }
-              } else {
-                clerkDeleteError = new Error(
-                  "Auth account deletion is unavailable on this client."
-                );
-              }
-
-              try {
-                await signOut?.();
-              } catch (error) {
-                signOutError = error;
-                console.error("Sign out after delete failed", error);
-              }
-
-              if (clerkDeleteError) {
-                const message = signOutError
-                  ? "Your app data was deleted, but we couldn't delete your authentication account and couldn't sign you out automatically."
-                  : "Your app data was deleted, but we couldn't delete your authentication account automatically. Please sign in again and retry account deletion, or contact support.";
-                Alert.alert("Account partially deleted", message);
-              } else if (signOutError) {
-                Alert.alert(
-                  "Account deleted",
-                  "Your account data was deleted, but automatic sign out failed. Please restart the app."
-                );
-              } else {
-                Alert.alert("Account deleted", "Your account and app data were deleted.");
-              }
-            } catch (deleteError) {
-              console.error("Delete account failed", deleteError);
-              Alert.alert(
-                "Delete failed",
-                getErrorMessage(
-                  deleteError,
-                  "We couldn't delete your account data. Please try again."
-                )
-              );
-            } finally {
-              setIsDeleting(false);
-            }
-          },
+          onPress: () => performAccountDeletion(deletionCheckpoint),
         },
       ]
     );
@@ -149,10 +169,13 @@ export default function ProfileScreen() {
           {String(error?.message ?? error)}
         </Text>
         <Pressable
-          onPress={handleSignOut}
+          onPress={retrySync}
           className="bg-primary rounded-xl py-3 px-4"
         >
-          <Text className="text-white font-semibold">Sign out</Text>
+          <Text className="text-white font-semibold">Retry account sync</Text>
+        </Pressable>
+        <Pressable onPress={handleSignOut} className="py-3 px-4 mt-2">
+          <Text className="text-primary font-semibold">Sign out</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -167,7 +190,6 @@ export default function ProfileScreen() {
   }
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || "";
-  const isDevUser = email === "ynithinsameer@gmail.com";
 
   const handleUpdateName = async (nextName: string) => {
     if (!user) return;
@@ -251,25 +273,6 @@ export default function ProfileScreen() {
 
         <AboutSection />
 
-        {isDevUser && (
-          <>
-            <View className="mt-6 mb-3">
-              <View className="h-px bg-[#E2E8F0] mb-3" />
-              <Text className="text-xs font-semibold tracking-wide text-textSecondary">
-                Developer Tools
-              </Text>
-            </View>
-
-            <View className="bg-yellow-100 p-2 rounded-lg mb-3">
-              <Text className="text-yellow-800 text-center text-xs">
-                🛠️ Dev Mode Active
-              </Text>
-            </View>
-
-            {/* TODO: Remove DevPanel before production release. */}
-            <DevPanel userId={user._id} embedded />
-          </>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

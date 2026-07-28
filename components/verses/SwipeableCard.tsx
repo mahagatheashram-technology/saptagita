@@ -1,5 +1,12 @@
 import { useEffect } from "react";
-import { Dimensions, Platform, Pressable, ScrollView, View, Text } from "react-native";
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -22,9 +29,6 @@ import {
   translationTextStyle,
   transliterationTextStyle,
 } from "@/lib/textStyles";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.3; // 30% of screen width
 
 interface SwipeableCardProps {
   verse: Verse;
@@ -58,12 +62,14 @@ export function SwipeableCard({
   interactionsEnabled = true,
   microDemoNonce = 0,
 }: SwipeableCardProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const swipeThreshold = screenWidth * 0.3;
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotation = useSharedValue(0);
 
   const verseText = getDisplayVerseText(verse, scriptPreference);
-  const maxCardHeight = Math.max(360, Dimensions.get("window").height - 245);
+  const cardPadding = screenHeight < 700 ? 16 : 20;
 
   const resetPosition = () => {
     "worklet";
@@ -95,22 +101,22 @@ export function SwipeableCard({
       translateY.value = event.translationY * 0.5;
       rotation.value = interpolate(
         event.translationX,
-        [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+        [-screenWidth / 2, 0, screenWidth / 2],
         [-12, 0, 12],
         Extrapolation.CLAMP
       );
     })
     .onEnd((event) => {
       // Swipe RIGHT — forward (marks read on the live verse)
-      if (event.translationX > SWIPE_THRESHOLD && canNext) {
+      if (event.translationX > swipeThreshold && canNext) {
         runOnJS(onNext)();
-        translateX.value = withTiming(SCREEN_WIDTH + 100, { duration: 250 });
+        translateX.value = withTiming(screenWidth + 100, { duration: 250 });
         rotation.value = withTiming(16, { duration: 250 });
       }
       // Swipe LEFT — back to the previous verse
-      else if (event.translationX < -SWIPE_THRESHOLD && canPrev) {
+      else if (event.translationX < -swipeThreshold && canPrev) {
         runOnJS(onPrev)();
-        translateX.value = withTiming(-SCREEN_WIDTH - 100, { duration: 250 });
+        translateX.value = withTiming(-screenWidth - 100, { duration: 250 });
         rotation.value = withTiming(-16, { duration: 250 });
       } else {
         resetPosition();
@@ -128,7 +134,7 @@ export function SwipeableCard({
   const rightIndicatorStyle = useAnimatedStyle(() => {
     const p = interpolate(
       translateX.value,
-      [0, SWIPE_THRESHOLD],
+      [0, swipeThreshold],
       [0, 1],
       Extrapolation.CLAMP
     );
@@ -138,7 +144,7 @@ export function SwipeableCard({
   const leftIndicatorStyle = useAnimatedStyle(() => {
     const p = interpolate(
       translateX.value,
-      [-SWIPE_THRESHOLD, 0],
+      [-swipeThreshold, 0],
       [1, 0],
       Extrapolation.CLAMP
     );
@@ -148,7 +154,7 @@ export function SwipeableCard({
   const cardFeedbackStyle = useAnimatedStyle(() => ({
     borderColor: interpolateColor(
       translateX.value,
-      [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
+      [-swipeThreshold, 0, swipeThreshold],
       ["#C7DAEE", "#E9DFD3", "#BFE5D1"]
     ),
   }));
@@ -157,11 +163,13 @@ export function SwipeableCard({
     <GestureDetector gesture={panGesture}>
       <Animated.View
         entering={FadeIn.duration(160)}
-        className="absolute bg-surface rounded-2xl p-6 shadow-lg overflow-hidden"
+        className="bg-surface rounded-2xl shadow-lg overflow-hidden"
         style={[
           {
             width: cardWidth,
-            maxHeight: maxCardHeight,
+            flex: 1,
+            alignSelf: "center",
+            padding: cardPadding,
             borderWidth: 1,
             borderColor: "#E9DFD3",
           },
@@ -194,6 +202,7 @@ export function SwipeableCard({
         </Animated.View>
 
         <ScrollView
+          style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
           contentContainerStyle={{ paddingBottom: 2 }}

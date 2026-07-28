@@ -1,23 +1,16 @@
 import { config } from "dotenv";
+import { spawnSync } from "node:child_process";
 import { readFile } from "fs/promises";
 import path from "path";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "../convex/_generated/api.js";
 
 // Load environment variables (supports .env.local and .env)
 config({ path: ".env.local" });
 config();
 
-// Load environment variables
-const CONVEX_URL =
-  process.env.EXPO_PUBLIC_CONVEX_URL ||
-  process.env.CONVEX_URL ||
-  process.env.expo_public_convex_url ||
-  process.env.convex_url;
-
-if (!CONVEX_URL) {
+const isProduction = process.argv.includes("--prod");
+if (isProduction && !process.argv.includes("--confirm-production-seed")) {
   console.error(
-    "Missing CONVEX_URL environment variable. Set EXPO_PUBLIC_CONVEX_URL or CONVEX_URL in .env.local or your shell.",
+    "Production seeding requires both --prod and --confirm-production-seed.",
   );
   process.exit(1);
 }
@@ -29,7 +22,7 @@ const DATA_PATH =
   process.env.GITA_JSON_PATH ||
   path.join(process.cwd(), "data/gita_enriched.cleaned.json");
 
-const client = new ConvexHttpClient(CONVEX_URL);
+const SEED_BATCH_SIZE = 25;
 
 type VerseInput =
   | {
@@ -84,30 +77,37 @@ async function seedVerses() {
   console.log(`Dataset: ${DATA_PATH}`);
   console.log(`Found ${verses.length} verses in JSON file`);
 
-  let successCount = 0;
-  let errorCount = 0;
-
-  for (const verse of verses) {
-    try {
-      await client.mutation(api.verses.insertVerse, verse);
-      successCount++;
-
-      // Log progress every 50 verses
-      if (successCount % 50 === 0) {
-        console.log(`Progress: ${successCount}/${verses.length} verses inserted`);
-      }
-    } catch (error) {
-      console.error(
-        `Error inserting verse ${verse.chapterNumber}.${verse.verseNumber}:`,
-        error,
+  for (let offset = 0; offset < verses.length; offset += SEED_BATCH_SIZE) {
+    const batch = verses.slice(offset, offset + SEED_BATCH_SIZE);
+    const command = process.platform === "win32" ? "npx.cmd" : "npx";
+    const commandArgs = [
+      "convex",
+      "run",
+      "verses:insertVersesBatch",
+      JSON.stringify({ verses: batch }),
+      ...(isProduction ? ["--prod"] : []),
+    ];
+    const result = spawnSync(command, commandArgs, {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: "inherit",
+    });
+    if (result.error || result.status !== 0) {
+      throw new Error(
+        `Verse seed batch ${offset + 1}-${offset + batch.length} failed.`,
+        { cause: result.error },
       );
-      errorCount++;
     }
+    console.log(
+      `Progress: ${Math.min(offset + batch.length, verses.length)}/${verses.length} verses upserted`,
+    );
   }
 
   console.log("\n=== Seeding Complete ===");
-  console.log(`Successfully inserted: ${successCount} verses`);
-  console.log(`Errors: ${errorCount}`);
+  console.log(`Successfully upserted: ${verses.length} verses`);
 }
 
-seedVerses();
+seedVerses().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

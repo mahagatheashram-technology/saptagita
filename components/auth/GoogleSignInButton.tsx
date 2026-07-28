@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { ActivityIndicator, Alert, Text, TouchableOpacity } from "react-native";
-import { useOAuth } from "@clerk/clerk-expo";
+import { useSSO } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
+import * as AuthSession from "expo-auth-session";
+
+const OAUTH_CALLBACK_PATH = "oauth-native-callback";
+
+export function getGoogleOAuthRedirectUrl() {
+  return AuthSession.makeRedirectUri({
+    scheme: "saptagita",
+    path: OAUTH_CALLBACK_PATH,
+  });
+}
 
 interface GoogleSignInButtonProps {
   onSuccess?: () => void;
@@ -12,7 +22,7 @@ export function GoogleSignInButton({
   onSuccess,
   onError,
 }: GoogleSignInButtonProps) {
-  const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
+  const { startSSOFlow } = useSSO();
   const [isLoading, setIsLoading] = useState(false);
 
   const toMessage = (error: any) => {
@@ -26,10 +36,18 @@ export function GoogleSignInButton({
   };
 
   const handlePress = async () => {
+    const redirectUrl = getGoogleOAuthRedirectUrl();
+
     try {
       setIsLoading(true);
+      if (__DEV__) {
+        console.log("[GoogleSignInButton] OAuth redirect URL:", redirectUrl);
+      }
       const { createdSessionId, setActive, authSessionResult } =
-        await startOAuthFlow();
+        await startSSOFlow({
+          strategy: "oauth_google",
+          redirectUrl,
+        });
 
       if (authSessionResult?.type && authSessionResult.type !== "success") {
         if (
@@ -51,7 +69,11 @@ export function GoogleSignInButton({
         "No active session was created. Check Clerk Google OAuth settings and native redirect configuration."
       );
     } catch (error) {
-      const message = toMessage(error);
+      const baseMessage = toMessage(error);
+      const message =
+        __DEV__ && baseMessage.toLowerCase().includes("redirect")
+          ? `${baseMessage}\n\nExpo Go callback:\n${redirectUrl}`
+          : baseMessage;
       console.error("[GoogleSignInButton] OAuth failed:", error);
       Alert.alert("Google sign-in failed", message);
       onError?.(error as Error);

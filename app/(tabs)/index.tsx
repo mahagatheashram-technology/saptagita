@@ -332,7 +332,13 @@ export default function TodayScreen() {
         onScriptChange={handleScriptPreferenceChange}
       />
 
-      <View className="flex-1 px-5" style={isWeb ? { paddingBottom: 96 } : undefined}>
+      <View
+        className="flex-1 px-5"
+        style={[
+          { minHeight: 0 },
+          isWeb ? { paddingBottom: 96 } : undefined,
+        ]}
+      >
         <CardStack
           verses={verses}
           viewIndex={viewIndex}

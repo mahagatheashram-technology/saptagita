@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import {
@@ -77,6 +77,10 @@ export function SettingsSection({
   const updateScriptPreference = useMutation(api.users.updateScriptPreference);
   const resetReadingProgress = useMutation(api.users.resetReadingProgress);
   const isWeb = Platform.OS === "web";
+  const todayProgress = useQuery(api.dailySets.getTodayProgress, { userId });
+  const completedLocalDate = todayProgress?.isComplete
+    ? todayProgress.localDate
+    : null;
 
   useEffect(() => {
     setLocalReminderTime(reminderTime ?? null);
@@ -121,7 +125,9 @@ export function SettingsSection({
     try {
       await updateReminderTime({ userId, reminderTime: nextTime });
       if (remindersEnabled) {
-        await scheduleDailyReminder(date.getHours(), date.getMinutes());
+        await scheduleDailyReminder(date.getHours(), date.getMinutes(), {
+          completedLocalDate,
+        });
       }
     } catch (error: any) {
       const message =
@@ -173,7 +179,9 @@ export function SettingsSection({
       if (enabled) {
         const targetTime = localReminderTime || (await getStoredReminderTime()) || DEFAULT_REMINDER_TIME;
         const target = toDate(targetTime);
-        await scheduleDailyReminder(target.getHours(), target.getMinutes());
+        await scheduleDailyReminder(target.getHours(), target.getMinutes(), {
+          completedLocalDate,
+        });
       } else {
         await cancelDailyReminder();
       }
