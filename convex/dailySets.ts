@@ -205,7 +205,7 @@ async function findDailySetForDate(
         .collect()
     )
   );
-  return selectCanonicalDailySet<any>(
+  const canonical = selectCanonicalDailySet<any>(
     candidates.map((candidate: any, index: number) => ({
       ...candidate,
       id: String(candidate._id),
@@ -216,6 +216,17 @@ async function findDailySetForDate(
       ).size,
       totalReadCount: eventGroups[index].length,
     }))
+  );
+
+  if (!canonical) return null;
+
+  // Ranking fields are runtime-only migration metadata. Returning the enriched
+  // candidate from a public function violates dailySetValidator, so resolve
+  // the selected ID back to the unmodified stored document.
+  return (
+    candidates.find(
+      (candidate: any) => String(candidate._id) === String(canonical._id)
+    ) ?? null
   );
 }
 

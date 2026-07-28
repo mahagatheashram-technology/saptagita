@@ -17,7 +17,7 @@ import { api } from "@/convex/_generated/api";
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -117,8 +117,15 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
           publishableKey={publishableKey}
           tokenCache={tokenCache}
         >
-          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-            <AccountDeletionGate>
+          <ConvexProviderWithClerk
+            client={convex}
+            useAuth={useClerkAuthForConvex}
+          >
+            <AccountDeletionGate
+              onRetryAuth={() =>
+                setClerkInstanceNonce((value) => value + 1)
+              }
+            >
               <NotificationEffects />
               <ThemeProvider value={DefaultTheme}>
                 <AuthStack
@@ -133,6 +140,25 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
+}
+
+function useClerkAuthForConvex() {
+  const auth = useAuth();
+  const { getToken } = auth;
+  const getSessionToken = useCallback(
+    (options: { template?: "convex"; skipCache?: boolean }) => {
+      // Clerk's current Convex integration adds `aud: "convex"` to the
+      // standard session token. Convex 1.31 still asks for the retired
+      // `convex` JWT template, so intentionally omit the template here.
+      return getToken({ skipCache: options.skipCache });
+    },
+    [getToken]
+  );
+
+  return {
+    ...auth,
+    getToken: getSessionToken,
+  };
 }
 
 function NotificationEffects() {

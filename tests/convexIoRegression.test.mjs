@@ -46,3 +46,15 @@ test("completed daily sets are read through the completion index", () => {
     "streak queries must not post-filter every daily set",
   );
 });
+
+test("daily-set ranking metadata never escapes the public return validator", () => {
+  assert.match(
+    dailySetsSource,
+    /const canonical = selectCanonicalDailySet[\s\S]*candidates\.find\([\s\S]*canonical\._id/,
+  );
+  assert.doesNotMatch(
+    dailySetsSource,
+    /return selectCanonicalDailySet<any>/,
+    "the enriched ranking candidate must not be returned as a daily-set document",
+  );
+});

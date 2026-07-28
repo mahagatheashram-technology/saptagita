@@ -103,3 +103,16 @@ test("Expo dependencies remain aligned with the supported SDK 54 patch set", () 
     expectedExpoPackages,
   );
 });
+
+test("Expo Go does not initialize the unsupported Android push module", () => {
+  const source = readFileSync(
+    new URL("../lib/notifications.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /Constants\.executionEnvironment\s*===\s*ExecutionEnvironment\.StoreClient/,
+  );
+  assert.match(source, /if \(isWeb \|\| isExpoGo \|\|/);
+});
