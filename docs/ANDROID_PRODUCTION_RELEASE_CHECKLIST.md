@@ -42,6 +42,25 @@ tester track, and Play release name in the release record.
       notifications, offline/reconnect, sign-out, and in-app account deletion
       on a release build.
 
+### Physical Android smoke test with Expo Go
+
+Before creating or promoting the production AAB:
+
+1. Install the current Expo Go release that supports SDK 54 on the Android
+   device.
+2. Put the computer and phone on the same Wi-Fi network.
+3. From the release branch, run `npm run start:go:clean` and scan the printed QR
+   code with Expo Go.
+4. If the LAN connection is blocked by the network, stop Metro and run
+   `npm run start:go:tunnel` instead.
+5. Verify cold start, email-code and Google sign-in, daily reading and
+   completion, bookmarks, community membership, reminder settings, sign-out,
+   relaunch/session restoration, and account deletion.
+
+Expo Go does not apply custom native config plugins and cannot validate the
+final Play-signed Android binary. Repeat the release-critical smoke test on the
+production-profile AAB before rollout.
+
 ## 3. Build and closed-test verification
 
 For a new artifact, an authorized release owner runs:
@@ -72,6 +91,8 @@ eas build --platform android --profile production
       Profile deletion flow and a working public web deletion-request URL.
       Verify deletion covers Clerk identity and associated Convex user data,
       and documents any legally required retention.
+      Current verified URL:
+      `https://sapta-gita-account-deletion.ynsameer.chatgpt.site`.
 - [ ] Complete content rating, ads, target audience, app access/reviewer
       instructions, and any other Play policy forms shown for this release.
 - [ ] Upload/submit only the recorded artifact. If using EAS Submit, the
