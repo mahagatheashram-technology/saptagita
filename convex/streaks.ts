@@ -34,8 +34,9 @@ function getTodayDateString(timezone: string): string {
 async function getCompletionStats(ctx: any, userId: any) {
   const completedSets = await ctx.db
     .query("dailySets")
-    .withIndex("byUser", (q: any) => q.eq("userId", userId))
-    .filter((q: any) => q.neq(q.field("completedAt"), null))
+    .withIndex("byUserAndCompletedAt", (q: any) =>
+      q.eq("userId", userId).gt("completedAt", 0),
+    )
     .collect();
 
   return {
@@ -107,12 +108,21 @@ export const getStreakStats = query({
     const { completedSets, stats } = await getCompletionStats(ctx, args.userId);
     const todayDate = getTodayDateString(user?.timezone || "UTC");
 
-    const readEvents = (
-      await ctx.db
-      .query("readEvents")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect()
-    ).filter((event: any) => event.kind !== "reread");
+    const [legacyReadEvents, sequenceReadEvents] = await Promise.all([
+      ctx.db
+        .query("readEvents")
+        .withIndex("by_user_kind", (q) =>
+          q.eq("userId", args.userId).eq("kind", undefined),
+        )
+        .collect(),
+      ctx.db
+        .query("readEvents")
+        .withIndex("by_user_kind", (q) =>
+          q.eq("userId", args.userId).eq("kind", "sequence"),
+        )
+        .collect(),
+    ]);
+    const readEvents = [...legacyReadEvents, ...sequenceReadEvents];
 
     const readDailySetIds = Array.from(
       new Set(readEvents.map((event: any) => String(event.dailySetId)))

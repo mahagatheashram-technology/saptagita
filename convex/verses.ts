@@ -1,7 +1,47 @@
 import { mutation, query } from "./_generated/server";
+import type { DatabaseReader } from "./_generated/server";
 import { v } from "convex/values";
 import { assertMaintenanceToken } from "./maintenanceAuth";
 import { verseValidator } from "./validators";
+import {
+  getSequencePositions,
+  getVersePosition,
+  TOTAL_VERSES,
+} from "./verseSequence";
+
+async function getVerseAtCanonicalPosition(
+  db: DatabaseReader,
+  canonicalIndex: number,
+) {
+  const position = getVersePosition(canonicalIndex);
+  return await db
+    .query("verses")
+    .withIndex("byChapterVerse", (q) =>
+      q
+        .eq("chapterNumber", position.chapterNumber)
+        .eq("verseNumber", position.verseNumber),
+    )
+    .unique();
+}
+
+async function getSequenceVerses(
+  db: DatabaseReader,
+  startIndex: number,
+  count: number,
+) {
+  return await Promise.all(
+    getSequencePositions(startIndex, count).map((position) =>
+      db
+        .query("verses")
+        .withIndex("byChapterVerse", (q) =>
+          q
+            .eq("chapterNumber", position.chapterNumber)
+            .eq("verseNumber", position.verseNumber),
+        )
+        .unique(),
+    ),
+  );
+}
 
 // Mutation to insert a single verse
 export const insertVerse = mutation({
@@ -22,11 +62,10 @@ export const insertVerse = mutation({
     // Check if verse already exists to prevent duplicates
     const existing = await ctx.db
       .query("verses")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("chapterNumber"), args.chapterNumber),
-          q.eq(q.field("verseNumber"), args.verseNumber),
-        ),
+      .withIndex("byChapterVerse", (q) =>
+        q
+          .eq("chapterNumber", args.chapterNumber)
+          .eq("verseNumber", args.verseNumber),
       )
       .first();
 
@@ -71,10 +110,7 @@ export const insertVersesBatch = mutation({
 export const getVerseCount = query({
   args: {},
   returns: v.number(),
-  handler: async (ctx) => {
-    const verses = await ctx.db.query("verses").collect();
-    return verses.length;
-  },
+  handler: async () => TOTAL_VERSES,
 });
 
 // Query to get verses by chapter
@@ -84,9 +120,12 @@ export const getVersesByChapter = query({
   handler: async (ctx, args) => {
     const verses = await ctx.db
       .query("verses")
-      .filter((q) => q.eq(q.field("chapterNumber"), args.chapter))
+      .withIndex("byChapterVerse", (q) =>
+        q.eq("chapterNumber", args.chapter),
+      )
+      .order("asc")
       .collect();
-    return verses.sort((a, b) => a.verseNumber - b.verseNumber);
+    return verses;
   },
 });
 
@@ -100,13 +139,12 @@ export const getVerseByPosition = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("verses")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("chapterNumber"), args.chapter),
-          q.eq(q.field("verseNumber"), args.verse),
-        ),
+      .withIndex("byChapterVerse", (q) =>
+        q
+          .eq("chapterNumber", args.chapter)
+          .eq("verseNumber", args.verse),
       )
-      .first();
+      .unique();
   },
 });
 
@@ -115,13 +153,11 @@ export const getAllVersesOrdered = query({
   args: {},
   returns: v.array(verseValidator),
   handler: async (ctx) => {
-    const verses = await ctx.db.query("verses").collect();
-    return verses.sort((a, b) => {
-      if (a.chapterNumber !== b.chapterNumber) {
-        return a.chapterNumber - b.chapterNumber;
-      }
-      return a.verseNumber - b.verseNumber;
-    });
+    return await ctx.db
+      .query("verses")
+      .withIndex("byChapterVerse")
+      .order("asc")
+      .take(TOTAL_VERSES);
   },
 });
 
@@ -130,14 +166,14 @@ export const getVerseByIndex = query({
   args: { index: v.number() },
   returns: v.union(verseValidator, v.null()),
   handler: async (ctx, args) => {
-    const verses = await ctx.db.query("verses").collect();
-    const sorted = verses.sort((a, b) => {
-      if (a.chapterNumber !== b.chapterNumber) {
-        return a.chapterNumber - b.chapterNumber;
-      }
-      return a.verseNumber - b.verseNumber;
-    });
-    return sorted[args.index] || null;
+    if (
+      !Number.isInteger(args.index) ||
+      args.index < 0 ||
+      args.index >= TOTAL_VERSES
+    ) {
+      return null;
+    }
+    return await getVerseAtCanonicalPosition(ctx.db, args.index);
   },
 });
 
@@ -146,13 +182,8 @@ export const getVersesFromIndex = query({
   args: { startIndex: v.number(), count: v.number() },
   returns: v.array(verseValidator),
   handler: async (ctx, args) => {
-    const verses = await ctx.db.query("verses").collect();
-    const sorted = verses.sort((a, b) => {
-      if (a.chapterNumber !== b.chapterNumber) {
-        return a.chapterNumber - b.chapterNumber;
-      }
-      return a.verseNumber - b.verseNumber;
-    });
-    return sorted.slice(args.startIndex, args.startIndex + args.count);
+    return (await getSequenceVerses(ctx.db, args.startIndex, args.count)).filter(
+      (verse) => verse !== null,
+    );
   },
 });

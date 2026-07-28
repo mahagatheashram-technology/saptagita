@@ -41,7 +41,8 @@ export default defineSchema({
     completedAt: v.union(v.number(), v.null()),
   })
     .index("byUser", ["userId"])
-    .index("byUserAndDate", ["userId", "localDate"]),
+    .index("byUserAndDate", ["userId", "localDate"])
+    .index("byUserAndCompletedAt", ["userId", "completedAt"]),
   readEvents: defineTable({
     userId: v.id("users"),
     dailySetId: v.id("dailySets"),
@@ -50,7 +51,9 @@ export default defineSchema({
     kind: v.optional(v.union(v.literal("sequence"), v.literal("reread"))),
   })
     .index("by_user", ["userId"])
+    .index("by_user_kind", ["userId", "kind"])
     .index("by_dailySet", ["dailySetId"])
+    .index("by_dailySet_kind", ["dailySetId", "kind"])
     .index("by_dailySet_verse_kind", ["dailySetId", "verseId", "kind"]),
   streaks: defineTable({
     userId: v.id("users"),

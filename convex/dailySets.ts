@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
+import type { DatabaseReader } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { requireOwnedUser } from "./auth";
 import {
@@ -8,9 +9,14 @@ import {
   verseValidator,
 } from "./validators";
 import { selectCanonicalDailySet } from "./integrityRules";
+import {
+  CHAPTER_VERSE_COUNTS,
+  getCanonicalIndex,
+  getSequencePositions,
+  TOTAL_VERSES,
+} from "./verseSequence";
 
 const DAILY_VERSE_COUNT = 7;
-const TOTAL_VERSES = 701;
 
 const streakUpdateValidator = v.object({
   currentStreak: v.number(),
@@ -28,45 +34,145 @@ function getTodayDateString(timezone: string): string {
   }
 }
 
-// Helper: Get ordered verses (could be cached/optimized later)
-async function getOrderedVerseIds(ctx: any): Promise<Id<"verses">[]> {
-  const verses = await ctx.db.query("verses").collect();
-  const sorted = verses.sort((a: any, b: any) => {
-    if (a.chapterNumber !== b.chapterNumber) {
-      return a.chapterNumber - b.chapterNumber;
-    }
-    return a.verseNumber - b.verseNumber;
-  });
-  return sorted.map((v: any) => v._id);
+async function getSequenceVerses(
+  db: DatabaseReader,
+  startIndex: number,
+  count: number,
+): Promise<Doc<"verses">[]> {
+  return await Promise.all(
+    getSequencePositions(startIndex, count).map((position) =>
+      db
+        .query("verses")
+        .withIndex("byChapterVerse", (q) =>
+          q
+            .eq("chapterNumber", position.chapterNumber)
+            .eq("verseNumber", position.verseNumber),
+        )
+        .unique()
+        .then((verse) => {
+          if (!verse) {
+            throw new Error(
+              `Verse ${position.chapterNumber}.${position.verseNumber} is missing`,
+            );
+          }
+          return verse;
+        }),
+    ),
+  );
+}
+
+async function getCanonicalVersePrefix(
+  db: DatabaseReader,
+  count: number,
+): Promise<Doc<"verses">[]> {
+  if (count < 0 || count > TOTAL_VERSES) {
+    throw new Error(`Verse prefix must contain 0 to ${TOTAL_VERSES} verses`);
+  }
+
+  let remaining = count;
+  const chapterReads: Promise<Doc<"verses">[]>[] = [];
+  for (
+    let chapterIndex = 0;
+    chapterIndex < CHAPTER_VERSE_COUNTS.length && remaining > 0;
+    chapterIndex += 1
+  ) {
+    const chapterNumber = chapterIndex + 1;
+    const chapterReadCount = Math.min(
+      remaining,
+      CHAPTER_VERSE_COUNTS[chapterIndex],
+    );
+    chapterReads.push(
+      db
+        .query("verses")
+        .withIndex("byChapterVerse", (q) =>
+          q.eq("chapterNumber", chapterNumber),
+        )
+        .order("asc")
+        .take(chapterReadCount),
+    );
+    remaining -= chapterReadCount;
+  }
+
+  const verses = (await Promise.all(chapterReads)).flat();
+  if (verses.length !== count) {
+    throw new Error(`Expected ${count} canonical verses, found ${verses.length}`);
+  }
+  return verses;
+}
+
+async function getSequenceReadEventsByUser(
+  db: DatabaseReader,
+  userId: Id<"users">,
+): Promise<Doc<"readEvents">[]> {
+  const [legacyEvents, sequenceEvents] = await Promise.all([
+    db
+      .query("readEvents")
+      .withIndex("by_user_kind", (q) =>
+        q.eq("userId", userId).eq("kind", undefined),
+      )
+      .collect(),
+    db
+      .query("readEvents")
+      .withIndex("by_user_kind", (q) =>
+        q.eq("userId", userId).eq("kind", "sequence"),
+      )
+      .collect(),
+  ]);
+  return [...legacyEvents, ...sequenceEvents];
+}
+
+async function getSequenceReadEventsByDailySet(
+  db: DatabaseReader,
+  dailySetId: Id<"dailySets">,
+): Promise<Doc<"readEvents">[]> {
+  const [legacyEvents, sequenceEvents] = await Promise.all([
+    db
+      .query("readEvents")
+      .withIndex("by_dailySet_kind", (q) =>
+        q.eq("dailySetId", dailySetId).eq("kind", undefined),
+      )
+      .collect(),
+    db
+      .query("readEvents")
+      .withIndex("by_dailySet_kind", (q) =>
+        q.eq("dailySetId", dailySetId).eq("kind", "sequence"),
+      )
+      .collect(),
+  ]);
+  return [...legacyEvents, ...sequenceEvents];
 }
 
 async function ensureSequenceInitialized(
   ctx: any,
   userId: Id<"users">,
   userState: any,
-  orderedVerseIds: Id<"verses">[]
 ): Promise<any> {
   if (userState.sequenceInitialized) {
     return userState;
   }
 
-  const readEvents = await ctx.db
-    .query("readEvents")
-    .withIndex("by_user", (q: any) => q.eq("userId", userId))
-    .collect();
-
-  const readSet = new Set(
-    readEvents
-      .filter((event: any) => event.kind !== "reread")
-      .map((event: any) => String(event.verseId))
+  const readEvents = await getSequenceReadEventsByUser(ctx.db, userId);
+  const uniqueVerseIds = Array.from(
+    new Set(readEvents.map((event) => String(event.verseId))),
   );
+  const readVerses = await Promise.all(
+    uniqueVerseIds.map((verseId) =>
+      ctx.db.get(verseId as Id<"verses">) as Promise<Doc<"verses"> | null>,
+    ),
+  );
+  const readIndexes = new Set<number>();
+  for (const verse of readVerses) {
+    if (!verse) continue;
+    const index = getCanonicalIndex(verse.chapterNumber, verse.verseNumber);
+    if (index !== null) readIndexes.add(index);
+  }
 
   let pointer = 0;
-  if (readSet.size > 0) {
-    const firstUnreadIndex = orderedVerseIds.findIndex(
-      (id) => !readSet.has(String(id))
-    );
-    pointer = firstUnreadIndex === -1 ? 0 : firstUnreadIndex;
+  if (readIndexes.size > 0) {
+    while (pointer < TOTAL_VERSES && readIndexes.has(pointer)) {
+      pointer += 1;
+    }
+    if (pointer === TOTAL_VERSES) pointer = 0;
   }
 
   await ctx.db.patch(userState._id, {
@@ -150,6 +256,9 @@ export const getTodaySet = mutation({
     if (!userState) throw new Error("User state not found");
 
     const todayDate = getTodayDateString(user.timezone);
+    userState = await ensureSequenceInitialized(ctx, args.userId, userState);
+    if (!userState) throw new Error("User state not found");
+
     // The indexed user/date lookup is the idempotency key. Convex's optimistic
     // concurrency control retries concurrent mutations that both observe this
     // empty index range, preventing a second insert for the same day.
@@ -164,43 +273,25 @@ export const getTodaySet = mutation({
         existingSet.verseIds.map((id: Id<"verses">) => ctx.db.get(id))
       );
 
-      const readEvents = await ctx.db
-        .query("readEvents")
-        .withIndex("by_dailySet", (q) => q.eq("dailySetId", existingSet._id))
-        .collect();
-
-      const sequenceReads = readEvents.filter(
-        (event: any) => event.kind !== "reread"
+      const sequenceReads = await getSequenceReadEventsByDailySet(
+        ctx.db,
+        existingSet._id,
       );
 
       return {
         dailySet: existingSet,
-        verses: verses.filter(Boolean),
+        verses: verses.filter(
+          (verse): verse is NonNullable<typeof verse> => verse !== null
+        ),
         readVerseIds: sequenceReads.map((e) => e.verseId),
         isComplete: existingSet.completedAt != null,
       };
     }
-
-    const orderedVerseIds = await getOrderedVerseIds(ctx);
-    const totalVerses = orderedVerseIds.length || TOTAL_VERSES;
-    userState = await ensureSequenceInitialized(
-      ctx,
-      args.userId,
-      userState,
-      orderedVerseIds
-    );
-    if (!userState) throw new Error("User state not found");
-
     // Need to create a new daily set
     // Get next 7 verses based on sequential pointer
     const pointer = userState.sequentialPointer ?? 0;
-    const selectedVerseIds: Id<"verses">[] = [];
-    
-    for (let i = 0; i < DAILY_VERSE_COUNT; i++) {
-      // Wrap around if we've gone through all verses
-      const index = (pointer + i) % totalVerses;
-      selectedVerseIds.push(orderedVerseIds[index]);
-    }
+    const verses = await getSequenceVerses(ctx.db, pointer, DAILY_VERSE_COUNT);
+    const selectedVerseIds = verses.map((verse) => verse._id);
 
     // Create the daily set
     const dailySetId = await ctx.db.insert("dailySets", {
@@ -214,16 +305,9 @@ export const getTodaySet = mutation({
     // Update user state with new set (do not advance pointer)
     await updateCurrentDailySet(ctx, userState, todayDate, dailySetId);
 
-    // Get the actual verse documents
-    const verses = await Promise.all(
-      selectedVerseIds.map((id) => ctx.db.get(id))
-    );
-
     return {
       dailySet: await ctx.db.get(dailySetId),
-      verses: verses.filter(
-        (verse): verse is NonNullable<typeof verse> => verse !== null
-      ),
+      verses,
       readVerseIds: [],
       isComplete: false,
     };
@@ -276,13 +360,9 @@ export const markVerseRead = mutation({
       .first();
     if (!userState) throw new Error("User state not found");
 
-    const readEvents = await ctx.db
-      .query("readEvents")
-      .withIndex("by_dailySet", (q) => q.eq("dailySetId", args.dailySetId))
-      .collect();
-
-    const sequenceReads = readEvents.filter(
-      (event: any) => event.kind !== "reread"
+    const sequenceReads = await getSequenceReadEventsByDailySet(
+      ctx.db,
+      args.dailySetId,
     );
 
     // Check if already read (sequence)
@@ -394,22 +474,16 @@ export const logReread = mutation({
     let dailySet = await findDailySetForDate(ctx, args.userId, todayDate);
 
     if (!dailySet) {
-      const orderedVerseIds = await getOrderedVerseIds(ctx);
-      userState = await ensureSequenceInitialized(
-        ctx,
-        args.userId,
-        userState,
-        orderedVerseIds
-      );
+      userState = await ensureSequenceInitialized(ctx, args.userId, userState);
       if (!userState) throw new Error("User state not found");
-      const totalVerses = orderedVerseIds.length || TOTAL_VERSES;
       const pointer = userState.sequentialPointer ?? 0;
 
-      const selectedVerseIds: Id<"verses">[] = [];
-      for (let i = 0; i < DAILY_VERSE_COUNT; i++) {
-        const index = (pointer + i) % totalVerses;
-        selectedVerseIds.push(orderedVerseIds[index]);
-      }
+      const selectedVerses = await getSequenceVerses(
+        ctx.db,
+        pointer,
+        DAILY_VERSE_COUNT,
+      );
+      const selectedVerseIds = selectedVerses.map((verse) => verse._id);
 
       const dailySetId = await ctx.db.insert("dailySets", {
         userId: args.userId,
@@ -474,13 +548,9 @@ export const getTodayProgress = query({
       };
     }
 
-    const readEvents = await ctx.db
-      .query("readEvents")
-      .withIndex("by_dailySet", (q) => q.eq("dailySetId", dailySet._id))
-      .collect();
-
-    const sequenceReads = readEvents.filter(
-      (event: any) => event.kind !== "reread"
+    const sequenceReads = await getSequenceReadEventsByDailySet(
+      ctx.db,
+      dailySet._id,
     );
 
     return {
@@ -513,39 +583,42 @@ export const getReadingHistory = query({
       targetDates.add(localDate);
     }
 
-    const readEvents = (
-      await ctx.db
-      .query("readEvents")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .collect()
-    ).filter((event: any) => event.kind !== "reread");
-
-    if (readEvents.length === 0) {
+    const orderedTargetDates = Array.from(targetDates).sort();
+    const firstTargetDate = orderedTargetDates[0];
+    const lastTargetDate = orderedTargetDates[orderedTargetDates.length - 1];
+    if (!firstTargetDate || !lastTargetDate) {
       return { readDates: [], perfectDates: [] };
     }
 
-    const dailySetIds = Array.from(
-      new Set(readEvents.map((event) => String(event.dailySetId)))
-    );
+    const dailySets = await ctx.db
+      .query("dailySets")
+      .withIndex("byUserAndDate", (q) =>
+        q
+          .eq("userId", args.userId)
+          .gte("localDate", firstTargetDate)
+          .lte("localDate", lastTargetDate),
+      )
+      .collect();
 
-    const dailySets = await Promise.all(
-      dailySetIds.map((id) => ctx.db.get(id as Id<"dailySets">))
+    const sequenceReadsBySet = await Promise.all(
+      dailySets.map((dailySet) =>
+        getSequenceReadEventsByDailySet(ctx.db, dailySet._id),
+      ),
     );
+    const readDates = new Set<string>();
+    const perfectDates = new Set<string>();
 
-    const readDates = new Set(
-      dailySets
-        .filter(Boolean)
-        .map((set) => (set as any).localDate)
-        .filter((localDate) => targetDates.has(localDate))
-    );
-
-    const perfectDates = new Set(
-      dailySets
-        .filter(Boolean)
-        .filter((set: any) => set.completedAt != null)
-        .map((set: any) => set.localDate)
-        .filter((localDate) => targetDates.has(localDate))
-    );
+    dailySets.forEach((dailySet, index) => {
+      if (
+        targetDates.has(dailySet.localDate) &&
+        sequenceReadsBySet[index].length > 0
+      ) {
+        readDates.add(dailySet.localDate);
+        if (dailySet.completedAt != null) {
+          perfectDates.add(dailySet.localDate);
+        }
+      }
+    });
 
     return {
       readDates: Array.from(readDates),
@@ -577,33 +650,29 @@ export const getReadVerses = query({
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
 
-    const verses = await ctx.db.query("verses").collect();
-    const orderedVerses = verses.sort((a: any, b: any) => {
-      if (a.chapterNumber !== b.chapterNumber) {
-        return a.chapterNumber - b.chapterNumber;
-      }
-      return a.verseNumber - b.verseNumber;
-    });
-
     if (readEvents.length === 0) {
       return { items: [], totalReadVerses: 0, totalVerses: TOTAL_VERSES };
     }
 
-    const verseIndexMap = new Map<string, number>();
-    orderedVerses.forEach((verse: any, index: number) => {
-      verseIndexMap.set(String(verse._id), index);
-    });
-
     const sequenceEvents = readEvents.filter(
       (event: any) => event.kind !== "reread"
     );
+    const sequenceVerseIds = Array.from(
+      new Set(sequenceEvents.map((event) => String(event.verseId))),
+    );
+    const sequenceVerses = await Promise.all(
+      sequenceVerseIds.map((verseId) => ctx.db.get(verseId as Id<"verses">)),
+    );
 
     let maxSequenceIndex = -1;
-    for (const event of sequenceEvents) {
-      const index = verseIndexMap.get(String(event.verseId));
-      if (index !== undefined && index > maxSequenceIndex) {
+    const sequenceVersesByIndex = new Map<number, Doc<"verses">>();
+    for (const verse of sequenceVerses) {
+      if (!verse) continue;
+      const index = getCanonicalIndex(verse.chapterNumber, verse.verseNumber);
+      if (index !== null && index > maxSequenceIndex) {
         maxSequenceIndex = index;
       }
+      if (index !== null) sequenceVersesByIndex.set(index, verse);
     }
 
     if (maxSequenceIndex < 0) {
@@ -632,7 +701,19 @@ export const getReadVerses = query({
       existing.readCount += 1;
     }
 
-    const progressVerses = orderedVerses.slice(0, maxSequenceIndex + 1);
+    const progressCount = maxSequenceIndex + 1;
+    const hasCompletePrefix =
+      sequenceVersesByIndex.size >= progressCount &&
+      Array.from(
+        { length: progressCount },
+        (_, index) => sequenceVersesByIndex.has(index),
+      ).every(Boolean);
+    const progressVerses = hasCompletePrefix
+      ? Array.from(
+          { length: progressCount },
+          (_, index) => sequenceVersesByIndex.get(index)!,
+        )
+      : await getCanonicalVersePrefix(ctx.db, progressCount);
     const orderedProgress = [...progressVerses].reverse();
     const items = orderedProgress.map((verse: any) => {
       const stats = verseStats.get(String(verse._id));

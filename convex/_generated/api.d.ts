@@ -21,6 +21,7 @@ import type * as streakMath from "../streakMath.js";
 import type * as streaks from "../streaks.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
+import type * as verseSequence from "../verseSequence.js";
 import type * as verses from "../verses.js";
 
 import type {
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   streaks: typeof streaks;
   users: typeof users;
   validators: typeof validators;
+  verseSequence: typeof verseSequence;
   verses: typeof verses;
 }>;
 
