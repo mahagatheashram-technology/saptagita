@@ -177,10 +177,6 @@ const protectedExports = {
     insertVerse: "assertMaintenanceToken",
     insertVersesBatch: "assertMaintenanceToken",
   },
-  "convex/admin.ts": {
-    listUsersWithProgress: "assertMaintenanceToken",
-    purgeAllUserData: "assertMaintenanceToken",
-  },
 };
 
 const intentionallyPublicReads = {
