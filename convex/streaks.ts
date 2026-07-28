@@ -4,6 +4,22 @@ import {
   calculateCompletionStreak,
   getPreviousLocalDate,
 } from "./streakMath";
+import { requireCurrentUser, requireOwnedUser } from "./auth";
+
+const streakUpdateValidator = v.object({
+  currentStreak: v.number(),
+  longestStreak: v.number(),
+  isNewRecord: v.boolean(),
+});
+
+const leaderboardEntryValidator = v.object({
+  userId: v.id("users"),
+  displayName: v.string(),
+  avatarUrl: v.string(),
+  currentStreak: v.number(),
+  lastReadLocalDate: v.union(v.string(), v.null()),
+  rank: v.number(),
+});
 
 // Helper: Get today's date string in user's timezone with fallback to UTC if invalid
 function getTodayDateString(timezone: string): string {
@@ -45,8 +61,18 @@ function getActiveCurrentStreak(
 // Get user's streak data
 export const getStreak = query({
   args: { userId: v.id("users") },
+  returns: v.object({
+    _id: v.optional(v.id("streaks")),
+    _creationTime: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    lastCompletedLocalDate: v.string(),
+    lastReadLocalDate: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const user = await requireOwnedUser(ctx, args.userId);
     const streak = await ctx.db
       .query("streaks")
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
@@ -70,8 +96,14 @@ export const getStreak = query({
 
 export const getStreakStats = query({
   args: { userId: v.id("users") },
+  returns: v.object({
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    perfectDays: v.number(),
+    readDays: v.number(),
+  }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const user = await requireOwnedUser(ctx, args.userId);
     const { completedSets, stats } = await getCompletionStats(ctx, args.userId);
     const todayDate = getTodayDateString(user?.timezone || "UTC");
 
@@ -115,6 +147,7 @@ export const getStreakStats = query({
 // Called when user finishes all 7 verses
 export const updateStreakOnCompletionInternal = internalMutation({
   args: { userId: v.id("users"), localDate: v.optional(v.string()) },
+  returns: streakUpdateValidator,
   handler: async (ctx, args) => {
     // Get user for timezone
     const user = await ctx.db.get(args.userId);
@@ -171,9 +204,13 @@ export const updateStreakOnCompletionInternal = internalMutation({
 // Call this when app opens to ensure streak is accurate
 export const checkAndUpdateStreak = mutation({
   args: { userId: v.id("users") },
+  returns: v.object({
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    needsReset: v.boolean(),
+  }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) throw new Error("User not found");
+    const user = await requireOwnedUser(ctx, args.userId);
 
     const timezone = user.timezone || "UTC";
     const todayDate = getTodayDateString(timezone);
@@ -211,7 +248,15 @@ export const checkAndUpdateStreak = mutation({
 
 export const getGlobalLeaderboard = query({
   args: { currentUserId: v.optional(v.id("users")) },
+  returns: v.object({
+    top50: v.array(leaderboardEntryValidator),
+    currentUser: v.union(leaderboardEntryValidator, v.null()),
+    totalUsers: v.number(),
+  }),
   handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await requireOwnedUser(ctx, args.currentUserId)
+      : await requireCurrentUser(ctx);
     const streaks = await ctx.db.query("streaks").collect();
 
     if (streaks.length === 0) {
@@ -245,13 +290,13 @@ export const getGlobalLeaderboard = query({
       rank: index + 1,
     }));
 
-    const currentUser = args.currentUserId
-      ? ranked.find((entry) => entry.userId === args.currentUserId) ?? null
-      : null;
+    const currentUserEntry = ranked.find(
+      (entry) => String(entry.userId) === String(currentUser._id)
+    ) ?? null;
 
     return {
       top50: ranked.slice(0, 50),
-      currentUser,
+      currentUser: currentUserEntry,
       totalUsers: ranked.length,
     };
   },
@@ -262,7 +307,25 @@ export const getCommunityLeaderboard = query({
     communityId: v.id("communities"),
     currentUserId: v.optional(v.id("users")),
   },
+  returns: v.object({
+    top50: v.array(leaderboardEntryValidator),
+    currentUser: v.union(leaderboardEntryValidator, v.null()),
+    totalMembers: v.number(),
+  }),
   handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await requireOwnedUser(ctx, args.currentUserId)
+      : await requireCurrentUser(ctx);
+    const membership = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community_user", (q) =>
+        q.eq("communityId", args.communityId).eq("userId", currentUser._id)
+      )
+      .first();
+    if (!membership) {
+      throw new Error("Not a member of this community");
+    }
+
     const members = await ctx.db
       .query("communityMembers")
       .withIndex("by_community", (q) => q.eq("communityId", args.communityId))
@@ -310,13 +373,13 @@ export const getCommunityLeaderboard = query({
       rank: index + 1,
     }));
 
-    const currentUser = args.currentUserId
-      ? ranked.find((entry) => entry.userId === args.currentUserId) ?? null
-      : null;
+    const currentUserEntry = ranked.find(
+      (entry) => String(entry.userId) === String(currentUser._id)
+    ) ?? null;
 
     return {
       top50: ranked.slice(0, 50),
-      currentUser,
+      currentUser: currentUserEntry,
       totalMembers: members.length,
     };
   },

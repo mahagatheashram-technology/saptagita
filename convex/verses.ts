@@ -1,9 +1,12 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { assertMaintenanceToken } from "./maintenanceAuth";
+import { verseValidator } from "./validators";
 
 // Mutation to insert a single verse
 export const insertVerse = mutation({
   args: {
+    maintenanceToken: v.string(),
     chapterNumber: v.number(),
     verseNumber: v.number(),
     sanskritDevanagari: v.string(),
@@ -12,7 +15,10 @@ export const insertVerse = mutation({
     translationEnglish: v.string(),
     sourceKey: v.string(),
   },
+  returns: v.id("verses"),
   handler: async (ctx, args) => {
+    assertMaintenanceToken(args.maintenanceToken);
+    const { maintenanceToken: _maintenanceToken, ...verse } = args;
     // Check if verse already exists to prevent duplicates
     const existing = await ctx.db
       .query("verses")
@@ -25,17 +31,18 @@ export const insertVerse = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, args);
+      await ctx.db.patch(existing._id, verse);
       return existing._id;
     }
 
-    return await ctx.db.insert("verses", args);
+    return await ctx.db.insert("verses", verse);
   },
 });
 
 // Mutation to insert multiple verses (batch)
 export const insertVersesBatch = mutation({
   args: {
+    maintenanceToken: v.string(),
     verses: v.array(
       v.object({
         chapterNumber: v.number(),
@@ -48,7 +55,9 @@ export const insertVersesBatch = mutation({
       }),
     ),
   },
+  returns: v.array(v.id("verses")),
   handler: async (ctx, args) => {
+    assertMaintenanceToken(args.maintenanceToken);
     const ids = [];
     for (const verse of args.verses) {
       const id = await ctx.db.insert("verses", verse);
@@ -60,6 +69,8 @@ export const insertVersesBatch = mutation({
 
 // Query to get total verse count
 export const getVerseCount = query({
+  args: {},
+  returns: v.number(),
   handler: async (ctx) => {
     const verses = await ctx.db.query("verses").collect();
     return verses.length;
@@ -69,6 +80,7 @@ export const getVerseCount = query({
 // Query to get verses by chapter
 export const getVersesByChapter = query({
   args: { chapter: v.number() },
+  returns: v.array(verseValidator),
   handler: async (ctx, args) => {
     const verses = await ctx.db
       .query("verses")
@@ -84,6 +96,7 @@ export const getVerseByPosition = query({
     chapter: v.number(),
     verse: v.number(),
   },
+  returns: v.union(verseValidator, v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("verses")
@@ -99,6 +112,8 @@ export const getVerseByPosition = query({
 
 // Query to get all verses ordered by chapter and verse
 export const getAllVersesOrdered = query({
+  args: {},
+  returns: v.array(verseValidator),
   handler: async (ctx) => {
     const verses = await ctx.db.query("verses").collect();
     return verses.sort((a, b) => {
@@ -113,6 +128,7 @@ export const getAllVersesOrdered = query({
 // Query to get verse by index (0-700) - useful for sequential reading
 export const getVerseByIndex = query({
   args: { index: v.number() },
+  returns: v.union(verseValidator, v.null()),
   handler: async (ctx, args) => {
     const verses = await ctx.db.query("verses").collect();
     const sorted = verses.sort((a, b) => {
@@ -128,6 +144,7 @@ export const getVerseByIndex = query({
 // Query to get 7 verses starting from an index - for daily set
 export const getVersesFromIndex = query({
   args: { startIndex: v.number(), count: v.number() },
+  returns: v.array(verseValidator),
   handler: async (ctx, args) => {
     const verses = await ctx.db.query("verses").collect();
     const sorted = verses.sort((a, b) => {

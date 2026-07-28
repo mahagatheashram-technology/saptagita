@@ -22,6 +22,14 @@ if (!CONVEX_URL) {
   process.exit(1);
 }
 
+const MAINTENANCE_TOKEN = process.env.ADMIN_MAINTENANCE_TOKEN;
+if (!MAINTENANCE_TOKEN) {
+  console.error(
+    "Missing ADMIN_MAINTENANCE_TOKEN. It must match the token configured on the target Convex deployment.",
+  );
+  process.exit(1);
+}
+
 // Seeds from the qu-corrected copy (see scripts/applyQuFix.mjs). The pristine
 // data/gita_enriched.json is kept untouched as the backup/source of record.
 // Override with GITA_JSON_PATH to seed from a different file.
@@ -89,7 +97,10 @@ async function seedVerses() {
 
   for (const verse of verses) {
     try {
-      await client.mutation(api.verses.insertVerse, verse);
+      await client.mutation(api.verses.insertVerse, {
+        ...verse,
+        maintenanceToken: MAINTENANCE_TOKEN,
+      });
       successCount++;
 
       // Log progress every 50 verses

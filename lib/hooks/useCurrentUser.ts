@@ -1,7 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useUser } from "@clerk/clerk-expo";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 
 interface ConvexUser {
@@ -19,6 +19,10 @@ interface UseCurrentUserOptions {
 
 export function useCurrentUser(options: UseCurrentUserOptions = {}) {
   const { isLoaded, isSignedIn, user } = useUser();
+  const {
+    isAuthenticated: isConvexAuthenticated,
+    isLoading: isConvexAuthLoading,
+  } = useConvexAuth();
   const syncUser = useMutation(api.users.getOrCreateUserFromAuth);
   const suspendSync = options.suspendSync ?? false;
 
@@ -55,7 +59,13 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
       return;
     }
 
-    if (!isLoaded || !isSignedIn || !user) {
+    if (
+      !isLoaded ||
+      !isSignedIn ||
+      !user ||
+      isConvexAuthLoading ||
+      !isConvexAuthenticated
+    ) {
       console.log("[useCurrentUser] Early return - not ready");
       setState({ user: null, isLoading: false, error: null });
       return;
@@ -71,10 +81,9 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
           (user.publicMetadata as any)?.timezone ||
           "UTC";
 
-        console.log("[useCurrentUser] Calling syncUser with:", { authId: user.id, timezone });
+        console.log("[useCurrentUser] Calling syncUser with:", { timezone });
         
         const syncedUser = await syncUser({
-          authId: user.id,
           displayName:
             user.fullName ||
             user.primaryEmailAddress?.emailAddress ||
@@ -101,11 +110,24 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, user, syncUser, suspendSync]);
+  }, [
+    isLoaded,
+    isSignedIn,
+    user,
+    syncUser,
+    suspendSync,
+    isConvexAuthLoading,
+    isConvexAuthenticated,
+  ]);
 
   return {
     user: state.user,
-    isLoading: state.isLoading || !isLoaded || !isSignedIn,
+    isLoading:
+      state.isLoading ||
+      !isLoaded ||
+      !isSignedIn ||
+      isConvexAuthLoading ||
+      !isConvexAuthenticated,
     error: state.error,
     isSignedIn,
     clerkUser: user,

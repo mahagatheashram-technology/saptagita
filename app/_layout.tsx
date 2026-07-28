@@ -11,7 +11,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
@@ -158,9 +158,10 @@ function ConvexAuthSync() {
 function NotificationEffects() {
   const { isSignedIn } = useAuth();
   const { user: clerkUser } = useUser();
+  const { isAuthenticated: isConvexAuthenticated } = useConvexAuth();
   const currentUser = useQuery(
     api.users.getUserByAuthId,
-    isSignedIn && clerkUser ? { authId: clerkUser.id } : "skip"
+    isSignedIn && clerkUser && isConvexAuthenticated ? {} : "skip"
   );
   const todayProgress = useQuery(
     api.dailySets.getTodayProgress,

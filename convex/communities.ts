@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { requireCurrentUser, requireOwnedUser } from "./auth";
+import { communityValidator } from "./validators";
 
 function generateInviteCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No 0,O,1,I for clarity
@@ -12,19 +14,9 @@ function generateInviteCode(): string {
 }
 
 async function resolveUser(ctx: any, userId?: Id<"users">) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (identity) {
-    return await ctx.db
-      .query("users")
-      .withIndex("byAuthId", (q: any) => q.eq("authId", identity.subject))
-      .first();
-  }
-
-  if (userId) {
-    return await ctx.db.get(userId);
-  }
-
-  return null;
+  return userId
+    ? await requireOwnedUser(ctx, userId)
+    : await requireCurrentUser(ctx);
 }
 
 async function upsertActiveCommunity(
@@ -53,9 +45,12 @@ export const createCommunity = mutation({
     type: v.union(v.literal("public"), v.literal("private")),
     userId: v.optional(v.id("users")),
   },
+  returns: v.object({
+    communityId: v.id("communities"),
+    inviteCode: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) throw new Error("Not authenticated. Please sign in again.");
 
     const name = args.name.trim();
     if (name.length < 3 || name.length > 30) {
@@ -89,9 +84,22 @@ export const getUserCommunities = query({
   args: {
     userId: v.optional(v.id("users")),
   },
+  returns: v.array(
+    v.object({
+      _id: v.id("communities"),
+      name: v.string(),
+      type: v.union(v.literal("public"), v.literal("private")),
+      inviteCode: v.optional(v.string()),
+      role: v.union(
+        v.literal("owner"),
+        v.literal("admin"),
+        v.literal("member")
+      ),
+      memberCount: v.number(),
+    })
+  ),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) return [];
 
     const memberships = await ctx.db
       .query("communityMembers")
@@ -131,9 +139,9 @@ export const getActiveCommunity = query({
   args: {
     userId: v.optional(v.id("users")),
   },
+  returns: v.union(communityValidator, v.null()),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) return null;
 
     const active = await ctx.db
       .query("activeCommunity")
@@ -151,9 +159,9 @@ export const setActiveCommunity = mutation({
     communityId: v.union(v.id("communities"), v.null()),
     userId: v.optional(v.id("users")),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) throw new Error("Not authenticated. Please sign in again.");
 
     const existing = await ctx.db
       .query("activeCommunity")
@@ -166,7 +174,7 @@ export const setActiveCommunity = mutation({
       if (existing) {
         await ctx.db.delete(existing._id);
       }
-      return;
+      return null;
     }
 
     const membership = await ctx.db
@@ -186,12 +194,22 @@ export const setActiveCommunity = mutation({
         communityId,
       });
     }
+    return null;
   },
 });
 
 export const getPublicCommunities = query({
   args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("communities"),
+      name: v.string(),
+      type: v.union(v.literal("public"), v.literal("private")),
+      memberCount: v.number(),
+    })
+  ),
   handler: async (ctx) => {
+    await requireCurrentUser(ctx);
     const communities = await ctx.db
       .query("communities")
       .withIndex("by_type", (q) => q.eq("type", "public"))
@@ -225,9 +243,12 @@ export const joinPublicCommunity = mutation({
     communityId: v.id("communities"),
     userId: v.optional(v.id("users")),
   },
+  returns: v.object({
+    success: v.boolean(),
+    communityName: v.string(),
+  }),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) throw new Error("Not authenticated. Please sign in again.");
 
     const community = await ctx.db.get(args.communityId);
     if (!community) throw new Error("Community not found");
@@ -262,9 +283,12 @@ export const joinByInviteCode = mutation({
     inviteCode: v.string(),
     userId: v.optional(v.id("users")),
   },
+  returns: v.object({
+    success: v.boolean(),
+    communityName: v.string(),
+  }),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) throw new Error("Not authenticated. Please sign in again.");
 
     const code = args.inviteCode.trim().toUpperCase();
     if (!code) throw new Error("Invite code is required");
@@ -303,9 +327,9 @@ export const leaveCommunity = mutation({
     communityId: v.id("communities"),
     userId: v.optional(v.id("users")),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
-    if (!user) throw new Error("Not authenticated. Please sign in again.");
 
     const membership = await ctx.db
       .query("communityMembers")

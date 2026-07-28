@@ -1,5 +1,16 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  assertIdentitySubject,
+  requireIdentity,
+  requireOwnedUser,
+} from "./auth";
+import {
+  deletionCountsValidator,
+  userStateValidator,
+  userValidator,
+} from "./validators";
+import { assertMaintenanceToken } from "./maintenanceAuth";
 
 async function ensureUser(ctx: any, args: {
   authId: string;
@@ -52,43 +63,55 @@ async function ensureUser(ctx: any, args: {
 // Get or create user by auth ID (used by backend scripts or legacy flows)
 export const getOrCreateUser = mutation({
   args: {
-    authId: v.string(),
+    authId: v.optional(v.string()),
     displayName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     timezone: v.optional(v.string()),
   },
+  returns: v.union(userValidator, v.null()),
   handler: async (ctx, args) => {
-    return ensureUser(ctx, args);
+    const identity = await requireIdentity(ctx);
+    assertIdentitySubject(identity.subject, args.authId);
+    return ensureUser(ctx, { ...args, authId: identity.subject });
   },
 });
 
 // Get or create user from Clerk auth
 export const getOrCreateUserFromAuth = mutation({
   args: {
-    authId: v.string(),
+    authId: v.optional(v.string()),
     displayName: v.optional(v.string()),
     avatarUrl: v.optional(v.string()),
     timezone: v.optional(v.string()),
   },
+  returns: v.union(userValidator, v.null()),
   handler: async (ctx, args) => {
-    return ensureUser(ctx, args);
+    const identity = await requireIdentity(ctx);
+    assertIdentitySubject(identity.subject, args.authId);
+    return ensureUser(ctx, { ...args, authId: identity.subject });
   },
 });
 
-// Get user by auth ID
+// Get the authenticated user's Convex record. authId remains optional so
+// already-installed clients can send it while the server still verifies it.
 export const getUserByAuthId = query({
-  args: { authId: v.string() },
+  args: { authId: v.optional(v.string()) },
+  returns: v.union(userValidator, v.null()),
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    assertIdentitySubject(identity.subject, args.authId);
     return await ctx.db
       .query("users")
-      .withIndex("byAuthId", (q) => q.eq("authId", args.authId))
+      .withIndex("byAuthId", (q) => q.eq("authId", identity.subject))
       .first();
   },
 });
 
 export const getUserState = query({
   args: { userId: v.id("users") },
+  returns: v.union(userStateValidator, v.null()),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     return await ctx.db
       .query("userState")
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
@@ -98,16 +121,9 @@ export const getUserState = query({
 
 export const markTodayGestureCoachSeen = mutation({
   args: { userId: v.id("users") },
+  returns: v.object({ todayGestureCoachSeenAt: v.number() }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity && user.authId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
+    await requireOwnedUser(ctx, args.userId);
 
     const userState = await ctx.db
       .query("userState")
@@ -129,17 +145,9 @@ export const markTodayGestureCoachSeen = mutation({
 
 export const updateReminderTime = mutation({
   args: { userId: v.id("users"), reminderTime: v.string() },
+  returns: v.object({ reminderTime: v.string() }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Allow unauthenticated updates in dev while still protecting against cross-user writes
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity && user.authId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
+    await requireOwnedUser(ctx, args.userId);
 
     const userState = await ctx.db
       .query("userState")
@@ -163,16 +171,11 @@ export const updateScriptPreference = mutation({
     userId: v.id("users"),
     scriptPreference: v.union(v.literal("devanagari"), v.literal("telugu")),
   },
+  returns: v.object({
+    scriptPreference: v.union(v.literal("devanagari"), v.literal("telugu")),
+  }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity && user.authId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
+    await requireOwnedUser(ctx, args.userId);
 
     const userState = await ctx.db
       .query("userState")
@@ -193,16 +196,9 @@ export const updateScriptPreference = mutation({
 
 export const resetReadingProgress = mutation({
   args: { userId: v.id("users") },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity && user.authId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
+    await requireOwnedUser(ctx, args.userId);
 
     const userState = await ctx.db
       .query("userState")
@@ -226,16 +222,9 @@ export const resetReadingProgress = mutation({
 
 export const updateDisplayName = mutation({
   args: { userId: v.id("users"), displayName: v.string() },
+  returns: v.object({ displayName: v.string() }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity && user.authId !== identity.subject) {
-      throw new Error("Unauthorized");
-    }
+    await requireOwnedUser(ctx, args.userId);
 
     await ctx.db.patch(args.userId, { displayName: args.displayName });
     return { displayName: args.displayName };
@@ -244,12 +233,14 @@ export const updateDisplayName = mutation({
 
 export const deleteAccount = mutation({
   args: {},
+  returns: v.object({
+    deleted: v.boolean(),
+    alreadyDeleted: v.boolean(),
+    userId: v.union(v.id("users"), v.null()),
+    counts: deletionCountsValidator,
+  }),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
+    const identity = await requireIdentity(ctx);
     const user = await ctx.db
       .query("users")
       .withIndex("byAuthId", (q) => q.eq("authId", identity.subject))
@@ -409,11 +400,12 @@ export const deleteAccount = mutation({
 
 // For development: get or create a test user
 export const getOrCreateTestUser = mutation({
-  handler: async (ctx) => {
-    const testAuthId = "test-user-dev";
-    
+  args: { maintenanceToken: v.string() },
+  returns: v.union(userValidator, v.null()),
+  handler: async (ctx, args) => {
+    assertMaintenanceToken(args.maintenanceToken);
     return ensureUser(ctx, {
-      authId: testAuthId,
+      authId: "test-user-dev",
       displayName: "Test Reader",
       avatarUrl: "",
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,

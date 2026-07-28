@@ -2,9 +2,20 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
+import { requireOwnedUser } from "./auth";
+import {
+  dailySetValidator,
+  verseValidator,
+} from "./validators";
 
 const DAILY_VERSE_COUNT = 7;
 const TOTAL_VERSES = 701;
+
+const streakUpdateValidator = v.object({
+  currentStreak: v.number(),
+  longestStreak: v.number(),
+  isNewRecord: v.boolean(),
+});
 
 // Helper: Get today's date string in user's timezone with fallback to UTC if invalid
 function getTodayDateString(timezone: string): string {
@@ -68,10 +79,15 @@ async function ensureSequenceInitialized(
 // Get or create today's daily set for a user
 export const getTodaySet = mutation({
   args: { userId: v.id("users") },
+  returns: v.object({
+    dailySet: v.union(dailySetValidator, v.null()),
+    verses: v.array(verseValidator),
+    readVerseIds: v.array(v.id("verses")),
+    isComplete: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     // Get user and their state
-    const user = await ctx.db.get(args.userId);
-    if (!user) throw new Error("User not found");
+    const user = await requireOwnedUser(ctx, args.userId);
 
     let userState = await ctx.db
       .query("userState")
@@ -112,7 +128,9 @@ export const getTodaySet = mutation({
 
         return {
           dailySet: existingSet,
-          verses: verses.filter(Boolean),
+          verses: verses.filter(
+            (verse): verse is NonNullable<typeof verse> => verse !== null
+          ),
           readVerseIds: sequenceReads.map((e) => e.verseId),
           isComplete: existingSet.completedAt != null,
         };
@@ -152,7 +170,9 @@ export const getTodaySet = mutation({
 
     return {
       dailySet: await ctx.db.get(dailySetId),
-      verses: verses.filter(Boolean),
+      verses: verses.filter(
+        (verse): verse is NonNullable<typeof verse> => verse !== null
+      ),
       readVerseIds: [],
       isComplete: false,
     };
@@ -172,6 +192,14 @@ export const markVerseRead = mutation({
     dailySetId: v.id("dailySets"),
     verseId: v.id("verses"),
   },
+  returns: v.object({
+    alreadyRead: v.boolean(),
+    versesRead: v.number(),
+    totalVerses: v.number(),
+    isComplete: v.boolean(),
+    completedLocalDate: v.union(v.string(), v.null()),
+    streakUpdate: v.union(streakUpdateValidator, v.null()),
+  }),
   handler: async (
     ctx,
     args
@@ -183,6 +211,7 @@ export const markVerseRead = mutation({
     completedLocalDate: string | null;
     streakUpdate: StreakUpdate | null;
   }> => {
+    await requireOwnedUser(ctx, args.userId);
     // Check if all verses in the set are now read
     const dailySet = await ctx.db.get(args.dailySetId);
     if (!dailySet) throw new Error("Daily set not found");
@@ -283,12 +312,14 @@ export const logReread = mutation({
     userId: v.id("users"),
     verseId: v.id("verses"),
   },
+  returns: v.object({
+    streakUpdate: v.union(streakUpdateValidator, v.null()),
+  }),
   handler: async (
     ctx,
     args
   ): Promise<{ streakUpdate: StreakUpdate | null }> => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) throw new Error("User not found");
+    const user = await requireOwnedUser(ctx, args.userId);
 
     let userState = await ctx.db
       .query("userState")
@@ -353,7 +384,14 @@ export const logReread = mutation({
 // Get reading progress for today
 export const getTodayProgress = query({
   args: { userId: v.id("users") },
+  returns: v.object({
+    versesRead: v.number(),
+    totalVerses: v.number(),
+    isComplete: v.boolean(),
+    localDate: v.union(v.string(), v.null()),
+  }),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const userState = await ctx.db
       .query("userState")
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
@@ -398,11 +436,12 @@ export const getTodayProgress = query({
 
 export const getReadingHistory = query({
   args: { userId: v.id("users"), days: v.optional(v.number()) },
+  returns: v.object({
+    readDates: v.array(v.string()),
+    perfectDates: v.array(v.string()),
+  }),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      return { readDates: [], perfectDates: [] };
-    }
+    const user = await requireOwnedUser(ctx, args.userId);
 
     const days = args.days ?? 90;
     const timezone = user.timezone || "UTC";
@@ -462,7 +501,19 @@ export const getReadVerses = query({
     userId: v.id("users"),
     sort: v.optional(v.union(v.literal("recent"), v.literal("canonical"))),
   },
+  returns: v.object({
+    items: v.array(
+      v.object({
+        verse: verseValidator,
+        lastReadAt: v.union(v.number(), v.null()),
+        readCount: v.number(),
+      })
+    ),
+    totalReadVerses: v.number(),
+    totalVerses: v.number(),
+  }),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const readEvents = await ctx.db
       .query("readEvents")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))

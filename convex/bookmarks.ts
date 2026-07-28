@@ -1,11 +1,24 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { requireOwnedUser } from "./auth";
+import { bookmarkBucketValidator, verseValidator } from "./validators";
 
 const DEFAULT_BUCKET_NAME = "Default";
 // Previous default-bucket name; matched so existing users are migrated in place.
 const LEGACY_DEFAULT_BUCKET_NAME = "Saved";
 const DEFAULT_BUCKET_ICON = "🔖";
+
+const bucketWithDisplayFieldsValidator = v.object({
+  _id: v.id("bookmarkBuckets"),
+  _creationTime: v.number(),
+  userId: v.id("users"),
+  name: v.string(),
+  isDefault: v.boolean(),
+  createdAt: v.number(),
+  icon: v.string(),
+  bookmarkCount: v.optional(v.number()),
+});
 
 async function ensureDefaultBucketForUser(
   ctx: any,
@@ -47,7 +60,9 @@ async function ensureDefaultBucketForUser(
 
 export const ensureDefaultBucket = mutation({
   args: { userId: v.id("users") },
+  returns: v.union(bookmarkBucketValidator, v.null()),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const id = await ensureDefaultBucketForUser(ctx, args.userId);
     return await ctx.db.get(id);
   },
@@ -59,7 +74,9 @@ export const createBucket = mutation({
     name: v.string(),
     icon: v.optional(v.string()),
   },
+  returns: v.union(bookmarkBucketValidator, v.null()),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const trimmed = args.name.trim();
     if (!trimmed) throw new Error("Bucket name is required");
 
@@ -85,7 +102,9 @@ export const createBucket = mutation({
 
 export const getUserBuckets = query({
   args: { userId: v.id("users") },
+  returns: v.array(bucketWithDisplayFieldsValidator),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const [buckets, bookmarks] = await Promise.all([
       ctx.db
         .query("bookmarkBuckets")
@@ -114,7 +133,9 @@ export const getUserBuckets = query({
 
 export const getBucketById = query({
   args: { bucketId: v.id("bookmarkBuckets"), userId: v.id("users") },
+  returns: bucketWithDisplayFieldsValidator,
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const bucket = await ctx.db.get(args.bucketId);
     if (!bucket) throw new Error("Bucket not found");
     if (bucket.userId !== args.userId) throw new Error("Not your bucket");
@@ -132,7 +153,9 @@ export const renameBucket = mutation({
     newName: v.string(),
     icon: v.optional(v.string()),
   },
+  returns: v.union(bookmarkBucketValidator, v.null()),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const trimmed = args.newName.trim();
     if (!trimmed) throw new Error("Bucket name is required");
 
@@ -161,7 +184,9 @@ export const deleteBucket = mutation({
     bucketId: v.id("bookmarkBuckets"),
     userId: v.id("users"),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const bucket = await ctx.db.get(args.bucketId);
     if (!bucket) throw new Error("Bucket not found");
     if (bucket.userId !== args.userId) throw new Error("Not your bucket");
@@ -185,7 +210,19 @@ export const quickBookmark = mutation({
     userId: v.id("users"),
     verseId: v.id("verses"),
   },
+  returns: v.union(
+    v.object({
+      removed: v.literal(true),
+      bucketId: v.id("bookmarkBuckets"),
+    }),
+    v.object({
+      added: v.literal(true),
+      bucketId: v.id("bookmarkBuckets"),
+      bookmarkId: v.id("bookmarks"),
+    })
+  ),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const bucketId = await ensureDefaultBucketForUser(ctx, args.userId);
 
     const existing = await ctx.db
@@ -197,7 +234,7 @@ export const quickBookmark = mutation({
 
     if (existing) {
       await ctx.db.delete(existing._id);
-      return { removed: true, bucketId };
+      return { removed: true as const, bucketId };
     }
 
     const id = await ctx.db.insert("bookmarks", {
@@ -206,7 +243,7 @@ export const quickBookmark = mutation({
       bucketId,
       createdAt: Date.now(),
     });
-    return { added: true, bucketId, bookmarkId: id };
+    return { added: true as const, bucketId, bookmarkId: id };
   },
 });
 
@@ -216,7 +253,9 @@ export const addToBucket = mutation({
     verseId: v.id("verses"),
     bucketId: v.id("bookmarkBuckets"),
   },
+  returns: v.id("bookmarks"),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const bucket = await ctx.db.get(args.bucketId);
     if (!bucket) throw new Error("Bucket not found");
     if (bucket.userId !== args.userId) throw new Error("Not your bucket");
@@ -245,7 +284,9 @@ export const removeBookmark = mutation({
     bucketId: v.id("bookmarkBuckets"),
     verseId: v.id("verses"),
   },
+  returns: v.object({ removed: v.boolean() }),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const existing = await ctx.db
       .query("bookmarks")
       .withIndex("by_bucket_verse", (q) =>
@@ -264,7 +305,19 @@ export const removeBookmark = mutation({
 
 export const getBookmarksInBucket = query({
   args: { bucketId: v.id("bookmarkBuckets"), userId: v.id("users") },
+  returns: v.array(
+    v.object({
+      _id: v.id("bookmarks"),
+      _creationTime: v.number(),
+      userId: v.id("users"),
+      verseId: v.id("verses"),
+      bucketId: v.id("bookmarkBuckets"),
+      createdAt: v.number(),
+      verse: v.union(verseValidator, v.null()),
+    })
+  ),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const bucket = await ctx.db.get(args.bucketId);
     if (!bucket) throw new Error("Bucket not found");
     if (bucket.userId !== args.userId) throw new Error("Not your bucket");
@@ -288,7 +341,9 @@ export const getBookmarksInBucket = query({
 
 export const isVerseBookmarked = query({
   args: { userId: v.id("users"), verseId: v.id("verses") },
+  returns: v.boolean(),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const existing = await ctx.db
       .query("bookmarks")
       .withIndex("by_user_verse", (q) =>
@@ -301,7 +356,9 @@ export const isVerseBookmarked = query({
 
 export const getVerseBuckets = query({
   args: { userId: v.id("users"), verseId: v.id("verses") },
+  returns: v.array(v.id("bookmarkBuckets")),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     const bookmarks = await ctx.db
       .query("bookmarks")
       .withIndex("by_user_verse", (q) =>
@@ -319,7 +376,12 @@ export const moveBookmark = mutation({
     sourceBucketId: v.id("bookmarkBuckets"),
     targetBucketId: v.id("bookmarkBuckets"),
   },
+  returns: v.object({
+    moved: v.boolean(),
+    reason: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
     if (args.sourceBucketId === args.targetBucketId) {
       return { moved: false, reason: "same bucket" };
     }
