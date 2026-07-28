@@ -7,16 +7,17 @@ import {
 } from "@/lib/notifications";
 import { ClerkProvider, useAuth, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
+import { AccountDeletionGate } from "@/components/auth/AccountDeletionGate";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useFonts } from "expo-font";
 import { Redirect, Stack, usePathname, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -106,22 +107,34 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
-  // Force light mode regardless of device setting
-  const colorScheme = "light";
+  const [clerkInstanceNonce, setClerkInstanceNonce] = useState(0);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
         <ClerkProvider
+          key={clerkInstanceNonce}
           publishableKey={publishableKey}
           tokenCache={tokenCache}
         >
-          <ConvexAuthSync />
-          <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-            <NotificationEffects />
-            <ThemeProvider value={DefaultTheme}>
-              <AuthStack />
-            </ThemeProvider>
+          <ConvexProviderWithClerk
+            client={convex}
+            useAuth={useClerkAuthForConvex}
+          >
+            <AccountDeletionGate
+              onRetryAuth={() =>
+                setClerkInstanceNonce((value) => value + 1)
+              }
+            >
+              <NotificationEffects />
+              <ThemeProvider value={DefaultTheme}>
+                <AuthStack
+                  onRetryAuth={() =>
+                    setClerkInstanceNonce((value) => value + 1)
+                  }
+                />
+              </ThemeProvider>
+            </AccountDeletionGate>
           </ConvexProviderWithClerk>
         </ClerkProvider>
       </BottomSheetModalProvider>
@@ -129,38 +142,32 @@ function RootLayoutNav({ publishableKey }: { publishableKey: string }) {
   );
 }
 
-// Ensure Convex client always has the latest Clerk session token
-function ConvexAuthSync() {
-  const { getToken, isSignedIn } = useAuth();
+function useClerkAuthForConvex() {
+  const auth = useAuth();
+  const { getToken } = auth;
+  const getSessionToken = useCallback(
+    (options: { template?: "convex"; skipCache?: boolean }) => {
+      // Clerk's current Convex integration adds `aud: "convex"` to the
+      // standard session token. Convex 1.31 still asks for the retired
+      // `convex` JWT template, so intentionally omit the template here.
+      return getToken({ skipCache: options.skipCache });
+    },
+    [getToken]
+  );
 
-  useEffect(() => {
-    convex.setAuth(async () => {
-      if (!isSignedIn) return null;
-      // Prefer the Convex-specific template; fall back to the default session token
-      let templated: string | null = null;
-      try {
-        templated = await getToken({ template: "convex" });
-      } catch {
-        templated = null;
-      }
-      if (templated) return templated;
-      try {
-        return (await getToken()) ?? null;
-      } catch {
-        return null;
-      }
-    });
-  }, [getToken, isSignedIn]);
-
-  return null;
+  return {
+    ...auth,
+    getToken: getSessionToken,
+  };
 }
 
 function NotificationEffects() {
   const { isSignedIn } = useAuth();
+  const { isAuthenticated } = useConvexAuth();
   const { user: clerkUser } = useUser();
   const currentUser = useQuery(
     api.users.getUserByAuthId,
-    isSignedIn && clerkUser ? { authId: clerkUser.id } : "skip"
+    isSignedIn && isAuthenticated && clerkUser ? {} : "skip"
   );
   const todayProgress = useQuery(
     api.dailySets.getTodayProgress,
@@ -225,6 +232,7 @@ function NotificationEffects() {
     };
   }, [
     currentUser?._id,
+    isAuthenticated,
     isSignedIn,
     todayProgress?.isComplete,
     todayProgress?.localDate,
@@ -233,61 +241,24 @@ function NotificationEffects() {
   return null;
 }
 
-function AuthStack() {
+function AuthStack({ onRetryAuth }: { onRetryAuth: () => void }) {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
   const isAuthRoute = pathname === "/sign-in";
   const [loadTimedOut, setLoadTimedOut] = useState(false);
-  const [clerkProbe, setClerkProbe] = useState<string>("pending");
-  const [nativeApiDisabled, setNativeApiDisabled] = useState(false);
-
-  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-  const keyPreview = publishableKey
-    ? `${publishableKey.slice(0, 12)}...${publishableKey.slice(-4)}`
-    : "missing";
-  const clerkDomain = "https://clerk.mahagathe.org";
 
   useEffect(() => {
     if (isLoaded) {
       setLoadTimedOut(false);
-      setClerkProbe("loaded");
-      setNativeApiDisabled(false);
       return;
     }
-
-    setClerkProbe("probing");
-    fetch(`${clerkDomain}/v1/client?_is_native=1`, {
-      headers: {
-        "x-mobile": "1",
-      },
-    })
-      .then(async (res) => {
-        const body = await res.text();
-
-        try {
-          const parsed = JSON.parse(body);
-          const code = parsed?.errors?.[0]?.code;
-          if (code === "native_api_disabled") {
-            setNativeApiDisabled(true);
-            setClerkProbe("error native_api_disabled");
-            return;
-          }
-        } catch {
-          // Keep fallback probe text for non-JSON payloads.
-        }
-
-        setClerkProbe(`ok ${res.status} (${body.slice(0, 80)}...)`);
-      })
-      .catch((error: any) => {
-        setClerkProbe(`error ${String(error?.message ?? error)}`);
-      });
 
     const timer = setTimeout(() => {
       setLoadTimedOut(true);
     }, 15000);
 
     return () => clearTimeout(timer);
-  }, [isLoaded, clerkDomain]);
+  }, [isLoaded]);
 
   if (!isLoaded) {
     if (loadTimedOut) {
@@ -297,24 +268,11 @@ function AuthStack() {
             Auth failed to initialize
           </Text>
           <Text className="text-sm text-textSecondary text-center mb-4">
-            {nativeApiDisabled
-              ? "Clerk Native API is disabled for this instance. Enable it in Clerk Dashboard."
-              : "We couldn't load Clerk authentication. Check network/DNS and reinstall the latest preview build."}
-          </Text>
-          <Text className="text-xs text-textSecondary text-center mb-2">
-            Convex URL: {process.env.EXPO_PUBLIC_CONVEX_URL ?? "missing"}
-          </Text>
-          <Text className="text-xs text-textSecondary text-center mb-2">
-            Clerk Domain: {clerkDomain}
-          </Text>
-          <Text className="text-xs text-textSecondary text-center mb-2">
-            Key: {keyPreview}
-          </Text>
-          <Text className="text-xs text-textSecondary text-center mb-5">
-            Clerk Probe: {clerkProbe}
+            We couldn't load authentication. Check your connection and retry.
+            If this continues, contact support from the Play Store listing.
           </Text>
           <Pressable
-            onPress={() => setLoadTimedOut(false)}
+            onPress={onRetryAuth}
             className="bg-primary rounded-xl py-3 px-4"
           >
             <Text className="text-white font-semibold">Retry auth init</Text>

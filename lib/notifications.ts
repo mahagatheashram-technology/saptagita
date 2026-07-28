@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { getDeviceLocalDate, getReminderDates } from "./reminderSchedule";
 
 // SecureStore keys must be alphanumeric with ., -, or _
@@ -8,6 +9,8 @@ const ANDROID_CHANNEL_ID = "default";
 const REMINDER_DATA_KEY = "saptaGitaDailyReminder";
 
 const isWeb = Platform.OS === "web";
+const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 // Serializes all schedule/cancel work. Without this, concurrent callers (app
 // init + Settings, or a re-fired effect) can each observe "not scheduled",
@@ -38,7 +41,10 @@ async function getSecureStore() {
 }
 
 async function getNotifications(): Promise<NotificationsModule | null> {
-  if (isWeb || typeof window === "undefined") return null;
+  // Importing expo-notifications in Expo Go on Android logs a red-box error
+  // because remote notification support was removed in SDK 53. Store builds
+  // and development builds continue through the normal notification path.
+  if (isWeb || isExpoGo || typeof window === "undefined") return null;
   try {
     const mod = await import("expo-notifications");
     return mod;

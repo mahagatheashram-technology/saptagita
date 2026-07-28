@@ -1,14 +1,71 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
+const userValidator = v.object({
+  _id: v.id("users"),
+  _creationTime: v.number(),
+  authId: v.string(),
+  displayName: v.string(),
+  avatarUrl: v.string(),
+  timezone: v.string(),
+  createdAt: v.number(),
+});
+
+const userStateValidator = v.object({
+  _id: v.id("userState"),
+  _creationTime: v.number(),
+  userId: v.id("users"),
+  mode: v.string(),
+  sequentialPointer: v.number(),
+  lastDailyDate: v.string(),
+  currentDailySetId: v.union(v.id("dailySets"), v.null()),
+  reminderTime: v.optional(v.string()),
+  scriptPreference: v.optional(
+    v.union(v.literal("devanagari"), v.literal("telugu"))
+  ),
+  sequenceInitialized: v.optional(v.boolean()),
+  todayGestureCoachSeenAt: v.optional(v.number()),
+});
+
+const streakValidator = v.object({
+  _id: v.id("streaks"),
+  _creationTime: v.number(),
+  userId: v.id("users"),
+  currentStreak: v.number(),
+  longestStreak: v.number(),
+  lastCompletedLocalDate: v.string(),
+  lastReadLocalDate: v.optional(v.string()),
+  updatedAt: v.number(),
+});
+
 // ============================================
-// DEV ONLY - Remove before production
+// INTERNAL-ONLY DEVELOPMENT UTILITIES
+//
+// These functions intentionally use Convex's internal function builders so
+// they are omitted from the public API and cannot be called by app clients.
+// Keep them internal: they expose private state and destructively rewrite
+// reading progress.
 // ============================================
 
 // Get full debug state for a user
-export const getDebugState = query({
+export const getDebugState = internalQuery({
   args: { userId: v.id("users") },
+  returns: v.object({
+    user: v.union(userValidator, v.null()),
+    userState: v.union(userStateValidator, v.null()),
+    streak: v.union(streakValidator, v.null()),
+    dailySets: v.array(
+      v.object({
+        id: v.id("dailySets"),
+        localDate: v.string(),
+        verseCount: v.number(),
+        completedAt: v.union(v.number(), v.null()),
+      })
+    ),
+    totalReadEvents: v.number(),
+    currentTimezone: v.string(),
+  }),
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
 
@@ -49,8 +106,15 @@ export const getDebugState = query({
 });
 
 // Simulate moving to the next day (completes current day if needed, advances date)
-export const simulateNextDay = mutation({
+export const simulateNextDay = internalMutation({
   args: { userId: v.id("users") },
+  returns: v.object({
+    previousDate: v.string(),
+    simulatedDate: v.string(),
+    message: v.string(),
+    nextSequentialPointer: v.number(),
+    lastStreakDate: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
@@ -102,8 +166,12 @@ export const simulateNextDay = mutation({
 });
 
 // Simulate a missed day (advances date by 2, breaking streak)
-export const simulateMissedDay = mutation({
+export const simulateMissedDay = internalMutation({
   args: { userId: v.id("users") },
+  returns: v.object({
+    message: v.string(),
+    streakLastDate: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found");
@@ -143,8 +211,17 @@ export const simulateMissedDay = mutation({
 });
 
 // Force complete current day (marks all verses as read)
-export const forceCompleteToday = mutation({
+export const forceCompleteToday = internalMutation({
   args: { userId: v.id("users") },
+  returns: v.union(
+    v.object({ error: v.string() }),
+    v.object({
+      versesMarkedRead: v.number(),
+      totalVerses: v.number(),
+      message: v.string(),
+      streak: v.union(streakValidator, v.null()),
+    })
+  ),
   handler: async (ctx, args) => {
     const userState = await ctx.db
       .query("userState")
@@ -210,8 +287,13 @@ export const forceCompleteToday = mutation({
 });
 
 // Reset all user progress (start fresh)
-export const resetUserProgress = mutation({
+export const resetUserProgress = internalMutation({
   args: { userId: v.id("users") },
+  returns: v.object({
+    deletedReadEvents: v.number(),
+    deletedDailySets: v.number(),
+    message: v.string(),
+  }),
   handler: async (ctx, args) => {
     // Delete all read events
     const readEvents = await ctx.db

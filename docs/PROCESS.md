@@ -99,7 +99,8 @@ After Cursor finishes:
    ```
 
 2. Follow the **Success Criteria** section from the task prompt.
-3. Use dev tools if relevant (for example, the DevPanel in the Profile tab for streak testing).
+3. Use automated tests or a development-only Convex deployment for destructive
+   streak scenarios. Production clients do not include progress simulation tools.
 4. Note:
    - Whether each checklist item passes
    - Any visual issues
@@ -191,16 +192,17 @@ T3 Chat **does not** edit those sections directly.
 
 ## 5. Testing Conventions
 
-- Use the **DevPanel** (Profile tab) for:
-  - Streak testing (force complete day, simulate next day, simulate missed day).
-  - Resetting progress to verse 1.1.
-  - Inspecting userState, streaks, dailySets, readEvents.
+- Destructive streak and progress scenarios must run against a development-only
+  Convex deployment. The underlying debug functions are internal-only and must
+  never be exposed through the shipping client.
 
 - After any change, at minimum:
   - Launch the app and ensure no red error screens.
   - Verify that the **Today** tab still works (7 cards, swipe right to complete).
   - Run type checks if possible:
     - `npx tsc --noEmit`
+  - Run the production API-surface gate:
+    - `npm run test:release-surface`
 
 For new features, each task defines a small test plan under “Success Criteria”.
 

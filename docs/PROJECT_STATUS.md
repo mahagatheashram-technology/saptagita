@@ -118,7 +118,7 @@ Verified: all listed paths exist in the repo.
 - `app/(tabs)/social.tsx` - Social tab with global leaderboard (communities placeholder)
 - `app/(tabs)/bookmarks.tsx` - Bucket list and management (Phase 2)
 - `app/bucket/[id].tsx` - Bucket detail with bookmark list and actions
-- `app/(tabs)/profile.tsx` - Profile info + sign out (dev panel in dev builds)
+- `app/(tabs)/profile.tsx` - Profile info + sign out
 - `app/_layout.tsx` - Root layout with providers
 - `app/sign-in.tsx` - Clerk sign-in screen
 - `app/sign-up.tsx` - Clerk sign-up screen
@@ -133,7 +133,6 @@ Verified: all listed paths exist in the repo.
 - `components/today/index.ts` - Today component exports
 - `components/today/CompletionScreen.tsx` - Animated completion UI with streak badge
 - `components/social/*` - Social tab header, leaderboard list, and user rank card
-- `components/dev/DevPanel.tsx` - Dev-only streak/daily-set testing UI
 - `components/bookmarks/BucketPickerModal.tsx` - Modal to add/remove verse in buckets
 - `components/bookmarks/BucketCard.tsx` - Bucket list tile
 - `components/bookmarks/index.ts` - Bookmark component exports
@@ -149,7 +148,7 @@ Verified: all listed paths exist in the repo.
 - `convex/dailySets.ts` - Daily set generation & read tracking
 - `convex/streaks.ts` - Streak tracking logic
 - `convex/communities.ts` - Community creation, membership, active selection
-- `convex/debug.ts` - Dev-only mutations for streak/daily-set testing
+- `convex/debug.ts` - Internal-only streak/daily-set testing utilities
 - `convex/bookmarks.ts` - Bookmark buckets and bookmark CRUD
 - `convex/auth.config.ts` - Clerk JWT issuer configuration
 
@@ -170,7 +169,8 @@ Verified: all listed paths exist in the repo.
 5. **Light Mode:** Forced light mode regardless of device settings
 6. **Auth:** Clerk for sign-in (Google + email OTP; Apple optional)
 7. **Timezone:** Day boundary based on user's local timezone
-8. **Dev Tools:** Profile tab shows DevPanel in all builds for now; remove before production
+8. **Dev Tools:** No debug controls are included in the shipping client; destructive
+   utilities remain internal-only on Convex
 
 ## Current Working Features
 
@@ -202,7 +202,9 @@ Verified: all listed paths exist in the repo.
 
 ## Known Issues / Blockers
 
-- Streak/day rollover issue: streak attribution was tied to the server's "today" instead of the daily set date; now anchored to the set's local date—re-test with DevPanel (simulate next/missed day) to confirm fix.
+- Streak/day rollover issue: streak attribution was tied to the server's "today"
+  instead of the daily set date; now anchored to the set's local date—re-test
+  with automated date/streak scenarios against a development deployment.
 
 ## Deferred / Revisit Later
 
