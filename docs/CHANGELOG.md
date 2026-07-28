@@ -2,6 +2,25 @@
 
 > **Instructions:** Agent appends to this file after completing each task. Most recent entries at top.
 
+## Android: Restore Read-Day Streak Semantics
+**Date:** 2026-07-28
+**Status:** ✅ Complete
+
+### What Was Done
+- Restored Current and Longest streaks to count consecutive user-local dates with at least one sequence read.
+- Kept Perfect days tied to completing all seven daily verses.
+- Reconciled stored streak records and both leaderboards from read activity so legacy completion-only counters do not leak into the UI.
+- Added first-read streak updates and regression coverage for partial-reading days, retries, and date streak math.
+
+### Files Modified
+- `convex/dailySets.ts`
+- `convex/streakMath.ts`
+- `convex/streaks.ts`
+- `tests/convexIoRegression.test.mjs`
+- `tests/streakMath.test.mjs`
+- `docs/ARCHITECTURE.MD`
+- `docs/CHANGELOG.md`
+
 ## Task 4.6a: Notification Reliability & Calendar Polish
 **Date:** 2026-01-08  
 **Status:** ✅ Complete

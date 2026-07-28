@@ -47,6 +47,34 @@ test("completed daily sets are read through the completion index", () => {
   );
 });
 
+test("reading streaks advance on the first sequence read while Perfect stays completion-only", () => {
+  assert.match(
+    dailySetsSource,
+    /firstSequenceReadOfDay[\s\S]*updateStreakOnReadInternal/,
+  );
+  assert.match(
+    dailySetsSource,
+    /hasSequenceReadForLocalDate[\s\S]*byUserAndDate/,
+    "duplicate daily sets must still produce only one read-day streak update",
+  );
+  assert.match(
+    streaksSource,
+    /getReadActivityStats[\s\S]*eq\("kind", "sequence"\)/,
+  );
+  assert.match(
+    streaksSource,
+    /currentStreak:\s*getActiveCurrentStreak\(\s*readStats\.currentStreak/s,
+  );
+  assert.match(
+    streaksSource,
+    /longestStreak:\s*readStats\.longestStreak/,
+  );
+  assert.match(
+    streaksSource,
+    /perfectDays:\s*new Set\(\s*completedSets\.map/s,
+  );
+});
+
 test("daily-set ranking metadata never escapes the public return validator", () => {
   assert.match(
     dailySetsSource,

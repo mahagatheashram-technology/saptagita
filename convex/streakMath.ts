@@ -4,17 +4,17 @@ export function getPreviousLocalDate(localDate: string): string {
   return date.toISOString().split("T")[0];
 }
 
-export function calculateCompletionStreak(localDates: string[]): {
+export function calculateDateStreak(localDates: string[]): {
   currentStreak: number;
   longestStreak: number;
-  lastCompletedLocalDate: string;
+  lastLocalDate: string;
 } {
   const dates = Array.from(new Set(localDates)).sort();
   if (dates.length === 0) {
     return {
       currentStreak: 0,
       longestStreak: 0,
-      lastCompletedLocalDate: "",
+      lastLocalDate: "",
     };
   }
 
@@ -31,6 +31,6 @@ export function calculateCompletionStreak(localDates: string[]): {
   return {
     currentStreak: run,
     longestStreak,
-    lastCompletedLocalDate: dates[dates.length - 1],
+    lastLocalDate: dates[dates.length - 1],
   };
 }

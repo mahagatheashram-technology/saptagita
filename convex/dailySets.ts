@@ -142,6 +142,25 @@ async function getSequenceReadEventsByDailySet(
   return [...legacyEvents, ...sequenceEvents];
 }
 
+async function hasSequenceReadForLocalDate(
+  db: DatabaseReader,
+  userId: Id<"users">,
+  localDate: string,
+): Promise<boolean> {
+  const dailySets = await db
+    .query("dailySets")
+    .withIndex("byUserAndDate", (q) =>
+      q.eq("userId", userId).eq("localDate", localDate),
+    )
+    .collect();
+  const readGroups = await Promise.all(
+    dailySets.map((dailySet) =>
+      getSequenceReadEventsByDailySet(db, dailySet._id),
+    ),
+  );
+  return readGroups.some((events) => events.length > 0);
+}
+
 async function ensureSequenceInitialized(
   ctx: any,
   userId: Id<"users">,
@@ -420,6 +439,14 @@ export const markVerseRead = mutation({
       throw new Error("Verse is not next in sequence");
     }
 
+    const firstSequenceReadOfDay =
+      sequenceReads.length === 0 &&
+      !(await hasSequenceReadForLocalDate(
+        ctx.db,
+        args.userId,
+        dailySet.localDate,
+      ));
+
     // Create read event
     await ctx.db.insert("readEvents", {
       userId: args.userId,
@@ -432,6 +459,13 @@ export const markVerseRead = mutation({
     const newReadCount = sequenceReads.length + 1;
     const isComplete = newReadCount >= dailySet.verseIds.length;
     let streakUpdate: StreakUpdate | null = null;
+
+    if (firstSequenceReadOfDay) {
+      streakUpdate = await ctx.runMutation(
+        internal.streaks.updateStreakOnReadInternal,
+        { userId: args.userId, localDate: dailySet.localDate }
+      );
+    }
 
     await ctx.db.patch(userState._id, {
       sequentialPointer: ((userState.sequentialPointer ?? 0) + 1) % TOTAL_VERSES,

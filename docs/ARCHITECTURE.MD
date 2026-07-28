@@ -328,10 +328,10 @@ streaks.ts
 
 Function	Type	Purpose
 getStreak	Query	Get user's streak data
-getStreakStats	Query	Get streak stats + completed days
+getStreakStats	Query	Get read-day streak stats + Perfect days
 getGlobalLeaderboard	Query	Global streak leaderboard
-updateStreakOnCompletion	Mutation	Increment streak on day complete
-updateStreakOnCompletionInternal	Internal mutation used by completion flow
+updateStreakOnReadInternal	Internal mutation used on the first sequence read of a local day
+updateStreakOnCompletionInternal	Internal mutation that records completion metadata without changing streak semantics
 
 communities.ts
 
