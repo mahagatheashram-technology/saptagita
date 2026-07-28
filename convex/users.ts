@@ -2,6 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import {
   assertIdentitySubject,
+  isLegacyAlphaAuthEnabled,
   requireIdentity,
   requireOwnedUser,
 } from "./auth";
@@ -35,8 +36,6 @@ async function assertAccountDeletionNotPending(ctx: any, authId: string) {
   }
 }
 
-const LEGACY_SYNC_ENV = "ALLOW_LEGACY_EXISTING_USER_SYNC";
-
 async function getLegacyExistingUser(
   ctx: any,
   authId: string | undefined,
@@ -46,7 +45,7 @@ async function getLegacyExistingUser(
     ?.code;
   if (
     errorCode !== "UNAUTHENTICATED" ||
-    process.env[LEGACY_SYNC_ENV] !== "true" ||
+    !isLegacyAlphaAuthEnabled() ||
     !authId
   ) {
     throw authenticationError;
@@ -218,7 +217,12 @@ export const getUserByAuthId = query({
   args: { authId: v.optional(v.string()) },
   returns: v.union(userValidator, v.null()),
   handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx);
+    let identity;
+    try {
+      identity = await requireIdentity(ctx);
+    } catch (error) {
+      return getLegacyExistingUser(ctx, args.authId, error);
+    }
     assertIdentitySubject(identity.subject, args.authId);
     return await ctx.db
       .query("users")

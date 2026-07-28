@@ -7,6 +7,13 @@ type AuthContext = {
   db: Pick<QueryCtx["db"], "get" | "query">;
 };
 
+export const LEGACY_ALPHA_AUTH_ENV =
+  "ALLOW_LEGACY_ALPHA_UNAUTHENTICATED_ACCESS";
+
+export function isLegacyAlphaAuthEnabled() {
+  return process.env[LEGACY_ALPHA_AUTH_ENV] === "true";
+}
+
 export async function requireIdentity(ctx: AuthContext) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
@@ -41,6 +48,18 @@ export async function requireOwnedUser(
   ctx: AuthContext,
   requestedUserId: Id<"users">
 ): Promise<Doc<"users">> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity && isLegacyAlphaAuthEnabled()) {
+    const legacyUser = await ctx.db.get(requestedUserId);
+    if (!legacyUser) {
+      throw new ConvexError({
+        code: "USER_NOT_FOUND",
+        message: "User not found.",
+      });
+    }
+    return legacyUser as Doc<"users">;
+  }
+
   const user = await requireCurrentUser(ctx);
   if (String(user._id) !== String(requestedUserId)) {
     throw new ConvexError({

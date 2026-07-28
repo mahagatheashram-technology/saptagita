@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   assertIdentitySubject,
+  LEGACY_ALPHA_AUTH_ENV,
   requireCurrentUser,
   requireIdentity,
   requireOwnedUser,
@@ -82,6 +83,47 @@ test("ownership helper rejects a cross-user id", async () => {
     ),
     assertConvexCode("FORBIDDEN")
   );
+});
+
+test("legacy alpha ownership fallback is disabled by default", async () => {
+  const previousValue = process.env[LEGACY_ALPHA_AUTH_ENV];
+  delete process.env[LEGACY_ALPHA_AUTH_ENV];
+  try {
+    const user = { _id: "user-a", authId: "clerk-user-a" };
+    await assert.rejects(
+      requireOwnedUser(authContext({ users: [user] }), "user-a"),
+      assertConvexCode("UNAUTHENTICATED")
+    );
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env[LEGACY_ALPHA_AUTH_ENV];
+    } else {
+      process.env[LEGACY_ALPHA_AUTH_ENV] = previousValue;
+    }
+  }
+});
+
+test("legacy alpha ownership fallback accepts only an existing requested id", async () => {
+  const previousValue = process.env[LEGACY_ALPHA_AUTH_ENV];
+  process.env[LEGACY_ALPHA_AUTH_ENV] = "true";
+  try {
+    const user = { _id: "user-a", authId: "clerk-user-a" };
+    const result = await requireOwnedUser(
+      authContext({ users: [user] }),
+      "user-a"
+    );
+    assert.equal(result, user);
+    await assert.rejects(
+      requireOwnedUser(authContext({ users: [user] }), "missing-user"),
+      assertConvexCode("USER_NOT_FOUND")
+    );
+  } finally {
+    if (previousValue === undefined) {
+      delete process.env[LEGACY_ALPHA_AUTH_ENV];
+    } else {
+      process.env[LEGACY_ALPHA_AUTH_ENV] = previousValue;
+    }
+  }
 });
 
 test("legacy authId arguments cannot impersonate another Clerk subject", () => {
@@ -244,8 +286,7 @@ test("legacy alpha sync compatibility is gated and read-only", async () => {
   assert.notEqual(helperEnd, -1);
 
   const helper = source.slice(helperStart, helperEnd);
-  assert.match(source, /LEGACY_SYNC_ENV = "ALLOW_LEGACY_EXISTING_USER_SYNC"/);
-  assert.match(helper, /process\.env\[LEGACY_SYNC_ENV\] !== "true"/);
+  assert.match(helper, /\bisLegacyAlphaAuthEnabled\b/);
   assert.match(helper, /\.query\("users"\)/);
   assert.match(helper, /\.withIndex\("byAuthId"/);
   assert.doesNotMatch(helper, /ctx\.db\.(?:insert|patch|delete)/);

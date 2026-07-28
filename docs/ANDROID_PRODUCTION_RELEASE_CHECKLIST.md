@@ -135,8 +135,10 @@ and shipping a fixed build with a version code greater than 3.
 - [ ] Confirm new user, reading, bookmark, and deletion activity appears only
       in the intended production Convex and Clerk instances.
 - [ ] After supported alpha installations have upgraded, disable the temporary
-      read-only sync bridge with
-      `npx convex env remove ALLOW_LEGACY_EXISTING_USER_SYNC --prod`. Verify an
+      legacy alpha compatibility bridge with
+      `npx convex env remove ALLOW_LEGACY_ALPHA_UNAUTHENTICATED_ACCESS --prod`.
+      Also remove the superseded `ALLOW_LEGACY_EXISTING_USER_SYNC` flag if it
+      remains set. Verify an
       unauthenticated `users:getOrCreateUserFromAuth` call is rejected with
       `UNAUTHENTICATED`, while an installed production build still syncs.
 - [ ] Confirm Play vitals and backend dashboards remain healthy after 24 and
