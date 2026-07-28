@@ -232,3 +232,29 @@ test("the former optional-identity bypass is absent from protected modules", asy
     );
   }
 });
+
+test("legacy alpha sync compatibility is gated and read-only", async () => {
+  const source = await readFile(
+    new URL("../convex/users.ts", import.meta.url),
+    "utf8"
+  );
+  const helperStart = source.indexOf("async function getLegacyExistingUser");
+  const helperEnd = source.indexOf("\nasync function ensureUser", helperStart);
+  assert.notEqual(helperStart, -1);
+  assert.notEqual(helperEnd, -1);
+
+  const helper = source.slice(helperStart, helperEnd);
+  assert.match(source, /LEGACY_SYNC_ENV = "ALLOW_LEGACY_EXISTING_USER_SYNC"/);
+  assert.match(helper, /process\.env\[LEGACY_SYNC_ENV\] !== "true"/);
+  assert.match(helper, /\.query\("users"\)/);
+  assert.match(helper, /\.withIndex\("byAuthId"/);
+  assert.doesNotMatch(helper, /ctx\.db\.(?:insert|patch|delete)/);
+  assert.doesNotMatch(helper, /\bensureUser\b/);
+
+  const syncBlock = exportedFunctionBlock(
+    source,
+    "getOrCreateUserFromAuth"
+  );
+  assert.match(syncBlock, /\brequireIdentity\b/);
+  assert.match(syncBlock, /\bgetLegacyExistingUser\b/);
+});

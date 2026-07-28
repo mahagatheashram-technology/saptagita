@@ -1,5 +1,5 @@
 import { internalMutation, mutation, query } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import {
   assertIdentitySubject,
   requireIdentity,
@@ -33,6 +33,41 @@ async function assertAccountDeletionNotPending(ctx: any, authId: string) {
   if (await getAccountDeletionRequest(ctx, authId)) {
     throw new Error(ACCOUNT_DELETION_PENDING_ERROR);
   }
+}
+
+const LEGACY_SYNC_ENV = "ALLOW_LEGACY_EXISTING_USER_SYNC";
+
+async function getLegacyExistingUser(
+  ctx: any,
+  authId: string | undefined,
+  authenticationError: unknown
+) {
+  const errorCode = (authenticationError as { data?: { code?: unknown } })?.data
+    ?.code;
+  if (
+    errorCode !== "UNAUTHENTICATED" ||
+    process.env[LEGACY_SYNC_ENV] !== "true" ||
+    !authId
+  ) {
+    throw authenticationError;
+  }
+
+  const existingUser = await ctx.db
+    .query("users")
+    .withIndex("byAuthId", (q: any) => q.eq("authId", authId))
+    .first();
+
+  // This bridge is deliberately read-only. It restores already-synced alpha
+  // users while their client races Convex auth initialization, but it cannot
+  // create accounts, repair records, or update another user's profile.
+  if (!existingUser) {
+    throw new ConvexError({
+      code: "LEGACY_CLIENT_UPGRADE_REQUIRED",
+      message: "Please install the latest Sapta Gita build and sign in again.",
+    });
+  }
+
+  return existingUser;
 }
 
 async function ensureUser(ctx: any, args: {
@@ -141,7 +176,12 @@ export const getOrCreateUserFromAuth = mutation({
   },
   returns: v.union(userValidator, v.null()),
   handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx);
+    let identity;
+    try {
+      identity = await requireIdentity(ctx);
+    } catch (error) {
+      return getLegacyExistingUser(ctx, args.authId, error);
+    }
     assertIdentitySubject(identity.subject, args.authId);
     await assertAccountDeletionNotPending(ctx, identity.subject);
     return ensureUser(ctx, { ...args, authId: identity.subject });
