@@ -7,7 +7,6 @@ import {
   requireIdentity,
   requireOwnedUser,
 } from "../convex/auth.ts";
-import { assertMaintenanceToken } from "../convex/maintenanceAuth.ts";
 
 function authContext({ subject, users = [] } = {}) {
   let requestedAuthId = null;
@@ -95,30 +94,6 @@ test("legacy authId arguments cannot impersonate another Clerk subject", () => {
   );
 });
 
-test("maintenance operations fail closed when credentials are absent or wrong", () => {
-  const previous = process.env.ADMIN_MAINTENANCE_TOKEN;
-  try {
-    delete process.env.ADMIN_MAINTENANCE_TOKEN;
-    assert.throws(
-      () => assertMaintenanceToken("anything"),
-      assertConvexCode("MAINTENANCE_DISABLED")
-    );
-
-    process.env.ADMIN_MAINTENANCE_TOKEN = "expected-token";
-    assert.throws(
-      () => assertMaintenanceToken("wrong-token"),
-      assertConvexCode("FORBIDDEN")
-    );
-    assert.doesNotThrow(() => assertMaintenanceToken("expected-token"));
-  } finally {
-    if (previous === undefined) {
-      delete process.env.ADMIN_MAINTENANCE_TOKEN;
-    } else {
-      process.env.ADMIN_MAINTENANCE_TOKEN = previous;
-    }
-  }
-});
-
 const protectedExports = {
   "convex/users.ts": {
     getOrCreateUser: "requireIdentity",
@@ -132,7 +107,6 @@ const protectedExports = {
     resetReadingProgress: "requireOwnedUser",
     updateDisplayName: "requireOwnedUser",
     deleteAccount: "requireIdentity",
-    getOrCreateTestUser: "assertMaintenanceToken",
   },
   "convex/bookmarks.ts": {
     ensureDefaultBucket: "requireOwnedUser",
@@ -173,10 +147,6 @@ const protectedExports = {
     joinPublicCommunity: "resolveUser",
     joinByInviteCode: "resolveUser",
     leaveCommunity: "resolveUser",
-  },
-  "convex/verses.ts": {
-    insertVerse: "assertMaintenanceToken",
-    insertVersesBatch: "assertMaintenanceToken",
   },
 };
 

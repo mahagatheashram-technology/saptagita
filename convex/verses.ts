@@ -1,7 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import type { DatabaseReader } from "./_generated/server";
 import { v } from "convex/values";
-import { assertMaintenanceToken } from "./maintenanceAuth";
 import { verseValidator } from "./validators";
 import {
   getSequencePositions,
@@ -44,9 +43,8 @@ async function getSequenceVerses(
 }
 
 // Mutation to insert a single verse
-export const insertVerse = mutation({
+export const insertVerse = internalMutation({
   args: {
-    maintenanceToken: v.string(),
     chapterNumber: v.number(),
     verseNumber: v.number(),
     sanskritDevanagari: v.string(),
@@ -57,8 +55,6 @@ export const insertVerse = mutation({
   },
   returns: v.id("verses"),
   handler: async (ctx, args) => {
-    assertMaintenanceToken(args.maintenanceToken);
-    const { maintenanceToken: _maintenanceToken, ...verse } = args;
     // Check if verse already exists to prevent duplicates
     const existing = await ctx.db
       .query("verses")
@@ -70,18 +66,17 @@ export const insertVerse = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, verse);
+      await ctx.db.patch(existing._id, args);
       return existing._id;
     }
 
-    return await ctx.db.insert("verses", verse);
+    return await ctx.db.insert("verses", args);
   },
 });
 
 // Mutation to insert multiple verses (batch)
-export const insertVersesBatch = mutation({
+export const insertVersesBatch = internalMutation({
   args: {
-    maintenanceToken: v.string(),
     verses: v.array(
       v.object({
         chapterNumber: v.number(),
@@ -96,10 +91,20 @@ export const insertVersesBatch = mutation({
   },
   returns: v.array(v.id("verses")),
   handler: async (ctx, args) => {
-    assertMaintenanceToken(args.maintenanceToken);
     const ids = [];
     for (const verse of args.verses) {
-      const id = await ctx.db.insert("verses", verse);
+      const existing = await ctx.db
+        .query("verses")
+        .withIndex("byChapterVerse", (q) =>
+          q
+            .eq("chapterNumber", verse.chapterNumber)
+            .eq("verseNumber", verse.verseNumber)
+        )
+        .unique();
+      const id = existing?._id ?? (await ctx.db.insert("verses", verse));
+      if (existing) {
+        await ctx.db.patch(existing._id, verse);
+      }
       ids.push(id);
     }
     return ids;

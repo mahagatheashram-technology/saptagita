@@ -16,7 +16,6 @@ import type * as dailySets from "../dailySets.js";
 import type * as debug from "../debug.js";
 import type * as integrityMigration from "../integrityMigration.js";
 import type * as integrityRules from "../integrityRules.js";
-import type * as maintenanceAuth from "../maintenanceAuth.js";
 import type * as streakMath from "../streakMath.js";
 import type * as streaks from "../streaks.js";
 import type * as users from "../users.js";
@@ -39,7 +38,6 @@ declare const fullApi: ApiFromModules<{
   debug: typeof debug;
   integrityMigration: typeof integrityMigration;
   integrityRules: typeof integrityRules;
-  maintenanceAuth: typeof maintenanceAuth;
   streakMath: typeof streakMath;
   streaks: typeof streaks;
   users: typeof users;

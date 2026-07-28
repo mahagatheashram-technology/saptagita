@@ -5,7 +5,8 @@ It does not run automatically during deployment.
 
 ## Safety properties
 
-- Both functions require `ADMIN_MAINTENANCE_TOKEN`.
+- Both functions are internal-only and can be invoked only through authenticated
+  Convex deployment tooling, not by app clients.
 - `repairIntegrityBatch` defaults to `dryRun`.
 - Writes additionally require `mode: "execute"` and the exact confirmation
   phrase `REPAIR_DATABASE_INTEGRITY`.
@@ -23,42 +24,33 @@ It does not run automatically during deployment.
 Deploy the functions and index first. Do not combine deployment with a repair
 execution.
 
-1. Set a unique deployment secret:
+1. Save a production snapshot in the Convex dashboard.
+2. Run the read-only audit and retain its JSON output:
 
    ```sh
-   npx convex env set ADMIN_MAINTENANCE_TOKEN '<random-secret>' --prod
+   npx convex run integrityMigration:auditIntegrity '{}' --prod
    ```
 
-2. Save a production snapshot in the Convex dashboard.
-3. Run the read-only audit and retain its JSON output:
-
-   ```sh
-   npx convex run integrityMigration:auditIntegrity \
-     '{"token":"<random-secret>"}' --prod
-   ```
-
-4. Review `byType` and every sampled action. Resolve anything unexpected
+3. Review `byType` and every sampled action. Resolve anything unexpected
    before continuing.
-5. Confirm the repair function still defaults to no writes:
+4. Confirm the repair function still defaults to no writes:
 
    ```sh
-   npx convex run integrityMigration:repairIntegrityBatch \
-     '{"token":"<random-secret>"}' --prod
+   npx convex run integrityMigration:repairIntegrityBatch '{}' --prod
    ```
 
-6. Execute one small batch:
+5. Execute one small batch:
 
    ```sh
    npx convex run integrityMigration:repairIntegrityBatch \
-     '{"token":"<random-secret>","mode":"execute","confirm":"REPAIR_DATABASE_INTEGRITY","batchSize":5}' \
+     '{"mode":"execute","confirm":"REPAIR_DATABASE_INTEGRITY","batchSize":5}' \
      --prod
    ```
 
-7. Re-run the audit, inspect application telemetry, then repeat batches until
+6. Re-run the audit, inspect application telemetry, then repeat batches until
    `complete` is `true` and a final audit reports `pendingActions: 0`.
-8. Run one additional execute batch to prove repeat-run safety; it must report
+7. Run one additional execute batch to prove repeat-run safety; it must report
    zero attempted/executed actions and zero writes.
-9. Rotate or remove `ADMIN_MAINTENANCE_TOKEN` after the repair window.
 
 Never execute these commands against production without a current snapshot and
 an approved audit report.

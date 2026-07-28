@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import {
@@ -78,18 +78,6 @@ const executeResultValidator = v.object({
   remainingByType: v.record(v.string(), v.number()),
   complete: v.boolean(),
 });
-
-function assertMaintenanceToken(token: string) {
-  const expected = process.env.ADMIN_MAINTENANCE_TOKEN;
-  if (!expected) {
-    throw new Error(
-      "ADMIN_MAINTENANCE_TOKEN is not configured on this deployment."
-    );
-  }
-  if (token !== expected) {
-    throw new Error("Invalid maintenance token.");
-  }
-}
 
 async function loadSnapshot(ctx: any) {
   const [
@@ -520,11 +508,10 @@ async function applyAction(ctx: any, action: RepairAction) {
  * Read-only report. Running this is always safe and is the required first
  * production step before any repair batch.
  */
-export const auditIntegrity = query({
-  args: { token: v.string() },
+export const auditIntegrity = internalQuery({
+  args: {},
   returns: dryRunResultValidator,
-  handler: async (ctx, args) => {
-    assertMaintenanceToken(args.token);
+  handler: async (ctx) => {
     const snapshot = await loadSnapshot(ctx);
     return {
       mode: "dryRun" as const,
@@ -538,16 +525,14 @@ export const auditIntegrity = query({
  * token and an exact confirmation phrase. Re-run until `remainingActions` is
  * zero; subsequent executions are safe no-ops.
  */
-export const repairIntegrityBatch = mutation({
+export const repairIntegrityBatch = internalMutation({
   args: {
-    token: v.string(),
     mode: v.optional(v.union(v.literal("dryRun"), v.literal("execute"))),
     confirm: v.optional(v.string()),
     batchSize: v.optional(v.number()),
   },
   returns: v.union(dryRunResultValidator, executeResultValidator),
   handler: async (ctx, args) => {
-    assertMaintenanceToken(args.token);
     const { mode, batchSize } = normalizeIntegrityRepairRequest(args);
     const before = await loadSnapshot(ctx);
     const plan = buildRepairPlan(before);

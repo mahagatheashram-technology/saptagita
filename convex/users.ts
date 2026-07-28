@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import {
   assertIdentitySubject,
@@ -10,7 +10,6 @@ import {
   userStateValidator,
   userValidator,
 } from "./validators";
-import { assertMaintenanceToken } from "./maintenanceAuth";
 
 export const ACCOUNT_DELETION_PENDING_ERROR = "ACCOUNT_DELETION_PENDING";
 
@@ -504,11 +503,10 @@ export const deleteAccount = mutation({
 });
 
 // For development: get or create a test user
-export const getOrCreateTestUser = mutation({
-  args: { maintenanceToken: v.string() },
+export const getOrCreateTestUser = internalMutation({
+  args: {},
   returns: v.union(userValidator, v.null()),
-  handler: async (ctx, args) => {
-    assertMaintenanceToken(args.maintenanceToken);
+  handler: async (ctx) => {
     return ensureUser(ctx, {
       authId: "test-user-dev",
       displayName: "Test Reader",

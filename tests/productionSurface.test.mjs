@@ -43,9 +43,16 @@ function assertInternalOnlyModule(source, relativePath) {
 test("debug and maintenance modules expose internal Convex functions only", async () => {
   const debugSource = await readWorkspaceFile("convex/debug.ts");
   const adminSource = await readWorkspaceFile("convex/admin.ts");
+  const integritySource = await readWorkspaceFile(
+    "convex/integrityMigration.ts"
+  );
 
   assertInternalOnlyModule(debugSource, "convex/debug.ts");
   assertInternalOnlyModule(adminSource, "convex/admin.ts");
+  assertInternalOnlyModule(
+    integritySource,
+    "convex/integrityMigration.ts"
+  );
 
   for (const functionName of [
     "getDebugState",
@@ -72,6 +79,40 @@ test("debug and maintenance modules expose internal Convex functions only", asyn
       `${functionName} must remain internal-only`
     );
   }
+
+  for (const functionName of ["auditIntegrity", "repairIntegrityBatch"]) {
+    assert.match(
+      integritySource,
+      new RegExp(
+        `export\\s+const\\s+${functionName}\\s*=\\s*internal(?:Query|Mutation)\\s*\\(`
+      ),
+      `${functionName} must remain internal-only`
+    );
+  }
+});
+
+test("seeding and test-user helpers remain internal-only", async () => {
+  const versesSource = await readWorkspaceFile("convex/verses.ts");
+  const usersSource = await readWorkspaceFile("convex/users.ts");
+  const seedScript = await readWorkspaceFile("scripts/seedVerses.ts");
+
+  for (const functionName of ["insertVerse", "insertVersesBatch"]) {
+    assert.match(
+      versesSource,
+      new RegExp(
+        `export\\s+const\\s+${functionName}\\s*=\\s*internalMutation\\s*\\(`
+      )
+    );
+  }
+  assert.match(
+    usersSource,
+    /export\s+const\s+getOrCreateTestUser\s*=\s*internalMutation\s*\(/
+  );
+  assert.doesNotMatch(
+    `${versesSource}\n${usersSource}\n${seedScript}`,
+    /maintenanceToken|ADMIN_MAINTENANCE_TOKEN/
+  );
+  assert.match(seedScript, /--confirm-production-seed/);
 });
 
 test("shipping client source cannot call debug or maintenance APIs", async () => {
