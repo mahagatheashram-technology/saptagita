@@ -1,0 +1,119 @@
+# Android Production Release Checklist
+
+Release candidate: Sapta Gita `1.0.2` (`versionCode` 3)
+
+Package: `com.mahagathe.saptagita`
+
+Build profile: EAS `production`
+
+This checklist prepares a release but does not authorize a build, submission,
+backend deployment, or Play Console change.
+
+## 1. Choose the artifact path
+
+Choose exactly one path before changing Play:
+
+- **Promote the tested artifact:** Promote the existing closed-test
+  `versionCode` 2 artifact without rebuilding it. This preserves the exact
+  binary testers used. The `1.0.2`/code 3 metadata in this branch does not
+  change that uploaded artifact.
+- **Create the next artifact:** Use this branch to build the new
+  `1.0.2`/code 3 AAB. Send that exact AAB through internal/closed testing and
+  review its automated results before production. Do not describe it as the
+  previously tested code 2 binary.
+
+Record the chosen version code, EAS build URL/ID, AAB SHA-256, source commit,
+tester track, and Play release name in the release record.
+
+## 2. Pre-build gates
+
+- [ ] Merge all approved release fixes and verify a clean source commit.
+- [ ] Run `npx tsc --noEmit`.
+- [ ] Run `node --test tests/*.test.mjs`.
+- [ ] Run `npm run check:env-parity`.
+- [ ] Run `npx expo-doctor` and disposition every warning.
+- [ ] Confirm resolved Expo config reports version `1.0.2`, Android
+      `versionCode` 3, and package `com.mahagathe.saptagita`.
+- [ ] Confirm resolved EAS production config is a store/AAB build using the
+      existing EAS project, remote signing credentials, production Clerk
+      publishable key, and production Convex URL. Do not rotate credentials or
+      deploy Convex as part of this mobile release.
+- [ ] Smoke-test sign-up/sign-in, Today completion, bookmarks, streaks,
+      notifications, offline/reconnect, sign-out, and in-app account deletion
+      on a release build.
+
+## 3. Build and closed-test verification
+
+For a new artifact, an authorized release owner runs:
+
+```bash
+eas build --platform android --profile production
+```
+
+- [ ] Verify EAS produced an AAB with package
+      `com.mahagathe.saptagita`, version `1.0.2`, and code 3.
+- [ ] Install through Play internal/closed testing; do not rely only on a local
+      debug or APK build.
+- [ ] Review Play's pre-launch report for crashes, ANRs, accessibility,
+      security, and device compatibility. Resolve or explicitly accept every
+      issue.
+- [ ] Verify upgrade behavior from the currently tested code 2 artifact and
+      verify a fresh install on at least one supported Android version.
+
+## 4. Play declarations and submission
+
+- [ ] Reconcile Play **Data safety** answers with actual collection, sharing,
+      encryption, retention, authentication, analytics, notification, and
+      account-deletion behavior. Do not copy prior answers without checking the
+      release.
+- [ ] Confirm the store listing privacy-policy URL is public, accurate, and
+      reachable without authentication.
+- [ ] Confirm Play's account-deletion declaration includes both the in-app
+      Profile deletion flow and a working public web deletion-request URL.
+      Verify deletion covers Clerk identity and associated Convex user data,
+      and documents any legally required retention.
+- [ ] Complete content rating, ads, target audience, app access/reviewer
+      instructions, and any other Play policy forms shown for this release.
+- [ ] Upload/submit only the recorded artifact. If using EAS Submit, the
+      authorized release owner runs:
+
+```bash
+eas submit --platform android --profile production --latest
+```
+
+- [ ] In Play Console, verify package, signing certificate, version code,
+      countries, release notes, and artifact before confirming the release.
+
+## 5. Staged rollout and monitoring
+
+- [ ] Start production at **5–10%**, not 100%.
+- [ ] Observe at least 24 hours and a representative number of sessions before
+      increasing the rollout; repeat review at each increase.
+- [ ] Monitor Play Android vitals, crash/ANR reports, user feedback, and install
+      and upgrade success.
+- [ ] Monitor Convex function failures, latency, database I/O, calls, storage,
+      and concurrency. Investigate unexpected full-table reads or rapid
+      movement toward Free-plan quotas.
+- [ ] Monitor Clerk sign-in/sign-up failure reports, active-user usage, and
+      auth/account-deletion errors. Confirm the production Clerk instance is
+      receiving the expected traffic.
+
+Pause the rollout immediately for a reproducible data-loss/cross-user access
+issue, broken authentication or account deletion, startup/upgrade failure,
+backend error spike, crash/ANR regression, or projected Convex/Clerk quota
+exhaustion. Record an incident owner and preserve logs/build IDs. Play cannot
+downgrade installed users to code 2; remediation requires halting the rollout
+and shipping a fixed build with a version code greater than 3.
+
+## 6. Post-release verification
+
+- [ ] Install from the production listing with a new account and upgrade an
+      existing code 2 installation.
+- [ ] Repeat the core smoke flows and verify notifications after an app
+      restart.
+- [ ] Confirm new user, reading, bookmark, and deletion activity appears only
+      in the intended production Convex and Clerk instances.
+- [ ] Confirm Play vitals and backend dashboards remain healthy after 24 and
+      72 hours before completing rollout.
+- [ ] Archive the approved commit, EAS build ID, Play release ID, final rollout
+      timeline, policy declarations, known issues, and verification results.

@@ -38,11 +38,17 @@ test("Android release identity and permissions remain production-safe", () => {
   const publicConfig = getPublicExpoConfig();
 
   assert.equal(publicConfig.sdkVersion, "54.0.0");
+  assert.equal(publicConfig.version, "1.0.2");
   assert.equal(publicConfig.android.package, "com.mahagathe.saptagita");
+  assert.equal(appConfig.expo.owner, "ynsameer");
+  assert.equal(
+    appConfig.expo.extra?.eas?.projectId,
+    "7c87e9f5-5520-45f8-a689-f6fd5b75e14a",
+  );
   assert.ok(
     Number.isInteger(publicConfig.android.versionCode) &&
-      publicConfig.android.versionCode > 0,
-    "Android versionCode must remain a positive integer",
+      publicConfig.android.versionCode >= 3,
+    "Android versionCode must be newer than the uploaded versionCode 2 artifact",
   );
   assert.deepEqual(publicConfig.android.permissions, [
     "android.permission.MODIFY_AUDIO_SETTINGS",
@@ -75,6 +81,10 @@ test("EAS production profile remains a store build against production services",
     production.distribution === undefined || production.distribution === "store",
     "Production builds must not use internal distribution",
   );
+  assert.equal(production.credentialsSource ?? "remote", "remote");
+  assert.notEqual(production.developmentClient, true);
+  assert.notEqual(production.android?.buildType, "apk");
+  assert.ok(easConfig.submit?.production, "EAS production submit profile is required");
   assert.match(
     production.env.EXPO_PUBLIC_CONVEX_URL,
     /^https:\/\/[a-z0-9-]+\.convex\.cloud$/,
