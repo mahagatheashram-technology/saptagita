@@ -12,6 +12,30 @@ import {
 } from "./validators";
 import { assertMaintenanceToken } from "./maintenanceAuth";
 
+export const ACCOUNT_DELETION_PENDING_ERROR = "ACCOUNT_DELETION_PENDING";
+
+async function hashAuthId(authId: string): Promise<string> {
+  const bytes = new TextEncoder().encode(authId);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("");
+}
+
+async function getAccountDeletionRequest(ctx: any, authId: string) {
+  const authIdHash = await hashAuthId(authId);
+  return await ctx.db
+    .query("accountDeletionRequests")
+    .withIndex("by_auth_id_hash", (q: any) => q.eq("authIdHash", authIdHash))
+    .first();
+}
+
+async function assertAccountDeletionNotPending(ctx: any, authId: string) {
+  if (await getAccountDeletionRequest(ctx, authId)) {
+    throw new Error(ACCOUNT_DELETION_PENDING_ERROR);
+  }
+}
+
 async function ensureUser(ctx: any, args: {
   authId: string;
   displayName?: string | null;
@@ -103,6 +127,7 @@ export const getOrCreateUser = mutation({
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
     assertIdentitySubject(identity.subject, args.authId);
+    await assertAccountDeletionNotPending(ctx, identity.subject);
     return ensureUser(ctx, { ...args, authId: identity.subject });
   },
 });
@@ -119,7 +144,32 @@ export const getOrCreateUserFromAuth = mutation({
   handler: async (ctx, args) => {
     const identity = await requireIdentity(ctx);
     assertIdentitySubject(identity.subject, args.authId);
+    await assertAccountDeletionNotPending(ctx, identity.subject);
     return ensureUser(ctx, { ...args, authId: identity.subject });
+  },
+});
+
+export const getAccountDeletionStatus = query({
+  args: {},
+  returns: v.union(
+    v.object({
+      pending: v.literal(true),
+      requestedAt: v.number(),
+      appDataDeletedAt: v.number(),
+    }),
+    v.null()
+  ),
+  handler: async (ctx) => {
+    const identity = await requireIdentity(ctx);
+    const request = await getAccountDeletionRequest(ctx, identity.subject);
+
+    return request
+      ? {
+          pending: true as const,
+          requestedAt: request.requestedAt,
+          appDataDeletedAt: request.appDataDeletedAt,
+        }
+      : null;
   },
 });
 
@@ -272,6 +322,11 @@ export const deleteAccount = mutation({
   }),
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx);
+    const authIdHash = await hashAuthId(identity.subject);
+    const existingRequest = await getAccountDeletionRequest(
+      ctx,
+      identity.subject
+    );
     const user = await ctx.db
       .query("users")
       .withIndex("byAuthId", (q) => q.eq("authId", identity.subject))
@@ -289,6 +344,25 @@ export const deleteAccount = mutation({
       userState: 0,
       users: 0,
     };
+
+    if (existingRequest) {
+      return {
+        deleted: false,
+        alreadyDeleted: true,
+        userId: null,
+        counts: zeroCounts,
+      };
+    }
+
+    // Convex mutations are transactional. The marker and all application-data
+    // deletes either commit together or not at all, so a Clerk deletion failure
+    // can be retried without recreating a fresh Convex user.
+    const requestedAt = Date.now();
+    await ctx.db.insert("accountDeletionRequests", {
+      authIdHash,
+      requestedAt,
+      appDataDeletedAt: requestedAt,
+    });
 
     if (!user) {
       return {

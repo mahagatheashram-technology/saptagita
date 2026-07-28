@@ -123,6 +123,7 @@ const protectedExports = {
   "convex/users.ts": {
     getOrCreateUser: "requireIdentity",
     getOrCreateUserFromAuth: "requireIdentity",
+    getAccountDeletionStatus: "requireIdentity",
     getUserByAuthId: "requireIdentity",
     getUserState: "requireOwnedUser",
     markTodayGestureCoachSeen: "requireOwnedUser",

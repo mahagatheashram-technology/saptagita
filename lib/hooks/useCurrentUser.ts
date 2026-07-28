@@ -3,6 +3,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useUser } from "@clerk/clerk-expo";
 import { useConvexAuth, useMutation } from "convex/react";
 import { useEffect, useState } from "react";
+import { coordinateUserSync } from "@/lib/userSyncCoordinator";
 
 interface ConvexUser {
   _id: Id<"users">;
@@ -25,15 +26,15 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
   } = useConvexAuth();
   const syncUser = useMutation(api.users.getOrCreateUserFromAuth);
   const suspendSync = options.suspendSync ?? false;
-
-  // ADD THIS DEBUG LOG
-  console.log("[useCurrentUser] Clerk state:", {
-    isLoaded,
-    isSignedIn,
-    hasUser: !!user,
-    userId: user?.id,
-    suspendSync,
-  });
+  const [retryNonce, setRetryNonce] = useState(0);
+  const authId = user?.id ?? null;
+  const displayName =
+    user?.fullName ||
+    user?.primaryEmailAddress?.emailAddress ||
+    user?.username ||
+    "Reader";
+  const avatarUrl = user?.imageUrl || "";
+  const metadataTimezone = (user?.publicMetadata as any)?.timezone;
 
   const [state, setState] = useState<{
     user: ConvexUser | null;
@@ -46,14 +47,6 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
   });
 
   useEffect(() => {
-    // ADD THIS DEBUG LOG
-    console.log("[useCurrentUser] useEffect triggered:", {
-      isLoaded,
-      isSignedIn,
-      hasUser: !!user,
-      suspendSync,
-    });
-
     if (suspendSync) {
       setState((prev) => ({ ...prev, isLoading: false, error: null }));
       return;
@@ -62,44 +55,44 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
     if (
       !isLoaded ||
       !isSignedIn ||
-      !user ||
+      !authId ||
       isConvexAuthLoading ||
       !isConvexAuthenticated
     ) {
-      console.log("[useCurrentUser] Early return - not ready");
       setState({ user: null, isLoading: false, error: null });
       return;
     }
 
     let cancelled = false;
     const run = async () => {
-      console.log("[useCurrentUser] Starting syncUser mutation...");
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
       try {
         const timezone =
           Intl.DateTimeFormat().resolvedOptions().timeZone ||
-          (user.publicMetadata as any)?.timezone ||
+          metadataTimezone ||
           "UTC";
-
-        console.log("[useCurrentUser] Calling syncUser with:", { timezone });
-        
-        const syncedUser = await syncUser({
-          displayName:
-            user.fullName ||
-            user.primaryEmailAddress?.emailAddress ||
-            user.username ||
-            "Reader",
-          avatarUrl: user.imageUrl || "",
+        const fingerprint = JSON.stringify([
+          authId,
+          displayName,
+          avatarUrl,
           timezone,
-        });
-
-        console.log("[useCurrentUser] syncUser returned:", syncedUser);
+        ]);
+        const syncedUser = await coordinateUserSync(
+          fingerprint,
+          () =>
+            syncUser({
+              displayName,
+              avatarUrl,
+              timezone,
+            }),
+          retryNonce > 0
+        );
 
         if (!cancelled) {
           setState({ user: syncedUser as ConvexUser, isLoading: false, error: null });
         }
       } catch (error: any) {
-        console.error("[useCurrentUser] Failed to sync:", error);
+        console.error("Account sync failed", error);
         if (!cancelled) {
           setState({ user: null, isLoading: false, error });
         }
@@ -111,13 +104,17 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
       cancelled = true;
     };
   }, [
+    authId,
+    avatarUrl,
+    displayName,
     isLoaded,
     isSignedIn,
-    user,
-    syncUser,
-    suspendSync,
-    isConvexAuthLoading,
     isConvexAuthenticated,
+    isConvexAuthLoading,
+    metadataTimezone,
+    retryNonce,
+    suspendSync,
+    syncUser,
   ]);
 
   return {
@@ -131,5 +128,6 @@ export function useCurrentUser(options: UseCurrentUserOptions = {}) {
     error: state.error,
     isSignedIn,
     clerkUser: user,
+    retrySync: () => setRetryNonce((value) => value + 1),
   };
 }

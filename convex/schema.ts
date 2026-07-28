@@ -19,6 +19,14 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("byAuthId", ["authId"]),
+  // A durable marker prevents the normal Clerk -> Convex sync from recreating
+  // app data if Clerk identity deletion needs to be retried.
+  accountDeletionRequests: defineTable({
+    // Keep only a one-way digest, not the raw Clerk user ID.
+    authIdHash: v.string(),
+    requestedAt: v.number(),
+    appDataDeletedAt: v.number(),
+  }).index("by_auth_id_hash", ["authIdHash"]),
   userState: defineTable({
     userId: v.id("users"),
     mode: v.string(), // "sequential" | "random" | etc.
