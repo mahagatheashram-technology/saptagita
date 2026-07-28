@@ -3,7 +3,6 @@ import { View, Text, Pressable, ScrollView, Alert, Image } from "react-native";
 import { useAuth } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { DevPanel } from "@/components/dev/DevPanel";
 import {
   AboutSection,
   AccountSection,
@@ -167,7 +166,6 @@ export default function ProfileScreen() {
   }
 
   const email = clerkUser?.primaryEmailAddress?.emailAddress || "";
-  const isDevUser = email === "ynithinsameer@gmail.com";
 
   const handleUpdateName = async (nextName: string) => {
     if (!user) return;
@@ -251,25 +249,6 @@ export default function ProfileScreen() {
 
         <AboutSection />
 
-        {isDevUser && (
-          <>
-            <View className="mt-6 mb-3">
-              <View className="h-px bg-[#E2E8F0] mb-3" />
-              <Text className="text-xs font-semibold tracking-wide text-textSecondary">
-                Developer Tools
-              </Text>
-            </View>
-
-            <View className="bg-yellow-100 p-2 rounded-lg mb-3">
-              <Text className="text-yellow-800 text-center text-xs">
-                🛠️ Dev Mode Active
-              </Text>
-            </View>
-
-            {/* TODO: Remove DevPanel before production release. */}
-            <DevPanel userId={user._id} embedded />
-          </>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

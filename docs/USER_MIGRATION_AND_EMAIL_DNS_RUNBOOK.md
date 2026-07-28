@@ -13,31 +13,38 @@ Why: old test-era Clerk user IDs do not map cleanly to live Clerk user IDs, so a
 
 ## Safe reset workflow
 
-### 1) Deploy maintenance functions
+The historical `admin:listUsersWithProgress` and `admin:purgeAllUserData`
+functions are now internal-only. They cannot be invoked by an app client or
+with `npx convex run`. Do not reintroduce a public wrapper that accepts a
+maintenance token as a function argument; secrets in function arguments can be
+recorded in logs.
 
-```bash
-npx convex deploy
+### 1) Export a production snapshot
+
+Use the Convex dashboard's production deployment snapshot export and retain the
+snapshot for audit/history before any destructive operation.
+
+### 2) Prepare a reviewed one-off migration
+
+Create a temporary, server-authorized maintenance mutation which calls
+`internal.admin.purgeAllUserData` with:
+
+```ts
+{ confirm: "PURGE_ALL_USER_DATA" }
 ```
 
-### 2) Set a one-time maintenance token on production Convex
+The temporary entry point must be authorized with Convex/Clerk server-side
+identity and a deployment-configured admin allowlist. Never ship an
+unauthenticated or shared-secret-in-arguments wrapper.
 
-```bash
-npx convex env set ADMIN_MAINTENANCE_TOKEN "<strong-random-token>" --prod
-```
+### 3) Purge user data (only if explicitly approved)
 
-### 3) Export snapshot before any destructive action
+Deploy and execute the reviewed migration only after:
 
-```bash
-npx convex run admin:listUsersWithProgress --prod '{"token":"<strong-random-token>"}'
-```
-
-Save this output in a file for audit/history.
-
-### 4) Purge user data (only if explicitly approved)
-
-```bash
-npx convex run admin:purgeAllUserData --prod '{"token":"<strong-random-token>","confirm":"PURGE_ALL_USER_DATA"}'
-```
+- A production snapshot has completed.
+- The exact deployment has been confirmed.
+- A second reviewer has approved the destructive operation.
+- The product owner has explicitly approved the reset.
 
 This clears:
 - `activeCommunity`
@@ -51,13 +58,11 @@ This clears:
 - `userState`
 - `users`
 
-### 5) Verify after purge
+### 4) Verify and remove the one-off migration
 
-```bash
-npx convex run admin:listUsersWithProgress --prod '{"token":"<strong-random-token>"}'
-```
-
-Expected: `totalUsers: 0`.
+Verify the affected tables in the production dashboard, then remove the
+temporary entry point and deploy again. `convex/admin.ts` must remain
+internal-only.
 
 ## If you want migration instead of reset
 

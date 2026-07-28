@@ -1,25 +1,45 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
-function assertMaintenanceToken(token: string) {
-  const expected = process.env.ADMIN_MAINTENANCE_TOKEN;
-  if (!expected) {
-    throw new Error(
-      "ADMIN_MAINTENANCE_TOKEN is not configured on this deployment."
-    );
-  }
-  if (token !== expected) {
-    throw new Error("Invalid maintenance token.");
-  }
-}
+const progressRowValidator = v.object({
+  userId: v.id("users"),
+  authId: v.string(),
+  displayName: v.string(),
+  avatarUrl: v.string(),
+  timezone: v.string(),
+  createdAt: v.number(),
+  currentStreak: v.number(),
+  longestStreak: v.number(),
+  lastReadLocalDate: v.string(),
+  sequentialPointer: v.number(),
+  lastDailyDate: v.string(),
+  reminderTime: v.union(v.string(), v.null()),
+});
 
-export const listUsersWithProgress = query({
-  args: {
-    token: v.string(),
-  },
-  handler: async (ctx, args) => {
-    assertMaintenanceToken(args.token);
+const purgeCountsValidator = v.object({
+  activeCommunity: v.number(),
+  communityMembers: v.number(),
+  communities: v.number(),
+  readEvents: v.number(),
+  dailySets: v.number(),
+  streaks: v.number(),
+  bookmarks: v.number(),
+  bookmarkBuckets: v.number(),
+  userState: v.number(),
+  users: v.number(),
+});
 
+// Maintenance functions are deliberately internal-only. In particular, do not
+// expose a public wrapper that accepts a deployment secret as an argument:
+// function arguments can appear in logs and public functions are callable by
+// untrusted clients.
+export const listUsersWithProgress = internalQuery({
+  args: {},
+  returns: v.object({
+    totalUsers: v.number(),
+    rows: v.array(progressRowValidator),
+  }),
+  handler: async (ctx) => {
     const users = await ctx.db.query("users").collect();
     const streaks = await ctx.db.query("streaks").collect();
     const userStates = await ctx.db.query("userState").collect();
@@ -66,14 +86,15 @@ export const listUsersWithProgress = query({
   },
 });
 
-export const purgeAllUserData = mutation({
+export const purgeAllUserData = internalMutation({
   args: {
-    token: v.string(),
     confirm: v.string(),
   },
+  returns: v.object({
+    purged: v.boolean(),
+    counts: purgeCountsValidator,
+  }),
   handler: async (ctx, args) => {
-    assertMaintenanceToken(args.token);
-
     if (args.confirm !== "PURGE_ALL_USER_DATA") {
       throw new Error(
         "Confirmation mismatch. Pass confirm='PURGE_ALL_USER_DATA' to proceed."

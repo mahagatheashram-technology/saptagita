@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "export:web": "expo export --platform web --output-dir dist-web",
     "check:env-parity": "node scripts/check-env-parity.mjs",
+    "test:release-surface": "node --test tests/productionSurface.test.mjs",
     "spellcheck": "node scripts/spellcheck.mjs",
     "fix:qu": "node scripts/applyQuFix.mjs",
     "seed": "npx ts-node --esm scripts/seedVerses.ts",
