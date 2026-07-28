@@ -40,7 +40,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-av",
+      [
+        "expo-av",
+        {
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
