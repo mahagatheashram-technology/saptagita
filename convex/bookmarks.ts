@@ -24,6 +24,9 @@ async function ensureDefaultBucketForUser(
   ctx: any,
   userId: Id<"users">
 ): Promise<Id<"bookmarkBuckets">> {
+  if (!(await ctx.db.get(userId))) {
+    throw new Error("User not found");
+  }
   // Resolve the default bucket by its isDefault flag (robust to renames), then
   // fall back to matching the current/legacy name. This auto-migrates existing
   // users from "Saved" to "Default" without creating a duplicate bucket.
@@ -223,6 +226,7 @@ export const quickBookmark = mutation({
   ),
   handler: async (ctx, args) => {
     await requireOwnedUser(ctx, args.userId);
+    if (!(await ctx.db.get(args.verseId))) throw new Error("Verse not found");
     const bucketId = await ensureDefaultBucketForUser(ctx, args.userId);
 
     const existing = await ctx.db
@@ -259,6 +263,7 @@ export const addToBucket = mutation({
     const bucket = await ctx.db.get(args.bucketId);
     if (!bucket) throw new Error("Bucket not found");
     if (bucket.userId !== args.userId) throw new Error("Not your bucket");
+    if (!(await ctx.db.get(args.verseId))) throw new Error("Verse not found");
 
     const existing = await ctx.db
       .query("bookmarks")
@@ -385,6 +390,7 @@ export const moveBookmark = mutation({
     if (args.sourceBucketId === args.targetBucketId) {
       return { moved: false, reason: "same bucket" };
     }
+    if (!(await ctx.db.get(args.userId))) throw new Error("User not found");
 
     const [source, target] = await Promise.all([
       ctx.db.get(args.sourceBucketId),

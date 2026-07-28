@@ -25,11 +25,42 @@ async function ensureUser(ctx: any, args: {
 
   if (existingUser) {
     const nextTimezone = args.timezone ?? existingUser.timezone;
+    let ensuredUser = existingUser;
     if (nextTimezone !== existingUser.timezone) {
       await ctx.db.patch(existingUser._id, { timezone: nextTimezone });
-      return { ...existingUser, timezone: nextTimezone };
+      ensuredUser = { ...existingUser, timezone: nextTimezone };
     }
-    return existingUser;
+
+    const [userState, streak] = await Promise.all([
+      ctx.db
+        .query("userState")
+        .withIndex("byUser", (q: any) => q.eq("userId", existingUser._id))
+        .first(),
+      ctx.db
+        .query("streaks")
+        .withIndex("byUser", (q: any) => q.eq("userId", existingUser._id))
+        .first(),
+    ]);
+    if (!userState) {
+      await ctx.db.insert("userState", {
+        userId: existingUser._id,
+        mode: "sequential",
+        sequentialPointer: 0,
+        lastDailyDate: "",
+        currentDailySetId: null,
+        scriptPreference: "devanagari",
+      });
+    }
+    if (!streak) {
+      await ctx.db.insert("streaks", {
+        userId: existingUser._id,
+        currentStreak: 0,
+        longestStreak: 0,
+        lastCompletedLocalDate: "",
+        updatedAt: Date.now(),
+      });
+    }
+    return ensuredUser;
   }
 
   const userId = await ctx.db.insert("users", {

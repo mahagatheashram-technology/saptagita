@@ -7,6 +7,7 @@ import {
   dailySetValidator,
   verseValidator,
 } from "./validators";
+import { selectCanonicalDailySet } from "./integrityRules";
 
 const DAILY_VERSE_COUNT = 7;
 const TOTAL_VERSES = 701;
@@ -76,6 +77,59 @@ async function ensureSequenceInitialized(
   return { ...userState, sequentialPointer: pointer, sequenceInitialized: true };
 }
 
+async function findDailySetForDate(
+  ctx: any,
+  userId: Id<"users">,
+  localDate: string
+): Promise<any | null> {
+  const candidates = await ctx.db
+    .query("dailySets")
+    .withIndex("byUserAndDate", (q: any) =>
+      q.eq("userId", userId).eq("localDate", localDate)
+    )
+    .collect();
+
+  const eventGroups = await Promise.all(
+    candidates.map((candidate: any) =>
+      ctx.db
+        .query("readEvents")
+        .withIndex("by_dailySet", (q: any) =>
+          q.eq("dailySetId", candidate._id)
+        )
+        .collect()
+    )
+  );
+  return selectCanonicalDailySet<any>(
+    candidates.map((candidate: any, index: number) => ({
+      ...candidate,
+      id: String(candidate._id),
+      sequenceReadCount: new Set(
+        eventGroups[index]
+          .filter((event: any) => event.kind !== "reread")
+          .map((event: any) => String(event.verseId))
+      ).size,
+      totalReadCount: eventGroups[index].length,
+    }))
+  );
+}
+
+async function updateCurrentDailySet(
+  ctx: any,
+  userState: any,
+  localDate: string,
+  dailySetId: Id<"dailySets">
+) {
+  if (
+    userState.lastDailyDate !== localDate ||
+    String(userState.currentDailySetId) !== String(dailySetId)
+  ) {
+    await ctx.db.patch(userState._id, {
+      lastDailyDate: localDate,
+      currentDailySetId: dailySetId,
+    });
+  }
+}
+
 // Get or create today's daily set for a user
 export const getTodaySet = mutation({
   args: { userId: v.id("users") },
@@ -96,9 +150,39 @@ export const getTodaySet = mutation({
     if (!userState) throw new Error("User state not found");
 
     const todayDate = getTodayDateString(user.timezone);
+    // The indexed user/date lookup is the idempotency key. Convex's optimistic
+    // concurrency control retries concurrent mutations that both observe this
+    // empty index range, preventing a second insert for the same day.
+    const existingSet = await findDailySetForDate(
+      ctx,
+      args.userId,
+      todayDate
+    );
+    if (existingSet) {
+      await updateCurrentDailySet(ctx, userState, todayDate, existingSet._id);
+      const verses = await Promise.all(
+        existingSet.verseIds.map((id: Id<"verses">) => ctx.db.get(id))
+      );
+
+      const readEvents = await ctx.db
+        .query("readEvents")
+        .withIndex("by_dailySet", (q) => q.eq("dailySetId", existingSet._id))
+        .collect();
+
+      const sequenceReads = readEvents.filter(
+        (event: any) => event.kind !== "reread"
+      );
+
+      return {
+        dailySet: existingSet,
+        verses: verses.filter(Boolean),
+        readVerseIds: sequenceReads.map((e) => e.verseId),
+        isComplete: existingSet.completedAt != null,
+      };
+    }
+
     const orderedVerseIds = await getOrderedVerseIds(ctx);
     const totalVerses = orderedVerseIds.length || TOTAL_VERSES;
-
     userState = await ensureSequenceInitialized(
       ctx,
       args.userId,
@@ -106,36 +190,6 @@ export const getTodaySet = mutation({
       orderedVerseIds
     );
     if (!userState) throw new Error("User state not found");
-
-    // Check if we already have today's set
-    if (userState.currentDailySetId && userState.lastDailyDate === todayDate) {
-      const existingSet = await ctx.db.get(userState.currentDailySetId);
-      if (existingSet) {
-        // Get the actual verse documents
-        const verses = await Promise.all(
-          existingSet.verseIds.map((id: Id<"verses">) => ctx.db.get(id))
-        );
-        
-        // Get read events for this set
-        const readEvents = await ctx.db
-          .query("readEvents")
-          .withIndex("by_dailySet", (q) => q.eq("dailySetId", existingSet._id))
-          .collect();
-
-        const sequenceReads = readEvents.filter(
-          (event: any) => event.kind !== "reread"
-        );
-
-        return {
-          dailySet: existingSet,
-          verses: verses.filter(
-            (verse): verse is NonNullable<typeof verse> => verse !== null
-          ),
-          readVerseIds: sequenceReads.map((e) => e.verseId),
-          isComplete: existingSet.completedAt != null,
-        };
-      }
-    }
 
     // Need to create a new daily set
     // Get next 7 verses based on sequential pointer
@@ -158,10 +212,7 @@ export const getTodaySet = mutation({
     });
 
     // Update user state with new set (do not advance pointer)
-    await ctx.db.patch(userState._id, {
-      lastDailyDate: todayDate,
-      currentDailySetId: dailySetId,
-    });
+    await updateCurrentDailySet(ctx, userState, todayDate, dailySetId);
 
     // Get the actual verse documents
     const verses = await Promise.all(
@@ -235,9 +286,19 @@ export const markVerseRead = mutation({
     );
 
     // Check if already read (sequence)
-    const existingRead = sequenceReads.find(
-      (event: any) => String(event.verseId) === String(args.verseId)
-    );
+    const existingRead =
+      (await ctx.db
+        .query("readEvents")
+        .withIndex("by_dailySet_verse_kind", (q) =>
+          q
+            .eq("dailySetId", args.dailySetId)
+            .eq("verseId", args.verseId)
+            .eq("kind", "sequence")
+        )
+        .first()) ??
+      sequenceReads.find(
+        (event: any) => String(event.verseId) === String(args.verseId)
+      );
 
     if (existingRead) {
       const isComplete = sequenceReads.length >= dailySet.verseIds.length;
@@ -320,6 +381,7 @@ export const logReread = mutation({
     args
   ): Promise<{ streakUpdate: StreakUpdate | null }> => {
     const user = await requireOwnedUser(ctx, args.userId);
+    if (!(await ctx.db.get(args.verseId))) throw new Error("Verse not found");
 
     let userState = await ctx.db
       .query("userState")
@@ -329,10 +391,7 @@ export const logReread = mutation({
 
     const todayDate = getTodayDateString(user.timezone);
 
-    let dailySet = null;
-    if (userState.currentDailySetId && userState.lastDailyDate === todayDate) {
-      dailySet = await ctx.db.get(userState.currentDailySetId);
-    }
+    let dailySet = await findDailySetForDate(ctx, args.userId, todayDate);
 
     if (!dailySet) {
       const orderedVerseIds = await getOrderedVerseIds(ctx);
@@ -360,12 +419,11 @@ export const logReread = mutation({
         completedAt: null,
       });
 
-      await ctx.db.patch(userState._id, {
-        lastDailyDate: todayDate,
-        currentDailySetId: dailySetId,
-      });
+      await updateCurrentDailySet(ctx, userState, todayDate, dailySetId);
 
       dailySet = await ctx.db.get(dailySetId);
+    } else {
+      await updateCurrentDailySet(ctx, userState, todayDate, dailySet._id);
     }
     if (!dailySet) throw new Error("Daily set not found");
 

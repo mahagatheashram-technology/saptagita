@@ -50,7 +50,8 @@ export default defineSchema({
     kind: v.optional(v.union(v.literal("sequence"), v.literal("reread"))),
   })
     .index("by_user", ["userId"])
-    .index("by_dailySet", ["dailySetId"]),
+    .index("by_dailySet", ["dailySetId"])
+    .index("by_dailySet_verse_kind", ["dailySetId", "verseId", "kind"]),
   streaks: defineTable({
     userId: v.id("users"),
     currentStreak: v.number(),
