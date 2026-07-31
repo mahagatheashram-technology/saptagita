@@ -150,7 +150,7 @@ test("today reader count is sharded, bounded, and read as a snapshot", () => {
   );
 });
 
-test("social uses the approved compact scale and current-user treatment", () => {
+test("social fits the main leaderboard without shrinking current-user treatment", () => {
   assert.match(socialScreenSource, /text-\[25px\][^>]*>Social</);
   assert.match(todayReadersSource, /size=\{18\}/);
   assert.match(todayReadersSource, /text-\[19px\]/);
@@ -158,8 +158,9 @@ test("social uses the approved compact scale and current-user treatment", () => 
   assert.match(leaderboardRowSource, /text-\[13px\]/);
   assert.match(leaderboardRowSource, /min-w-\[36px\]/);
   assert.match(leaderboardRowSource, /numberOfLines=\{1\}/);
-  assert.match(leaderboardRowSource, /compact \? "py-1 mb-1"/);
-  assert.match(leaderboardListSource, /flex-1 px-5 pt-2/);
+  assert.match(leaderboardRowSource, /compact \? "py-2 mb-1\.5"/);
+  assert.match(leaderboardRowSource, /compact \? "h-9 w-9"/);
+  assert.match(leaderboardListSource, /flex-1 px-5 pt-3/);
 });
 
 test("leaderboard initials ignore numeric fixture suffixes", () => {

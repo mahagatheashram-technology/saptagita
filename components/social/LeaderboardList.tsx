@@ -101,7 +101,7 @@ export function LeaderboardList({
   const pinnedUser = !isCurrentUserInVisibleList ? currentUser : null;
   if (isGlobal) {
     return (
-      <View className="flex-1 px-5 pt-2">
+      <View className="flex-1 px-5 pt-3">
         {entries.map((item) => (
           <LeaderboardRow
             key={item.userId}
@@ -116,7 +116,7 @@ export function LeaderboardList({
 
         <Pressable
           onPress={() => router.push("/leaderboard")}
-          className="rounded-xl border border-primary/30 bg-primary/5 py-2 items-center mb-1 active:opacity-70"
+          className="rounded-xl border border-primary/30 bg-primary/5 py-2.5 items-center mb-2 active:opacity-70"
         >
           <Text className="text-[15px] font-semibold text-primary">View Top 50</Text>
         </Pressable>

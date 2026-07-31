@@ -24,7 +24,7 @@ export function LeaderboardRow({
 
   return (
     <View
-      className={`flex-row items-center rounded-2xl px-4 ${compact ? "py-1 mb-1" : "py-3 mb-3"} ${
+      className={`flex-row items-center rounded-2xl px-4 ${compact ? "py-2 mb-1.5" : "py-3 mb-3"} ${
         isCurrentUser ? "bg-primary/10 border border-primary/30" : "bg-surface shadow-sm"
       }`}
     >
@@ -43,17 +43,17 @@ export function LeaderboardRow({
         )}
       </View>
 
-      <View className={`${compact ? "h-7 w-7" : "h-10 w-10"} rounded-full bg-[#E2E8F0] overflow-hidden items-center justify-center`}>
+      <View className={`${compact ? "h-9 w-9" : "h-10 w-10"} rounded-full bg-[#E2E8F0] overflow-hidden items-center justify-center`}>
         {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} className={compact ? "h-7 w-7" : "h-10 w-10"} />
+          <Image source={{ uri: avatarUrl }} className={compact ? "h-9 w-9" : "h-10 w-10"} />
         ) : (
-          <Text className={`${compact ? "text-[14px]" : "text-[15px]"} font-semibold text-secondary`}>{initials}</Text>
+          <Text className="text-[15px] font-semibold text-secondary">{initials}</Text>
         )}
       </View>
 
       <View className="flex-1 ml-3">
         <Text
-          className={`${compact ? "text-[14px]" : "text-[17px]"} font-semibold ${isCurrentUser ? "text-secondary" : "text-textPrimary"}`}
+          className={`${compact ? "text-[15px]" : "text-[17px]"} font-semibold ${isCurrentUser ? "text-secondary" : "text-textPrimary"}`}
           numberOfLines={1}
         >
           {displayName || "Anonymous"}
@@ -68,7 +68,7 @@ export function LeaderboardRow({
       </View>
 
       <View className="flex-row items-center">
-        <Text className={`${compact ? "text-[15px]" : "text-[19px]"} mr-1`}>🔥</Text>
+        <Text className={`${compact ? "text-[17px]" : "text-[19px]"} mr-1`}>🔥</Text>
         <Text className={`${compact ? "text-[13px]" : "text-[15px]"} font-semibold text-secondary`}>
           {currentStreak} {streakLabel}
         </Text>
