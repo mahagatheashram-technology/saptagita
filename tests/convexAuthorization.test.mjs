@@ -178,7 +178,12 @@ const protectedExports = {
     getStreakStats: "requireOwnedUser",
     checkAndUpdateStreak: "requireOwnedUser",
     getGlobalLeaderboard: "requireCurrentUser",
+    getGlobalLeaderboardTop50: "requireCurrentUser",
+    getMyGlobalRank: "requireCurrentUser",
     getCommunityLeaderboard: "requireCurrentUser",
+  },
+  "convex/dailyReaders.ts": {
+    getTodayReaderCount: "requireCurrentUser",
   },
   "convex/communities.ts": {
     createCommunity: "resolveUser",

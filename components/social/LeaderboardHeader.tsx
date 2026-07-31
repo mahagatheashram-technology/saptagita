@@ -20,10 +20,10 @@ export function LeaderboardHeader({
     : "Global Leaderboard";
   const viewSubtitle = activeCommunityName
     ? "Streaks inside this community"
-    : "Top 50 of all users";
+    : "Top 5 of all users";
 
   return (
-    <View className="px-5 pt-3 pb-2">
+    <View className="px-5 pt-1 pb-1">
       <View className="flex-row items-center">
         <CommunityDropdown
           userId={userId}
@@ -31,8 +31,8 @@ export function LeaderboardHeader({
           onPressJoin={onPressJoin}
         />
       </View>
-      <Text className="text-xl font-semibold text-secondary mt-3">{viewTitle}</Text>
-      <Text className="text-sm text-textSecondary mt-1">{viewSubtitle}</Text>
+      <Text className="text-[21px] font-semibold text-secondary mt-1">{viewTitle}</Text>
+      <Text className="text-[15px] text-textSecondary mt-0.5">{viewSubtitle}</Text>
     </View>
   );
 }

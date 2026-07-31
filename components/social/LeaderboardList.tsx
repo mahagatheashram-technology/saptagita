@@ -1,10 +1,11 @@
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Id } from "@/convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useConvex, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { LeaderboardRow } from "./LeaderboardRow";
-import { UserRankCard } from "./UserRankCard";
+import { router } from "expo-router";
 
 export interface LeaderboardEntry {
   userId: Id<"users">;
@@ -25,11 +26,14 @@ export function LeaderboardList({
   currentUserId,
 }: LeaderboardListProps) {
   const insets = useSafeAreaInsets();
+  const convex = useConvex();
   const isGlobal = communityId === null;
+  const [globalCurrentUser, setGlobalCurrentUser] =
+    useState<LeaderboardEntry | null>(null);
 
   const globalData = useQuery(
     api.streaks.getGlobalLeaderboard,
-    isGlobal ? { currentUserId: currentUserId ?? undefined } : "skip"
+    isGlobal ? {} : "skip"
   );
   const communityData = useQuery(
     api.streaks.getCommunityLeaderboard,
@@ -38,11 +42,33 @@ export function LeaderboardList({
       : "skip"
   );
 
+  const globalLeaderboardLoaded = globalData !== undefined;
+  useEffect(() => {
+    setGlobalCurrentUser(null);
+    if (!isGlobal || !globalLeaderboardLoaded) return;
+
+    let cancelled = false;
+    void convex
+      .query(api.streaks.getMyGlobalRank, {})
+      .then((entry) => {
+        if (!cancelled) setGlobalCurrentUser(entry);
+      })
+      .catch(() => {
+        if (!cancelled) setGlobalCurrentUser(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [convex, globalLeaderboardLoaded, isGlobal]);
+
   const data = isGlobal ? globalData : communityData;
-  const entries = data?.top50 ?? [];
-  const currentUser = data?.currentUser ?? null;
-  const totalMembers = isGlobal ? undefined : communityData?.totalMembers;
-  const totalUsers = isGlobal ? globalData?.totalUsers : undefined;
+  const entries = isGlobal
+    ? globalData?.top5 ?? []
+    : communityData?.top50 ?? [];
+  const currentUser = isGlobal
+    ? globalCurrentUser
+    : communityData?.currentUser ?? null;
   const isLoading = data === undefined;
   const isEmpty = !isLoading && entries.length === 0;
 
@@ -50,7 +76,7 @@ export function LeaderboardList({
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#FF6B35" />
-        <Text className="text-textSecondary mt-3">Loading leaderboard...</Text>
+        <Text className="text-[15px] text-textSecondary mt-3">Loading leaderboard...</Text>
       </View>
     );
   }
@@ -58,27 +84,56 @@ export function LeaderboardList({
   if (isEmpty) {
     return (
       <View className="flex-1 items-center justify-center px-6">
-        <Text className="text-base font-semibold text-textPrimary text-center">
+        <Text className="text-[17px] font-semibold text-textPrimary text-center">
           No one has started a streak yet.
         </Text>
-        <Text className="text-sm text-textSecondary mt-1 text-center">
+        <Text className="text-[15px] text-textSecondary mt-1 text-center">
           Be the first!
         </Text>
       </View>
     );
   }
 
-  const isCurrentUserInTop50 = currentUserId
-    ? entries.some((entry) => entry.userId === currentUserId)
+  const resolvedCurrentUserId = currentUserId ?? currentUser?.userId;
+  const isCurrentUserInVisibleList = resolvedCurrentUserId
+    ? entries.some((entry) => entry.userId === resolvedCurrentUserId)
     : false;
-  const pinnedUser = !isCurrentUserInTop50 ? currentUser : null;
-  const totalCount =
-    totalMembers ??
-    totalUsers ??
-    (pinnedUser ? pinnedUser.rank : entries.length);
-  const listSubtitle = isGlobal
-    ? "Top 50 of all users"
-    : `${totalCount} members`;
+  const pinnedUser = !isCurrentUserInVisibleList ? currentUser : null;
+  if (isGlobal) {
+    return (
+      <View className="flex-1 px-5 pt-2">
+        {entries.map((item) => (
+          <LeaderboardRow
+            key={item.userId}
+            rank={item.rank}
+            displayName={item.displayName}
+            avatarUrl={item.avatarUrl}
+            currentStreak={item.currentStreak}
+            isCurrentUser={item.userId === resolvedCurrentUserId}
+            compact
+          />
+        ))}
+
+        <Pressable
+          onPress={() => router.push("/leaderboard")}
+          className="rounded-xl border border-primary/30 bg-primary/5 py-2 items-center mb-1 active:opacity-70"
+        >
+          <Text className="text-[15px] font-semibold text-primary">View Top 50</Text>
+        </Pressable>
+
+        {pinnedUser ? (
+          <LeaderboardRow
+            rank={pinnedUser.rank}
+            displayName={pinnedUser.displayName}
+            avatarUrl={pinnedUser.avatarUrl}
+            currentStreak={pinnedUser.currentStreak}
+            isCurrentUser
+            compact
+          />
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1">
@@ -91,7 +146,7 @@ export function LeaderboardList({
             displayName={item.displayName}
             avatarUrl={item.avatarUrl}
             currentStreak={item.currentStreak}
-            isCurrentUser={item.userId === currentUserId}
+            isCurrentUser={item.userId === resolvedCurrentUserId}
           />
         )}
         ListHeaderComponent={<View className="pb-2" />}
@@ -104,12 +159,18 @@ export function LeaderboardList({
       />
 
       {pinnedUser ? (
-        <UserRankCard
-          rank={pinnedUser.rank}
-          currentStreak={pinnedUser.currentStreak}
-          totalUsers={totalCount}
-          bottomInset={insets.bottom}
-        />
+        <View
+          className="absolute left-5 right-5"
+          style={{ bottom: 24 + insets.bottom }}
+        >
+          <LeaderboardRow
+            rank={pinnedUser.rank}
+            displayName={pinnedUser.displayName}
+            avatarUrl={pinnedUser.avatarUrl}
+            currentStreak={pinnedUser.currentStreak}
+            isCurrentUser
+          />
+        </View>
       ) : null}
     </View>
   );

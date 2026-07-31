@@ -5,6 +5,12 @@ import {
   getPreviousLocalDate,
 } from "./streakMath";
 import { requireCurrentUser, requireOwnedUser } from "./auth";
+import {
+  GLOBAL_STREAK_RANKING_METADATA_KEY,
+  globalStreakRanking,
+  insertRankedStreak,
+  patchRankedStreak,
+} from "./streakRanking";
 
 const streakUpdateValidator = v.object({
   currentStreak: v.number(),
@@ -190,12 +196,12 @@ export const updateStreakOnCompletionInternal = internalMutation({
       nextStats.longestStreak > previousStats.longestStreak;
 
     if (streakRecord) {
-      await ctx.db.patch(streakRecord._id, {
+      await patchRankedStreak(ctx, streakRecord, {
         ...nextStats,
         updatedAt: Date.now(),
       });
     } else {
-      await ctx.db.insert("streaks", {
+      await insertRankedStreak(ctx, {
         userId: args.userId,
         ...nextStats,
         updatedAt: Date.now(),
@@ -239,8 +245,14 @@ export const checkAndUpdateStreak = mutation({
     const needsReset =
       Boolean(streakRecord?.currentStreak) && currentStreak === 0;
 
-    if (streakRecord) {
-      await ctx.db.patch(streakRecord._id, {
+    const streakChanged =
+      streakRecord &&
+      (streakRecord.currentStreak !== currentStreak ||
+        streakRecord.longestStreak !== stats.longestStreak ||
+        streakRecord.lastCompletedLocalDate !== stats.lastCompletedLocalDate);
+
+    if (streakChanged) {
+      await patchRankedStreak(ctx, streakRecord, {
         currentStreak,
         longestStreak: stats.longestStreak,
         lastCompletedLocalDate: stats.lastCompletedLocalDate,
@@ -256,58 +268,101 @@ export const checkAndUpdateStreak = mutation({
   },
 });
 
+const GLOBAL_LEADERBOARD_LIMIT = 5;
+const GLOBAL_LEADERBOARD_DETAIL_LIMIT = 50;
+
+async function getGlobalLeaderboardEntries(ctx: any, limit: number) {
+  const streaks = await ctx.db
+    .query("streaks")
+    .withIndex("byCurrentStreakAndLastCompletedDate", (q: any) =>
+      q.gt("currentStreak", 0),
+    )
+    .order("desc")
+    .take(limit);
+
+  const entries = await Promise.all(
+    streaks.map(async (streak: any) => {
+      const user = await ctx.db.get(streak.userId);
+      return {
+        userId: streak.userId,
+        displayName: user?.displayName ?? "Anonymous",
+        avatarUrl: user?.avatarUrl ?? "",
+        currentStreak: streak.currentStreak,
+        lastReadLocalDate: streak.lastCompletedLocalDate ?? "",
+      };
+    }),
+  );
+
+  return entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
 export const getGlobalLeaderboard = query({
-  args: { currentUserId: v.optional(v.id("users")) },
+  args: {},
   returns: v.object({
-    top50: v.array(leaderboardEntryValidator),
-    currentUser: v.union(leaderboardEntryValidator, v.null()),
-    totalUsers: v.number(),
+    top5: v.array(leaderboardEntryValidator),
   }),
-  handler: async (ctx, args) => {
-    const currentUser = args.currentUserId
-      ? await requireOwnedUser(ctx, args.currentUserId)
-      : await requireCurrentUser(ctx);
-    const streaks = await ctx.db.query("streaks").collect();
+  handler: async (ctx) => {
+    await requireCurrentUser(ctx);
+    return {
+      top5: await getGlobalLeaderboardEntries(ctx, GLOBAL_LEADERBOARD_LIMIT),
+    };
+  },
+});
 
-    if (streaks.length === 0) {
-      return { top50: [], currentUser: null, totalUsers: 0 };
-    }
+// Bounded, imperative detail query. The Top 50 page reads this once instead of
+// keeping fifty rows subscribed to every streak update.
+export const getGlobalLeaderboardTop50 = query({
+  args: {},
+  returns: v.object({
+    entries: v.array(leaderboardEntryValidator),
+    currentUserId: v.id("users"),
+  }),
+  handler: async (ctx) => {
+    const currentUser = await requireCurrentUser(ctx);
+    return {
+      entries: await getGlobalLeaderboardEntries(
+        ctx,
+        GLOBAL_LEADERBOARD_DETAIL_LIMIT,
+      ),
+      currentUserId: currentUser._id,
+    };
+  },
+});
 
-    const leaderboard = await Promise.all(
-      streaks.map(async (streak) => {
-        const user = await ctx.db.get(streak.userId);
-        return {
-          userId: streak.userId,
-          displayName: user?.displayName ?? "Anonymous",
-          avatarUrl: user?.avatarUrl ?? "",
-          currentStreak: streak.currentStreak,
-          lastReadLocalDate: streak.lastCompletedLocalDate ?? "",
-        };
-      })
-    );
+// The client fetches this query imperatively once when the screen opens. Do not
+// turn it into a persistent useQuery subscription: broad rank dependencies can
+// cause avoidable realtime fan-out when many users update streaks together.
+export const getMyGlobalRank = query({
+  args: {},
+  returns: v.union(leaderboardEntryValidator, v.null()),
+  handler: async (ctx) => {
+    const currentUser = await requireCurrentUser(ctx);
+    const rankingMetadata = await ctx.db
+      .query("systemMetadata")
+      .withIndex("by_key", (q) =>
+        q.eq("key", GLOBAL_STREAK_RANKING_METADATA_KEY),
+      )
+      .unique();
+    if (!rankingMetadata?.ready) return null;
 
-    leaderboard.sort((a, b) => {
-      if (b.currentStreak !== a.currentStreak) {
-        return b.currentStreak - a.currentStreak;
-      }
-      const aDate = a.lastReadLocalDate ?? "";
-      const bDate = b.lastReadLocalDate ?? "";
-      return bDate.localeCompare(aDate);
-    });
+    const currentStreak = await ctx.db
+      .query("streaks")
+      .withIndex("byUser", (q) => q.eq("userId", currentUser._id))
+      .unique();
+    if (!currentStreak || currentStreak.currentStreak <= 0) return null;
 
-    const ranked = leaderboard.map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-    }));
-
-    const currentUserEntry = ranked.find(
-      (entry) => String(entry.userId) === String(currentUser._id)
-    ) ?? null;
+    const rank =
+      (await globalStreakRanking.indexOfDoc(ctx, currentStreak, {
+        id: currentStreak._id,
+      })) + 1;
 
     return {
-      top50: ranked.slice(0, 50),
-      currentUser: currentUserEntry,
-      totalUsers: ranked.length,
+      userId: currentUser._id,
+      displayName: currentUser.displayName ?? "Anonymous",
+      avatarUrl: currentUser.avatarUrl ?? "",
+      currentStreak: currentStreak.currentStreak,
+      lastReadLocalDate: currentStreak.lastCompletedLocalDate ?? "",
+      rank,
     };
   },
 });

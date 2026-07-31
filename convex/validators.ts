@@ -36,6 +36,7 @@ export const userStateValidator = v.object({
   ),
   sequenceInitialized: v.optional(v.boolean()),
   todayGestureCoachSeenAt: v.optional(v.number()),
+  lastReaderCountedLocalDate: v.optional(v.string()),
 });
 
 export const dailySetValidator = v.object({

@@ -18,6 +18,8 @@ const CELL_SIZE = 22;
 const CELL_GAP = 4;
 const LABEL_WIDTH = CELL_SIZE + CELL_GAP;
 const WEEKS_SHOWN = 12;
+const PERFECT_GREEN = "#16A34A";
+const READ_YELLOW = "#FACC15";
 
 // First day rendered by the 12-week grid (the Sunday WEEKS_SHOWN-1 weeks back).
 function getCalendarStartDate(): Date {
@@ -103,14 +105,18 @@ export function ReadingCalendar({
                 const backgroundColor = day.isFuture
                   ? "#F8FAFC"
                   : day.isPerfect
-                  ? "#F59E0B"
+                  ? PERFECT_GREEN
                   : day.isRead
-                  ? "#1F9D55"
+                  ? READ_YELLOW
                   : "#CBD5E1";
 
                 const borderColor = isToday ? "#F97316" : "transparent";
                 const textColor =
-                  day.isPerfect || day.isRead ? "#FFFFFF" : "#1F2937";
+                  day.isPerfect
+                    ? "#FFFFFF"
+                    : day.isRead
+                    ? "#3D3000"
+                    : "#1F2937";
 
                 return (
                   <View
@@ -153,8 +159,8 @@ export function ReadingCalendar({
       </View>
 
       <View className="flex-row items-center mt-3" style={{ columnGap: 12 }}>
-        <LegendSwatch color="#F59E0B" label="Perfect" />
-        <LegendSwatch color="#1F9D55" label="Read" />
+        <LegendSwatch color={PERFECT_GREEN} label="All 7 read" />
+        <LegendSwatch color={READ_YELLOW} label="Started" />
         <LegendSwatch color="#CBD5E1" label="Missed" />
         <LegendSwatch color="#F97316" label="Today" outlined />
       </View>

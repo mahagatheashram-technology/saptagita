@@ -25,6 +25,7 @@ test("every public Convex function has a reviewed module and return validator", 
   const allowedPublicModules = new Set([
     "bookmarks.ts",
     "communities.ts",
+    "dailyReaders.ts",
     "dailySets.ts",
     "streaks.ts",
     "users.ts",
@@ -63,6 +64,9 @@ test("production data paths retain required integrity and I/O indexes", async ()
     'index("by_dailySet_kind", ["dailySetId", "kind"])',
     'index("by_dailySet_verse_kind", ["dailySetId", "verseId", "kind"])',
     'index("by_auth_id_hash", ["authIdHash"])',
+    'index("by_date", ["localDate"])',
+    'index("by_date_shard", ["localDate", "shard"])',
+    'index("byCurrentStreakAndLastCompletedDate", [',
   ]) {
     assert.ok(schema.includes(index), `Missing required schema ${index}`);
   }
