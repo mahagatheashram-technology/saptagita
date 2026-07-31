@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, Stack } from "expo-router";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -26,7 +26,8 @@ export default function LeaderboardScreen() {
       })
       .catch((queryError) => {
         if (!cancelled) {
-          setError(String(queryError?.message ?? queryError));
+          console.error("Failed to load the Top 50 leaderboard", queryError);
+          setError("The leaderboard could not be loaded. Please try again.");
           setEntries([]);
         }
       });
@@ -37,9 +38,14 @@ export default function LeaderboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <Stack.Screen options={{ headerShown: false }} />
       <View className="flex-row items-center px-4 py-3">
-        <Pressable onPress={() => router.replace("/social")} hitSlop={10} className="mr-2">
+        <Pressable
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/social")
+          }
+          hitSlop={10}
+          className="mr-2"
+        >
           <Ionicons name="chevron-back" size={25} color="#1A365D" />
         </Pressable>
         <View>

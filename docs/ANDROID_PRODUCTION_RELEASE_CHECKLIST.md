@@ -29,15 +29,20 @@ tester track, and Play release name in the release record.
 
 - [ ] Merge all approved release fixes and verify a clean source commit.
 - [ ] Run `npx tsc --noEmit`.
-- [ ] Run `node --test tests/*.test.mjs`.
+- [ ] Use the Node version declared by `.nvmrc` (or a newer supported version)
+      and run `npm test`.
 - [ ] Run `npm run check:env-parity`.
 - [ ] Run `npx expo-doctor` and disposition every warning.
 - [ ] Confirm resolved Expo config reports version `1.0.2`, Android
       `versionCode` 3, and package `com.mahagathe.saptagita`.
 - [ ] Confirm resolved EAS production config is a store/AAB build using the
       existing EAS project, remote signing credentials, production Clerk
-      publishable key, and production Convex URL. Do not rotate credentials or
-      deploy Convex as part of this mobile release.
+      publishable key, and production Convex URL. Do not rotate credentials.
+- [ ] If the release includes the Social ranking backend, an authorized backend
+      owner must deploy it and complete
+      `docs/GLOBAL_STREAK_RANKING_RUNBOOK.md` before Android rollout. Record the
+      deployment and backfill evidence; do not treat the mobile build as
+      authorization for backend changes.
 - [ ] Smoke-test sign-up/sign-in, Today completion, bookmarks, streaks,
       notifications, offline/reconnect, sign-out, and in-app account deletion
       on a release build.

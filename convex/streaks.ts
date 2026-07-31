@@ -7,6 +7,7 @@ import {
 import { requireCurrentUser, requireOwnedUser } from "./auth";
 import {
   GLOBAL_STREAK_RANKING_METADATA_KEY,
+  GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
   globalStreakRanking,
   insertRankedStreak,
   patchRankedStreak,
@@ -343,7 +344,12 @@ export const getMyGlobalRank = query({
         q.eq("key", GLOBAL_STREAK_RANKING_METADATA_KEY),
       )
       .unique();
-    if (!rankingMetadata?.ready) return null;
+    if (
+      !rankingMetadata?.ready ||
+      rankingMetadata.maxNodeSize !== GLOBAL_STREAK_RANKING_MAX_NODE_SIZE
+    ) {
+      throw new Error("Global streak ranking is not ready");
+    }
 
     const currentStreak = await ctx.db
       .query("streaks")
