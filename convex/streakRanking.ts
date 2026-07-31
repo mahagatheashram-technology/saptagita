@@ -2,6 +2,15 @@ import { TableAggregate } from "@convex-dev/aggregate";
 import { components } from "./_generated/api";
 import type { DataModel, Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import {
+  GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
+  localDateRankValue,
+} from "./streakRankingKey";
+
+export {
+  GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
+  localDateRankValue,
+} from "./streakRankingKey";
 
 type StreakRankKey = [number, number, number];
 type StreakInsert = Omit<Doc<"streaks">, "_id" | "_creationTime">;
@@ -12,11 +21,6 @@ export const GLOBAL_STREAK_RANKING_METADATA_KEY =
 
 export function isRankedStreak(streak: Pick<Doc<"streaks">, "currentStreak">) {
   return streak.currentStreak > 0;
-}
-
-function localDateRankValue(localDate: string): number {
-  const compactDate = Number(localDate.replaceAll("-", ""));
-  return Number.isFinite(compactDate) ? compactDate : 0;
 }
 
 // Ascending aggregate keys mirror the shipped leaderboard's descending Convex

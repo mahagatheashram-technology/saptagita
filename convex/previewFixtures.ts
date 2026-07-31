@@ -3,6 +3,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   GLOBAL_STREAK_RANKING_METADATA_KEY,
+  GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
   globalStreakRanking,
 } from "./streakRanking";
 import { incrementDailyReaderCount } from "./dailyReaders";
@@ -13,9 +14,15 @@ const FIXTURE_USER_COUNT = 55;
 const TODAY_READER_COUNT = 43;
 
 function requirePreviewFixturesEnabled() {
-  if (process.env.ALLOW_PREVIEW_FIXTURES !== "true") {
+  const deploymentUrl = process.env.CONVEX_CLOUD_URL;
+  const allowedDeploymentUrl = process.env.PREVIEW_FIXTURE_CONVEX_URL;
+  if (
+    process.env.ALLOW_PREVIEW_FIXTURES !== "true" ||
+    !deploymentUrl ||
+    deploymentUrl !== allowedDeploymentUrl
+  ) {
     throw new Error(
-      "Preview fixtures are disabled. Set ALLOW_PREVIEW_FIXTURES=true only on an isolated development deployment.",
+      "Preview fixtures require both ALLOW_PREVIEW_FIXTURES=true and PREVIEW_FIXTURE_CONVEX_URL matching this isolated deployment.",
     );
   }
 }
@@ -201,7 +208,10 @@ export const seed = internalMutation({
       if (!currentUser) throw new Error("Could not create preview current user");
     }
 
-    await globalStreakRanking.clear(ctx);
+    await globalStreakRanking.clear(ctx, {
+      maxNodeSize: GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
+      rootLazy: true,
+    });
     await deletePreviewUsers(ctx);
     const currentStreakDays = args.scenario === "rank1" ? 70 : 50;
     const { today, partialDate } = await replaceCurrentUserHistory(
@@ -271,12 +281,18 @@ export const seed = internalMutation({
       )
       .unique();
     if (metadata) {
-      await ctx.db.patch(metadata._id, { ready: true, completedAt: Date.now() });
+      await ctx.db.patch(metadata._id, {
+        ready: true,
+        completedAt: Date.now(),
+        cursor: undefined,
+        maxNodeSize: GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
+      });
     } else {
       await ctx.db.insert("systemMetadata", {
         key: GLOBAL_STREAK_RANKING_METADATA_KEY,
         ready: true,
         completedAt: Date.now(),
+        maxNodeSize: GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
       });
     }
 

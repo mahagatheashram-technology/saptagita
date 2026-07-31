@@ -65,6 +65,8 @@ test("debug and maintenance modules expose internal Convex functions only", asyn
   );
   assertInternalOnlyModule(previewFixturesSource, "convex/previewFixtures.ts");
   assert.match(previewFixturesSource, /ALLOW_PREVIEW_FIXTURES/);
+  assert.match(previewFixturesSource, /PREVIEW_FIXTURE_CONVEX_URL/);
+  assert.match(previewFixturesSource, /CONVEX_CLOUD_URL/);
   assert.match(previewFixturesSource, /ISOLATED_DEV_ONLY/);
 
   for (const functionName of [

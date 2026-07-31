@@ -53,7 +53,8 @@ export function LeaderboardList({
       .then((entry) => {
         if (!cancelled) setGlobalCurrentUser(entry);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Failed to load signed-in user's global rank", error);
         if (!cancelled) setGlobalCurrentUser(null);
       });
 

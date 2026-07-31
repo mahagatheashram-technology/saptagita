@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { getInitials } from "../components/social/leaderboardPresentation.ts";
+import {
+  GLOBAL_STREAK_RANKING_MAX_NODE_SIZE,
+  localDateRankValue,
+} from "../convex/streakRankingKey.ts";
 
 const dailySetsSource = await readFile(
   new URL("../convex/dailySets.ts", import.meta.url),
@@ -17,6 +21,14 @@ const streaksSource = await readFile(
 );
 const streakRankingSource = await readFile(
   new URL("../convex/streakRanking.ts", import.meta.url),
+  "utf8",
+);
+const streakRankingMigrationSource = await readFile(
+  new URL("../convex/streakRankingMigration.ts", import.meta.url),
+  "utf8",
+);
+const debugSource = await readFile(
+  new URL("../convex/debug.ts", import.meta.url),
   "utf8",
 );
 const dailyReadersSource = await readFile(
@@ -97,6 +109,10 @@ test("global leaderboard remains bounded to five and personal rank is logarithmi
   assert.match(leaderboardReadPath, /\.take\(\s*limit\s*\)/);
   assert.match(streaksSource, /const GLOBAL_LEADERBOARD_LIMIT = 5/);
   assert.match(streaksSource, /globalStreakRanking\.indexOfDoc/);
+  assert.match(
+    streaksSource,
+    /rankingMetadata\.maxNodeSize\s*!==\s*GLOBAL_STREAK_RANKING_MAX_NODE_SIZE/,
+  );
   assert.match(streakRankingSource, /TableAggregate/);
   assert.doesNotMatch(leaderboardReadPath, /\.collect\s*\(/);
   assert.match(
@@ -106,6 +122,29 @@ test("global leaderboard remains bounded to five and personal rank is logarithmi
   assert.doesNotMatch(
     leaderboardListSource,
     /useQuery\(\s*api\.streaks\.getMyGlobalRank/,
+  );
+});
+
+test("global rank tuning is explicit and empty dates retain index ordering", () => {
+  assert.equal(GLOBAL_STREAK_RANKING_MAX_NODE_SIZE, 64);
+  assert.ok(
+    -localDateRankValue("2026-07-31") < -localDateRankValue(""),
+    "a valid recent date must rank before an empty date",
+  );
+  assert.match(
+    streakRankingMigrationSource,
+    /maxNodeSize:\s*v\.literal\(GLOBAL_STREAK_RANKING_MAX_NODE_SIZE\)/,
+  );
+  assert.match(streakRankingMigrationSource, /rootLazy:\s*true/);
+  assert.match(streakRankingMigrationSource, /metadata\.cursor/);
+});
+
+test("debug streak rewrites keep the exact-rank aggregate synchronized", () => {
+  const directStreakPatch = /ctx\.db\.patch\(streak\._id/g;
+  assert.doesNotMatch(debugSource, directStreakPatch);
+  assert.equal(
+    debugSource.match(/patchRankedStreak\(ctx, streak,/g)?.length,
+    3,
   );
 });
 
@@ -178,6 +217,12 @@ test("calendar distinguishes started and perfect days", () => {
 
 test("preview fixtures are isolated and reconciliation-safe", () => {
   assert.match(previewFixturesSource, /process\.env\.ALLOW_PREVIEW_FIXTURES/);
+  assert.match(previewFixturesSource, /process\.env\.CONVEX_CLOUD_URL/);
+  assert.match(previewFixturesSource, /process\.env\.PREVIEW_FIXTURE_CONVEX_URL/);
+  assert.match(
+    previewFixturesSource,
+    /maxNodeSize:\s*GLOBAL_STREAK_RANKING_MAX_NODE_SIZE/,
+  );
   assert.match(previewFixturesSource, /internalMutation/);
   assert.doesNotMatch(previewFixturesSource, /export const \w+ = mutation\(/);
   assert.match(previewFixturesSource, /completedAt: timestamp \+ 60_000/);

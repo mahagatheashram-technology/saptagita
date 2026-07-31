@@ -32,6 +32,7 @@ export default defineSchema({
     ready: v.boolean(),
     completedAt: v.optional(v.number()),
     cursor: v.optional(v.string()),
+    maxNodeSize: v.optional(v.number()),
   }).index("by_key", ["key"]),
   userState: defineTable({
     userId: v.id("users"),
