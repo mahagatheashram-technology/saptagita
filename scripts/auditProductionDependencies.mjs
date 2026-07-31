@@ -1,16 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-const toolingOnlyAdvisories = new Map([
-  [
-    1124334,
-    {
-      package: "brace-expansion",
-      advisory: "GHSA-mh99-v99m-4gvg",
-      rationale:
-        "Only reached through Expo/React Native codegen, Metro globbing, and Jest/coverage tooling. These packages are not imported by the production application bundle.",
-    },
-  ],
-]);
+const toolingOnlyAdvisories = new Map();
 
 const result = spawnSync(
   process.platform === "win32" ? "npm.cmd" : "npm",
