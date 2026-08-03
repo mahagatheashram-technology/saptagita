@@ -1,19 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "convex/react";
+import { useConvex, useQuery } from "convex/react";
+import { usePathname } from "expo-router";
 import { api } from "@/convex/_generated/api";
 import {
   LeaderboardList,
   LeaderboardHeader,
   CreateCommunityModal,
   JoinCommunityModal,
+  TodayReadersStat,
 } from "@/components/social";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 
 export default function SocialScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [todayReaderCount, setTodayReaderCount] = useState<number | null>(null);
+  const convex = useConvex();
+  const pathname = usePathname();
   const { user, error: userError } = useCurrentUser();
   const activeCommunity = useQuery(
     api.communities.getActiveCommunity,
@@ -24,13 +29,37 @@ export default function SocialScreen() {
   const activeCommunityName = activeCommunity?.name ?? null;
   const activeCommunityId = activeCommunity?._id ?? null;
 
+  // One snapshot per visit avoids turning a popular global statistic into a
+  // realtime fan-out subscription when many readers start together.
+  useEffect(() => {
+    if (!user?._id || !pathname.includes("social")) {
+      if (!user?._id) setTodayReaderCount(null);
+      return;
+    }
+
+    let cancelled = false;
+    void convex
+      .query(api.dailyReaders.getTodayReaderCount, {})
+      .then((result) => {
+        if (!cancelled) setTodayReaderCount(result.count);
+      })
+      .catch((error) => {
+        console.log("Could not load today's reader count", error);
+        if (!cancelled) setTodayReaderCount(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [convex, pathname, user?._id]);
+
   if (userError) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
-        <Text className="text-base font-semibold text-textPrimary mb-2">
+        <Text className="text-[17px] font-semibold text-textPrimary mb-2">
           Could not load your account
         </Text>
-        <Text className="text-sm text-textSecondary text-center">
+        <Text className="text-[15px] text-textSecondary text-center">
           {String(userError?.message ?? userError)}
         </Text>
       </SafeAreaView>
@@ -39,12 +68,14 @@ export default function SocialScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <View className="px-5 pt-4 pb-2">
-        <Text className="text-2xl font-bold text-secondary">Social</Text>
-        <Text className="text-sm text-textSecondary mt-1">
+      <View className="px-5 pt-3 pb-1">
+        <Text className="text-[25px] font-bold text-secondary">Social</Text>
+        <Text className="text-[15px] text-textSecondary mt-1">
           Climb the global streak leaderboard or compete inside your community.
         </Text>
       </View>
+
+      <TodayReadersStat count={todayReaderCount} />
 
       <LeaderboardHeader
         userId={user?._id ?? null}
@@ -63,7 +94,7 @@ export default function SocialScreen() {
         {isActiveCommunityLoading ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#FF6B35" />
-            <Text className="text-sm text-textSecondary mt-2">
+            <Text className="text-[15px] text-textSecondary mt-2">
               Loading communities...
             </Text>
           </View>
@@ -76,14 +107,14 @@ export default function SocialScreen() {
       </View>
 
       {/* Foundation branding footer */}
-      <View className="items-center py-2 pb-1">
+      <View className="items-center py-1">
         <View className="flex-row items-center">
           <Image
             source={require("@/assets/images/mahagathe-foundation-logo.png")}
-            style={{ width: 16, height: 16, marginRight: 6 }}
+            style={{ width: 17, height: 17, marginRight: 6 }}
             resizeMode="contain"
           />
-          <Text className="text-[10px] text-textSecondary/40 tracking-[0.5px]">
+          <Text className="text-[11px] text-textSecondary/40 tracking-[0.5px]">
             A Mahagathe Foundation Initiative
           </Text>
         </View>

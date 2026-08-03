@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { patchRankedStreak } from "./streakRanking";
 
 const userValidator = v.object({
   _id: v.id("users"),
@@ -148,7 +149,7 @@ export const simulateNextDay = internalMutation({
     let newStreakDate = streak?.lastCompletedLocalDate;
     if (streak) {
       const yesterday = getYesterdayDateString(user.timezone || "UTC");
-      await ctx.db.patch(streak._id, {
+      await patchRankedStreak(ctx, streak, {
         lastCompletedLocalDate: yesterday,
         updatedAt: Date.now(),
       });
@@ -190,10 +191,11 @@ export const simulateMissedDay = internalMutation({
 
     // If there's a streak, set lastCompletedLocalDate to 3 days ago
     // This will cause checkAndUpdateStreak to reset it
+    let missedStreakDate: string | undefined;
     if (streak) {
-      const threeDaysAgo = getPastDateString(3);
-      await ctx.db.patch(streak._id, {
-        lastCompletedLocalDate: threeDaysAgo,
+      missedStreakDate = getPastDateString(3);
+      await patchRankedStreak(ctx, streak, {
+        lastCompletedLocalDate: missedStreakDate,
       });
     }
 
@@ -205,7 +207,7 @@ export const simulateMissedDay = internalMutation({
 
     return {
       message: "Simulated missed day. Streak should reset on next app open.",
-      streakLastDate: streak?.lastCompletedLocalDate,
+      streakLastDate: missedStreakDate,
     };
   },
 });
@@ -336,7 +338,7 @@ export const resetUserProgress = internalMutation({
       .first();
 
     if (streak) {
-      await ctx.db.patch(streak._id, {
+      await patchRankedStreak(ctx, streak, {
         currentStreak: 0,
         longestStreak: 0,
         lastCompletedLocalDate: "",

@@ -11,6 +11,8 @@ import {
   userStateValidator,
   userValidator,
 } from "./validators";
+import { deleteRankedStreak, insertRankedStreak } from "./streakRanking";
+import { decrementDailyReaderCount } from "./dailyReaders";
 
 export const ACCOUNT_DELETION_PENDING_ERROR = "ACCOUNT_DELETION_PENDING";
 
@@ -109,7 +111,7 @@ async function ensureUser(ctx: any, args: {
       });
     }
     if (!streak) {
-      await ctx.db.insert("streaks", {
+      await insertRankedStreak(ctx, {
         userId: existingUser._id,
         currentStreak: 0,
         longestStreak: 0,
@@ -137,7 +139,7 @@ async function ensureUser(ctx: any, args: {
     scriptPreference: "devanagari",
   });
 
-  await ctx.db.insert("streaks", {
+  await insertRankedStreak(ctx, {
     userId,
     currentStreak: 0,
     longestStreak: 0,
@@ -503,7 +505,7 @@ export const deleteAccount = mutation({
       .withIndex("byUser", (q) => q.eq("userId", userId))
       .collect();
     for (const streak of streaks) {
-      await ctx.db.delete(streak._id);
+      await deleteRankedStreak(ctx, streak);
       counts.streaks += 1;
     }
 
@@ -529,6 +531,14 @@ export const deleteAccount = mutation({
       .query("userState")
       .withIndex("byUser", (q) => q.eq("userId", userId))
       .collect();
+    const countedReaderDates = new Set(
+      userStateDocs
+        .map((state) => state.lastReaderCountedLocalDate)
+        .filter((date): date is string => Boolean(date)),
+    );
+    for (const localDate of countedReaderDates) {
+      await decrementDailyReaderCount(ctx, userId, localDate);
+    }
     for (const userState of userStateDocs) {
       await ctx.db.delete(userState._id);
       counts.userState += 1;

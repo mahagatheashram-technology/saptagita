@@ -1,6 +1,6 @@
 # Android dependency security audit
 
-Audit date: 2026-07-27
+Audit date: 2026-07-31
 
 Release baseline: `codex/android-production-fixes` at `469dca0`
 
@@ -38,7 +38,7 @@ runtime-reachable critical/high findings fell to 0.
 | `ws` | High | Mixed: Clerk web dependencies plus Metro/dev middleware | Patched every vulnerable 6.x, 7.x, and 8.x instance |
 | `shell-quote` | Critical | Tooling only: React Native DevTools | Patched within 1.x |
 | `tar` | Critical | Tooling only: Expo CLI archive handling | Patched within 7.x |
-| `@isaacs/brace-expansion`, `brace-expansion`, `minimatch` | High | Tooling only: Expo CLI/config, React Native codegen, Metro/Jest globbing | Patched where compatible; one upstream advisory has no non-breaking fix for abandoned 1.x consumers and is documented below |
+| `@isaacs/brace-expansion`, `brace-expansion`, `minimatch` | High | Tooling only: Expo CLI/config, React Native codegen, Metro/Jest globbing | Patched every installed `brace-expansion` major to a compatible fixed release |
 | `@xmldom/xmldom` | High | Tooling only: Expo plist/config generation | Patched within 0.8.x |
 | `js-yaml` | High | Tooling only: Expo formatting and Jest coverage config | Patched within the installed 3.x and 4.x lines |
 | `picomatch` | High | Tooling only: Tailwind, Metro, Jest file matching | Patched within each installed major |
@@ -49,20 +49,11 @@ runtime-reachable critical/high findings fell to 0.
 
 ## Reviewed residual
 
-`GHSA-mh99-v99m-4gvg` affects `brace-expansion <=5.0.7`. The affected
-instances are reached only through:
-
-- React Native codegen and its `glob@7` dependency;
-- React Native/Expo development middleware;
-- Jest/Babel coverage tooling.
-
-The fixed `brace-expansion@5.0.8` is a major-version change for the abandoned
-1.x dependency required by `minimatch@3`/`glob@7`. Globally forcing version 5
-would break their CommonJS API contract and risks breaking Expo SDK 54 builds.
-The application does not accept attacker-controlled glob patterns, and this code
-is not shipped in the Android bundle. The gate therefore records this exact
-advisory as tooling-only. Remove the exception when a future Expo/React Native
-SDK replaces the old glob chain.
+There are no accepted critical/high advisory exceptions. On 2026-07-31,
+`GHSA-mh99-v99m-4gvg` expanded to cover older 1.x and 2.x releases, and fixed
+compatible releases became available. The committed lockfile now resolves the
+affected paths to `brace-expansion` 1.1.18, 2.1.4, and 5.0.9. Moderate and low
+tooling findings remain visible for a future Expo SDK upgrade.
 
 ## Maintenance
 

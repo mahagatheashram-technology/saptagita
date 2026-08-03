@@ -46,6 +46,12 @@ test("debug and maintenance modules expose internal Convex functions only", asyn
   const integritySource = await readWorkspaceFile(
     "convex/integrityMigration.ts"
   );
+  const streakRankingSource = await readWorkspaceFile(
+    "convex/streakRankingMigration.ts"
+  );
+  const previewFixturesSource = await readWorkspaceFile(
+    "convex/previewFixtures.ts"
+  );
 
   assertInternalOnlyModule(debugSource, "convex/debug.ts");
   assertInternalOnlyModule(adminSource, "convex/admin.ts");
@@ -53,6 +59,15 @@ test("debug and maintenance modules expose internal Convex functions only", asyn
     integritySource,
     "convex/integrityMigration.ts"
   );
+  assertInternalOnlyModule(
+    streakRankingSource,
+    "convex/streakRankingMigration.ts"
+  );
+  assertInternalOnlyModule(previewFixturesSource, "convex/previewFixtures.ts");
+  assert.match(previewFixturesSource, /ALLOW_PREVIEW_FIXTURES/);
+  assert.match(previewFixturesSource, /PREVIEW_FIXTURE_CONVEX_URL/);
+  assert.match(previewFixturesSource, /CONVEX_CLOUD_URL/);
+  assert.match(previewFixturesSource, /ISOLATED_DEV_ONLY/);
 
   for (const functionName of [
     "getDebugState",

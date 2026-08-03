@@ -1,5 +1,6 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { globalStreakRanking } from "./streakRanking";
 
 const progressRowValidator = v.object({
   userId: v.id("users"),
@@ -22,6 +23,7 @@ const purgeCountsValidator = v.object({
   communities: v.number(),
   readEvents: v.number(),
   dailySets: v.number(),
+  dailyReaderCounts: v.number(),
   streaks: v.number(),
   bookmarks: v.number(),
   bookmarkBuckets: v.number(),
@@ -107,6 +109,7 @@ export const purgeAllUserData = internalMutation({
       communities: 0,
       readEvents: 0,
       dailySets: 0,
+      dailyReaderCounts: 0,
       streaks: 0,
       bookmarks: 0,
       bookmarkBuckets: 0,
@@ -148,6 +151,13 @@ export const purgeAllUserData = internalMutation({
     for (const doc of streaks) {
       await ctx.db.delete(doc._id);
       counts.streaks += 1;
+    }
+    await globalStreakRanking.clear(ctx);
+
+    const dailyReaderCounts = await ctx.db.query("dailyReaderCounts").collect();
+    for (const doc of dailyReaderCounts) {
+      await ctx.db.delete(doc._id);
+      counts.dailyReaderCounts += 1;
     }
 
     const bookmarks = await ctx.db.query("bookmarks").collect();

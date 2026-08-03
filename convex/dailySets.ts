@@ -9,6 +9,7 @@ import {
   verseValidator,
 } from "./validators";
 import { selectCanonicalDailySet } from "./integrityRules";
+import { incrementDailyReaderCount } from "./dailyReaders";
 import {
   CHAPTER_VERSE_COUNTS,
   getCanonicalIndex,
@@ -433,9 +434,21 @@ export const markVerseRead = mutation({
     const isComplete = newReadCount >= dailySet.verseIds.length;
     let streakUpdate: StreakUpdate | null = null;
 
+    const isFirstReadToday =
+      userState.lastReaderCountedLocalDate !== dailySet.localDate;
     await ctx.db.patch(userState._id, {
       sequentialPointer: ((userState.sequentialPointer ?? 0) + 1) % TOTAL_VERSES,
+      ...(isFirstReadToday
+        ? { lastReaderCountedLocalDate: dailySet.localDate }
+        : {}),
     });
+    if (isFirstReadToday) {
+      streakUpdate = await ctx.runMutation(
+        internal.streaks.updateStreakOnReadInternal,
+        { userId: args.userId, localDate: dailySet.localDate },
+      );
+      await incrementDailyReaderCount(ctx, args.userId, dailySet.localDate);
+    }
 
     if (isComplete && !dailySet.completedAt) {
       // Mark set as complete
