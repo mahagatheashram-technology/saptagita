@@ -12,6 +12,7 @@ import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as bookmarks from "../bookmarks.js";
 import type * as communities from "../communities.js";
+import type * as dailyReaderMigration from "../dailyReaderMigration.js";
 import type * as dailyReaders from "../dailyReaders.js";
 import type * as dailySets from "../dailySets.js";
 import type * as debug from "../debug.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   bookmarks: typeof bookmarks;
   communities: typeof communities;
+  dailyReaderMigration: typeof dailyReaderMigration;
   dailyReaders: typeof dailyReaders;
   dailySets: typeof dailySets;
   debug: typeof debug;

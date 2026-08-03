@@ -297,15 +297,95 @@ async function getGlobalLeaderboardEntries(ctx: any, limit: number) {
   return entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
+async function getGlobalRankingMetadata(ctx: any) {
+  return await ctx.db
+    .query("systemMetadata")
+    .withIndex("by_key", (q: any) =>
+      q.eq("key", GLOBAL_STREAK_RANKING_METADATA_KEY),
+    )
+    .unique();
+}
+
+function isGlobalRankingReady(rankingMetadata: any): boolean {
+  if (
+    !rankingMetadata?.ready ||
+    rankingMetadata.maxNodeSize !== GLOBAL_STREAK_RANKING_MAX_NODE_SIZE
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+async function getGlobalRankEntry(ctx: any, currentUser: any) {
+  const currentStreak = await ctx.db
+    .query("streaks")
+    .withIndex("byUser", (q: any) => q.eq("userId", currentUser._id))
+    .unique();
+  if (!currentStreak || currentStreak.currentStreak <= 0) return null;
+
+  const rank =
+    (await globalStreakRanking.indexOfDoc(ctx, currentStreak, {
+      id: currentStreak._id,
+    })) + 1;
+
+  return {
+    userId: currentUser._id,
+    displayName: currentUser.displayName ?? "Anonymous",
+    avatarUrl: currentUser.avatarUrl ?? "",
+    currentStreak: currentStreak.currentStreak,
+    lastReadLocalDate: currentStreak.lastCompletedLocalDate ?? "",
+    rank,
+  };
+}
+
 export const getGlobalLeaderboard = query({
-  args: {},
+  // versionCode 3 sends currentUserId and reads the legacy fields. versionCode
+  // 4 omits it and reads top5. Keep this superset contract until code 3 is no
+  // longer supported.
+  args: { currentUserId: v.optional(v.id("users")) },
   returns: v.object({
     top5: v.array(leaderboardEntryValidator),
+    top50: v.array(leaderboardEntryValidator),
+    currentUser: v.union(leaderboardEntryValidator, v.null()),
+    totalUsers: v.number(),
   }),
-  handler: async (ctx) => {
-    await requireCurrentUser(ctx);
+  handler: async (ctx, args) => {
+    const currentUser = args.currentUserId
+      ? await requireOwnedUser(ctx, args.currentUserId)
+      : await requireCurrentUser(ctx);
+    const legacyClient = Boolean(args.currentUserId);
+    const entries = await getGlobalLeaderboardEntries(
+      ctx,
+      legacyClient ? GLOBAL_LEADERBOARD_DETAIL_LIMIT : GLOBAL_LEADERBOARD_LIMIT,
+    );
+
+    if (!legacyClient) {
+      return {
+        top5: entries,
+        top50: [],
+        currentUser: null,
+        totalUsers: 0,
+      };
+    }
+
+    const rankingMetadata = await getGlobalRankingMetadata(ctx);
+    const rankingReady = isGlobalRankingReady(rankingMetadata);
+    const visibleCurrentUser =
+      entries.find(
+        (entry) => String(entry.userId) === String(currentUser._id),
+      ) ?? null;
+    const currentUserEntry =
+      visibleCurrentUser ??
+      (rankingReady ? await getGlobalRankEntry(ctx, currentUser) : null);
+
     return {
-      top5: await getGlobalLeaderboardEntries(ctx, GLOBAL_LEADERBOARD_LIMIT),
+      top5: entries.slice(0, GLOBAL_LEADERBOARD_LIMIT),
+      top50: entries,
+      currentUser: currentUserEntry,
+      totalUsers: rankingReady
+        ? await globalStreakRanking.count(ctx)
+        : entries.length,
     };
   },
 });
@@ -338,38 +418,11 @@ export const getMyGlobalRank = query({
   returns: v.union(leaderboardEntryValidator, v.null()),
   handler: async (ctx) => {
     const currentUser = await requireCurrentUser(ctx);
-    const rankingMetadata = await ctx.db
-      .query("systemMetadata")
-      .withIndex("by_key", (q) =>
-        q.eq("key", GLOBAL_STREAK_RANKING_METADATA_KEY),
-      )
-      .unique();
-    if (
-      !rankingMetadata?.ready ||
-      rankingMetadata.maxNodeSize !== GLOBAL_STREAK_RANKING_MAX_NODE_SIZE
-    ) {
+    const rankingMetadata = await getGlobalRankingMetadata(ctx);
+    if (!isGlobalRankingReady(rankingMetadata)) {
       throw new Error("Global streak ranking is not ready");
     }
-
-    const currentStreak = await ctx.db
-      .query("streaks")
-      .withIndex("byUser", (q) => q.eq("userId", currentUser._id))
-      .unique();
-    if (!currentStreak || currentStreak.currentStreak <= 0) return null;
-
-    const rank =
-      (await globalStreakRanking.indexOfDoc(ctx, currentStreak, {
-        id: currentStreak._id,
-      })) + 1;
-
-    return {
-      userId: currentUser._id,
-      displayName: currentUser.displayName ?? "Anonymous",
-      avatarUrl: currentUser.avatarUrl ?? "",
-      currentStreak: currentStreak.currentStreak,
-      lastReadLocalDate: currentStreak.lastCompletedLocalDate ?? "",
-      rank,
-    };
+    return await getGlobalRankEntry(ctx, currentUser);
   },
 });
 

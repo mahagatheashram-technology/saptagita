@@ -35,6 +35,10 @@ const dailyReadersSource = await readFile(
   new URL("../convex/dailyReaders.ts", import.meta.url),
   "utf8",
 );
+const dailyReaderMigrationSource = await readFile(
+  new URL("../convex/dailyReaderMigration.ts", import.meta.url),
+  "utf8",
+);
 const leaderboardListSource = await readFile(
   new URL("../components/social/LeaderboardList.tsx", import.meta.url),
   "utf8",
@@ -125,6 +129,20 @@ test("global leaderboard remains bounded to five and personal rank is logarithmi
   );
 });
 
+test("global leaderboard preserves the code 3 contract without penalizing code 4", () => {
+  assert.match(
+    streaksSource,
+    /args:\s*\{\s*currentUserId:\s*v\.optional\(v\.id\(["']users["']\)\)\s*\}/,
+  );
+  assert.match(streaksSource, /top5:\s*v\.array\(leaderboardEntryValidator\)/);
+  assert.match(streaksSource, /top50:\s*v\.array\(leaderboardEntryValidator\)/);
+  assert.match(
+    streaksSource,
+    /legacyClient\s*\?\s*GLOBAL_LEADERBOARD_DETAIL_LIMIT\s*:\s*GLOBAL_LEADERBOARD_LIMIT/,
+  );
+  assert.match(streaksSource, /globalStreakRanking\.count\(ctx\)/);
+});
+
 test("global rank tuning is explicit and empty dates retain index ordering", () => {
   assert.equal(GLOBAL_STREAK_RANKING_MAX_NODE_SIZE, 64);
   assert.ok(
@@ -187,6 +205,20 @@ test("today reader count is sharded, bounded, and read as a snapshot", () => {
     socialScreenSource,
     /useQuery\(\s*api\.dailyReaders\.getTodayReaderCount/,
   );
+});
+
+test("today reader backfill is paginated and idempotent with live reads", () => {
+  assert.match(dailyReaderMigrationSource, /const BACKFILL_PAGE_SIZE = 32/);
+  assert.match(dailyReaderMigrationSource, /\.query\(["']userState["']\)\.paginate\(/);
+  assert.match(
+    dailyReaderMigrationSource,
+    /state\.lastReaderCountedLocalDate\s*===\s*dailySet\.localDate/,
+  );
+  assert.match(
+    dailyReaderMigrationSource,
+    /\.withIndex\(["']by_dailySet_kind["']/,
+  );
+  assert.doesNotMatch(dailyReaderMigrationSource, /\.collect\s*\(/);
 });
 
 test("social fits the main leaderboard without shrinking current-user treatment", () => {
