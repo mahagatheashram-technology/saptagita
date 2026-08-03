@@ -443,6 +443,10 @@ export const markVerseRead = mutation({
         : {}),
     });
     if (isFirstReadToday) {
+      streakUpdate = await ctx.runMutation(
+        internal.streaks.updateStreakOnReadInternal,
+        { userId: args.userId, localDate: dailySet.localDate },
+      );
       await incrementDailyReaderCount(ctx, args.userId, dailySet.localDate);
     }
 

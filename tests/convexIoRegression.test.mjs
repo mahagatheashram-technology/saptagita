@@ -39,6 +39,10 @@ const dailyReaderMigrationSource = await readFile(
   new URL("../convex/dailyReaderMigration.ts", import.meta.url),
   "utf8",
 );
+const readStreakMigrationSource = await readFile(
+  new URL("../convex/readStreakMigration.ts", import.meta.url),
+  "utf8",
+);
 const leaderboardListSource = await readFile(
   new URL("../components/social/LeaderboardList.tsx", import.meta.url),
   "utf8",
@@ -107,7 +111,7 @@ test("global leaderboard remains bounded to five and personal rank is logarithmi
   );
   assert.match(
     leaderboardReadPath,
-    /\.withIndex\(\s*["']byCurrentStreakAndLastCompletedDate["']\s*,/,
+    /\.withIndex\(\s*["']byCurrentStreakAndLastReadDate["']\s*,/,
   );
   assert.match(leaderboardReadPath, /\.order\(\s*["']desc["']\s*\)/);
   assert.match(leaderboardReadPath, /\.take\(\s*limit\s*\)/);
@@ -127,6 +131,39 @@ test("global leaderboard remains bounded to five and personal rank is logarithmi
     leaderboardListSource,
     /useQuery\(\s*api\.streaks\.getMyGlobalRank/,
   );
+});
+
+test("the first verse advances the read-day streak while Perfect stays completion-only", () => {
+  assert.match(
+    dailySetsSource,
+    /isFirstReadToday[\s\S]*updateStreakOnReadInternal/,
+  );
+  assert.match(
+    streaksSource,
+    /export const updateStreakOnReadInternal[\s\S]*lastReadLocalDate:\s*args\.localDate/,
+  );
+  assert.match(
+    streaksSource,
+    /Completing all seven verses records a Perfect day without changing/,
+  );
+  assert.match(
+    streakRankingSource,
+    /doc\.lastReadLocalDate\s*\?\?\s*doc\.lastCompletedLocalDate/,
+  );
+});
+
+test("read-day streak repair is paginated and isolated from the runtime path", () => {
+  assert.match(readStreakMigrationSource, /const BACKFILL_PAGE_SIZE = 8/);
+  assert.match(readStreakMigrationSource, /\.query\("users"\)\.paginate\(/);
+  assert.match(
+    readStreakMigrationSource,
+    /\.withIndex\("by_user_kind"/,
+  );
+  const runtimeReadUpdate = streaksSource.slice(
+    streaksSource.indexOf("export const updateStreakOnReadInternal"),
+    streaksSource.indexOf("export const updateStreakOnCompletionInternal"),
+  );
+  assert.doesNotMatch(runtimeReadUpdate, /\.collect\s*\(/);
 });
 
 test("global leaderboard preserves the code 3 contract without penalizing code 4", () => {

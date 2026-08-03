@@ -90,6 +90,10 @@ export default defineSchema({
     .index("byCurrentStreakAndLastCompletedDate", [
       "currentStreak",
       "lastCompletedLocalDate",
+    ])
+    .index("byCurrentStreakAndLastReadDate", [
+      "currentStreak",
+      "lastReadLocalDate",
     ]),
   bookmarkBuckets: defineTable({
     userId: v.id("users"),

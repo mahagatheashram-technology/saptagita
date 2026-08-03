@@ -19,6 +19,7 @@ import type * as debug from "../debug.js";
 import type * as integrityMigration from "../integrityMigration.js";
 import type * as integrityRules from "../integrityRules.js";
 import type * as previewFixtures from "../previewFixtures.js";
+import type * as readStreakMigration from "../readStreakMigration.js";
 import type * as streakMath from "../streakMath.js";
 import type * as streakRanking from "../streakRanking.js";
 import type * as streakRankingKey from "../streakRankingKey.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   integrityMigration: typeof integrityMigration;
   integrityRules: typeof integrityRules;
   previewFixtures: typeof previewFixtures;
+  readStreakMigration: typeof readStreakMigration;
   streakMath: typeof streakMath;
   streakRanking: typeof streakRanking;
   streakRankingKey: typeof streakRankingKey;

@@ -17,14 +17,14 @@ type StreakInsert = Omit<Doc<"streaks">, "_id" | "_creationTime">;
 type StreakPatch = Partial<StreakInsert>;
 
 export const GLOBAL_STREAK_RANKING_METADATA_KEY =
-  "global-streak-ranking-v1";
+  "global-streak-ranking-v2-read-days";
 
 export function isRankedStreak(streak: Pick<Doc<"streaks">, "currentStreak">) {
   return streak.currentStreak > 0;
 }
 
 // Ascending aggregate keys mirror the shipped leaderboard's descending Convex
-// index: current streak, last completion date, then creation time.
+// index: current streak, last read date, then creation time.
 export const globalStreakRanking = new TableAggregate<{
   Key: StreakRankKey;
   DataModel: DataModel;
@@ -32,7 +32,7 @@ export const globalStreakRanking = new TableAggregate<{
 }>(components.globalStreakRanking, {
   sortKey: (doc) => [
     -doc.currentStreak,
-    -localDateRankValue(doc.lastCompletedLocalDate),
+    -localDateRankValue(doc.lastReadLocalDate ?? doc.lastCompletedLocalDate),
     -doc._creationTime,
   ],
 });
@@ -42,7 +42,9 @@ export async function insertRankedStreak(
   value: StreakInsert,
 ): Promise<Id<"streaks">> {
   const streakId = await ctx.db.insert("streaks", value);
-  if (!isRankedStreak(value)) return streakId;
+  if (!isRankedStreak(value) || !(await isRankingMaintenanceReady(ctx))) {
+    return streakId;
+  }
 
   const streak = await ctx.db.get(streakId);
   if (!streak) throw new Error("Inserted streak was not found");
@@ -57,6 +59,7 @@ export async function patchRankedStreak(
 ): Promise<void> {
   const nextStreak = { ...streak, ...patch };
   await ctx.db.patch(streak._id, patch);
+  if (!(await isRankingMaintenanceReady(ctx))) return;
 
   if (isRankedStreak(streak) && isRankedStreak(nextStreak)) {
     await globalStreakRanking.replaceOrInsert(ctx, streak, nextStreak);
@@ -72,7 +75,17 @@ export async function deleteRankedStreak(
   streak: Doc<"streaks">,
 ): Promise<void> {
   await ctx.db.delete(streak._id);
-  if (isRankedStreak(streak)) {
+  if (isRankedStreak(streak) && (await isRankingMaintenanceReady(ctx))) {
     await globalStreakRanking.deleteIfExists(ctx, streak);
   }
+}
+
+async function isRankingMaintenanceReady(ctx: MutationCtx): Promise<boolean> {
+  const metadata = await ctx.db
+    .query("systemMetadata")
+    .withIndex("by_key", (q) =>
+      q.eq("key", GLOBAL_STREAK_RANKING_METADATA_KEY),
+    )
+    .unique();
+  return metadata?.ready === true;
 }

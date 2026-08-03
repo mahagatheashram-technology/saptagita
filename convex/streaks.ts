@@ -56,12 +56,12 @@ async function getCompletionStats(ctx: any, userId: any) {
 
 function getActiveCurrentStreak(
   currentStreak: number,
-  lastCompletedLocalDate: string,
+  lastReadLocalDate: string,
   todayDate: string
 ): number {
   const yesterdayDate = getPreviousLocalDate(todayDate);
-  return lastCompletedLocalDate === todayDate ||
-    lastCompletedLocalDate === yesterdayDate
+  return lastReadLocalDate === todayDate ||
+    lastReadLocalDate === yesterdayDate
     ? currentStreak
     : 0;
 }
@@ -85,19 +85,21 @@ export const getStreak = query({
       .query("streaks")
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
       .first();
-    const { stats } = await getCompletionStats(ctx, args.userId);
     const todayDate = getTodayDateString(user?.timezone || "UTC");
+    const lastReadLocalDate =
+      streak?.lastReadLocalDate ?? streak?.lastCompletedLocalDate ?? "";
     const currentStreak = getActiveCurrentStreak(
-      stats.currentStreak,
-      stats.lastCompletedLocalDate,
+      streak?.currentStreak ?? 0,
+      lastReadLocalDate,
       todayDate
     );
 
     return {
       ...(streak ?? {}),
       currentStreak,
-      longestStreak: stats.longestStreak,
-      lastCompletedLocalDate: stats.lastCompletedLocalDate,
+      longestStreak: streak?.longestStreak ?? 0,
+      lastCompletedLocalDate: streak?.lastCompletedLocalDate ?? "",
+      lastReadLocalDate,
     };
   },
 });
@@ -112,7 +114,7 @@ export const getStreakStats = query({
   }),
   handler: async (ctx, args) => {
     const user = await requireOwnedUser(ctx, args.userId);
-    const { completedSets, stats } = await getCompletionStats(ctx, args.userId);
+    const { completedSets } = await getCompletionStats(ctx, args.userId);
     const todayDate = getTodayDateString(user?.timezone || "UTC");
 
     const [legacyReadEvents, sequenceReadEvents] = await Promise.all([
@@ -139,29 +141,87 @@ export const getStreakStats = query({
       readDailySetIds.map((id) => ctx.db.get(id as any))
     );
 
-    const readDays = new Set(
+    const readDates = Array.from(new Set<string>(
       readDailySets
         .filter(Boolean)
         .map((set: any) => set.localDate)
-    ).size;
+    ));
+    const readStats = calculateCompletionStreak(readDates);
 
     return {
       currentStreak: getActiveCurrentStreak(
-        stats.currentStreak,
-        stats.lastCompletedLocalDate,
+        readStats.currentStreak,
+        readStats.lastCompletedLocalDate,
         todayDate
       ),
-      longestStreak: stats.longestStreak,
+      longestStreak: readStats.longestStreak,
       perfectDays: new Set(
         completedSets.map((set: any) => set.localDate)
       ).size,
-      readDays,
+      readDays: readDates.length,
     };
   },
 });
 
-// Internal mutation: Update streak when day is completed
-// Called when user finishes all 7 verses
+// Start or continue the habit streak on the first sequence read of a local day.
+// This is constant-I/O; historical repair is handled by a paginated migration.
+export const updateStreakOnReadInternal = internalMutation({
+  args: { userId: v.id("users"), localDate: v.string() },
+  returns: streakUpdateValidator,
+  handler: async (ctx, args) => {
+    if (!(await ctx.db.get(args.userId))) throw new Error("User not found");
+
+    const streakRecord = await ctx.db
+      .query("streaks")
+      .withIndex("byUser", (q) => q.eq("userId", args.userId))
+      .first();
+    const previousReadDate =
+      streakRecord?.lastReadLocalDate ??
+      streakRecord?.lastCompletedLocalDate ??
+      "";
+
+    if (streakRecord && previousReadDate === args.localDate) {
+      return {
+        currentStreak: streakRecord.currentStreak,
+        longestStreak: streakRecord.longestStreak,
+        isNewRecord: false,
+      };
+    }
+
+    const currentStreak =
+      previousReadDate === getPreviousLocalDate(args.localDate)
+        ? (streakRecord?.currentStreak ?? 0) + 1
+        : 1;
+    const longestStreak = Math.max(
+      streakRecord?.longestStreak ?? 0,
+      currentStreak,
+    );
+    const isNewRecord = longestStreak > (streakRecord?.longestStreak ?? 0);
+
+    if (streakRecord) {
+      await patchRankedStreak(ctx, streakRecord, {
+        currentStreak,
+        longestStreak,
+        lastReadLocalDate: args.localDate,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await insertRankedStreak(ctx, {
+        userId: args.userId,
+        currentStreak,
+        longestStreak,
+        lastCompletedLocalDate: "",
+        lastReadLocalDate: args.localDate,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { currentStreak, longestStreak, isNewRecord };
+  },
+});
+
+// Completing all seven verses records a Perfect day without changing the
+// read-day streak that already advanced on the first verse.
 export const updateStreakOnCompletionInternal = internalMutation({
   args: { userId: v.id("users"), localDate: v.optional(v.string()) },
   returns: streakUpdateValidator,
@@ -179,40 +239,26 @@ export const updateStreakOnCompletionInternal = internalMutation({
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
       .first();
 
-    const { completedSets } = await getCompletionStats(ctx, args.userId);
-    const completedDates: string[] = completedSets.map(
-      (set: any) => set.localDate
-    );
-    const wasAlreadyCompleted = completedDates.includes(completionLocalDate);
-    if (!wasAlreadyCompleted) {
-      completedDates.push(completionLocalDate);
-    }
-
-    const previousStats = calculateCompletionStreak(
-      completedDates.filter((date: string) => date !== completionLocalDate)
-    );
-    const nextStats = calculateCompletionStreak(completedDates);
-    const isNewRecord =
-      !wasAlreadyCompleted &&
-      nextStats.longestStreak > previousStats.longestStreak;
-
     if (streakRecord) {
       await patchRankedStreak(ctx, streakRecord, {
-        ...nextStats,
+        lastCompletedLocalDate: completionLocalDate,
         updatedAt: Date.now(),
       });
     } else {
       await insertRankedStreak(ctx, {
         userId: args.userId,
-        ...nextStats,
+        currentStreak: 1,
+        longestStreak: 1,
+        lastCompletedLocalDate: completionLocalDate,
+        lastReadLocalDate: completionLocalDate,
         updatedAt: Date.now(),
       });
     }
 
     return {
-      currentStreak: nextStats.currentStreak,
-      longestStreak: nextStats.longestStreak,
-      isNewRecord,
+      currentStreak: streakRecord?.currentStreak ?? 1,
+      longestStreak: streakRecord?.longestStreak ?? 1,
+      isNewRecord: false,
     };
   },
 });
@@ -237,10 +283,13 @@ export const checkAndUpdateStreak = mutation({
       .withIndex("byUser", (q) => q.eq("userId", args.userId))
       .first();
 
-    const { stats } = await getCompletionStats(ctx, args.userId);
+    const lastReadLocalDate =
+      streakRecord?.lastReadLocalDate ??
+      streakRecord?.lastCompletedLocalDate ??
+      "";
     const currentStreak = getActiveCurrentStreak(
-      stats.currentStreak,
-      stats.lastCompletedLocalDate,
+      streakRecord?.currentStreak ?? 0,
+      lastReadLocalDate,
       todayDate
     );
     const needsReset =
@@ -249,21 +298,19 @@ export const checkAndUpdateStreak = mutation({
     const streakChanged =
       streakRecord &&
       (streakRecord.currentStreak !== currentStreak ||
-        streakRecord.longestStreak !== stats.longestStreak ||
-        streakRecord.lastCompletedLocalDate !== stats.lastCompletedLocalDate);
+        streakRecord.lastReadLocalDate !== lastReadLocalDate);
 
     if (streakChanged) {
       await patchRankedStreak(ctx, streakRecord, {
         currentStreak,
-        longestStreak: stats.longestStreak,
-        lastCompletedLocalDate: stats.lastCompletedLocalDate,
+        lastReadLocalDate,
         updatedAt: Date.now(),
       });
     }
 
     return {
       currentStreak,
-      longestStreak: stats.longestStreak,
+      longestStreak: streakRecord?.longestStreak ?? 0,
       needsReset,
     };
   },
@@ -275,7 +322,7 @@ const GLOBAL_LEADERBOARD_DETAIL_LIMIT = 50;
 async function getGlobalLeaderboardEntries(ctx: any, limit: number) {
   const streaks = await ctx.db
     .query("streaks")
-    .withIndex("byCurrentStreakAndLastCompletedDate", (q: any) =>
+    .withIndex("byCurrentStreakAndLastReadDate", (q: any) =>
       q.gt("currentStreak", 0),
     )
     .order("desc")
@@ -289,7 +336,8 @@ async function getGlobalLeaderboardEntries(ctx: any, limit: number) {
         displayName: user?.displayName ?? "Anonymous",
         avatarUrl: user?.avatarUrl ?? "",
         currentStreak: streak.currentStreak,
-        lastReadLocalDate: streak.lastCompletedLocalDate ?? "",
+        lastReadLocalDate:
+          streak.lastReadLocalDate ?? streak.lastCompletedLocalDate ?? "",
       };
     }),
   );
@@ -334,7 +382,10 @@ async function getGlobalRankEntry(ctx: any, currentUser: any) {
     displayName: currentUser.displayName ?? "Anonymous",
     avatarUrl: currentUser.avatarUrl ?? "",
     currentStreak: currentStreak.currentStreak,
-    lastReadLocalDate: currentStreak.lastCompletedLocalDate ?? "",
+    lastReadLocalDate:
+      currentStreak.lastReadLocalDate ??
+      currentStreak.lastCompletedLocalDate ??
+      "",
     rank,
   };
 }
@@ -474,7 +525,10 @@ export const getCommunityLeaderboard = query({
           displayName: user.displayName ?? "Anonymous",
           avatarUrl: user.avatarUrl ?? "",
           currentStreak: streak?.currentStreak ?? 0,
-          lastReadLocalDate: streak?.lastCompletedLocalDate ?? null,
+          lastReadLocalDate:
+            streak?.lastReadLocalDate ??
+            streak?.lastCompletedLocalDate ??
+            null,
         };
       })
     );
