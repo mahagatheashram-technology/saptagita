@@ -1,6 +1,6 @@
 # Android Production Release Checklist
 
-Release candidate: Sapta Gita `1.0.2` (`versionCode` 3)
+Release candidate: Sapta Gita `1.0.3` (`versionCode` 4)
 
 Package: `com.mahagathe.saptagita`
 
@@ -13,14 +13,14 @@ backend deployment, or Play Console change.
 
 Choose exactly one path before changing Play:
 
-- **Promote the tested artifact:** Promote the existing closed-test
-  `versionCode` 2 artifact without rebuilding it. This preserves the exact
-  binary testers used. The `1.0.2`/code 3 metadata in this branch does not
+- **Promote the tested artifact:** Promote the existing open-test
+  `versionCode` 3 artifact without rebuilding it. This preserves the exact
+  binary testers used. The `1.0.3`/code 4 metadata in this branch does not
   change that uploaded artifact.
 - **Create the next artifact:** Use this branch to build the new
-  `1.0.2`/code 3 AAB. Send that exact AAB through internal/closed testing and
+  `1.0.3`/code 4 AAB. Send that exact AAB through internal/closed testing and
   review its automated results before production. Do not describe it as the
-  previously tested code 2 binary.
+  previously tested code 3 binary.
 
 Record the chosen version code, EAS build URL/ID, AAB SHA-256, source commit,
 tester track, and Play release name in the release record.
@@ -33,8 +33,8 @@ tester track, and Play release name in the release record.
       and run `npm test`.
 - [ ] Run `npm run check:env-parity`.
 - [ ] Run `npx expo-doctor` and disposition every warning.
-- [ ] Confirm resolved Expo config reports version `1.0.2`, Android
-      `versionCode` 3, and package `com.mahagathe.saptagita`.
+- [ ] Confirm resolved Expo config reports version `1.0.3`, Android
+      `versionCode` 4, and package `com.mahagathe.saptagita`.
 - [ ] Confirm resolved EAS production config is a store/AAB build using the
       existing EAS project, remote signing credentials, production Clerk
       publishable key, and production Convex URL. Do not rotate credentials.
@@ -75,13 +75,13 @@ eas build --platform android --profile production
 ```
 
 - [ ] Verify EAS produced an AAB with package
-      `com.mahagathe.saptagita`, version `1.0.2`, and code 3.
+      `com.mahagathe.saptagita`, version `1.0.3`, and code 4.
 - [ ] Install through Play internal/closed testing; do not rely only on a local
       debug or APK build.
 - [ ] Review Play's pre-launch report for crashes, ANRs, accessibility,
       security, and device compatibility. Resolve or explicitly accept every
       issue.
-- [ ] Verify upgrade behavior from the currently tested code 2 artifact and
+- [ ] Verify upgrade behavior from the currently active code 3 artifact and
       verify a fresh install on at least one supported Android version.
 
 ## 4. Play declarations and submission
@@ -128,13 +128,13 @@ Pause the rollout immediately for a reproducible data-loss/cross-user access
 issue, broken authentication or account deletion, startup/upgrade failure,
 backend error spike, crash/ANR regression, or projected Convex/Clerk quota
 exhaustion. Record an incident owner and preserve logs/build IDs. Play cannot
-downgrade installed users to code 2; remediation requires halting the rollout
-and shipping a fixed build with a version code greater than 3.
+downgrade installed users to code 3; remediation requires halting the rollout
+and shipping a fixed build with a version code greater than 4.
 
 ## 6. Post-release verification
 
 - [ ] Install from the production listing with a new account and upgrade an
-      existing code 2 installation.
+      existing code 3 installation.
 - [ ] Repeat the core smoke flows and verify notifications after an app
       restart.
 - [ ] Confirm new user, reading, bookmark, and deletion activity appears only
