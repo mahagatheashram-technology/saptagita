@@ -191,6 +191,8 @@ const protectedExports = {
     getActiveCommunity: "resolveUser",
     setActiveCommunity: "resolveUser",
     getPublicCommunities: "requireCurrentUser",
+    getCommunityByInviteCode: "requireCurrentUser",
+    regenerateInviteCode: "requireOwnedUser",
     joinPublicCommunity: "resolveUser",
     joinByInviteCode: "resolveUser",
     leaveCommunity: "resolveUser",
