@@ -14,9 +14,10 @@ interface LeaderboardRowProps {
 
 // Medal tints for the top three. The rank pill keeps its shape at every
 // position — only its colour changes — so ranks 1-3 and 4+ read as one list.
-// Previously the top three rendered a 🥇/🥈/🥉 emoji *instead of* the pill, and
+// Previously the top three rendered a medal emoji *instead of* the pill, and
 // Android draws its own numeral inside those emoji, which made the first three
-// rows look like a different component from the rest of the list.
+// rows look like a different component from the rest of the list. Do not
+// reintroduce the emoji here; convexIoRegression asserts against it.
 const MEDAL_TINTS: Record<number, { bg: string; text: string }> = {
   1: { bg: "#FDF0D5", text: "#8A6A12" },
   2: { bg: "#EFEBE5", text: "#6B6459" },
