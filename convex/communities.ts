@@ -1,8 +1,11 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { requireCurrentUser, requireOwnedUser } from "./auth";
 import { communityValidator } from "./validators";
+
+const INVITE_CODE_GENERATION_ATTEMPTS = 10;
 
 function generateInviteCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No 0,O,1,I for clarity
@@ -11,6 +14,39 @@ function generateInviteCode(): string {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return code;
+}
+
+function normalizeInviteCode(inviteCode: string): string {
+  return inviteCode.replace(/\s+/g, "").toUpperCase();
+}
+
+async function findCommunityByInviteCode(
+  ctx: Pick<QueryCtx, "db">,
+  inviteCode: string
+): Promise<Doc<"communities"> | null> {
+  const code = normalizeInviteCode(inviteCode);
+  if (!code) return null;
+
+  return await ctx.db
+    .query("communities")
+    .withIndex("by_inviteCode", (q) => q.eq("inviteCode", code))
+    .first();
+}
+
+async function generateUniqueInviteCode(
+  ctx: Pick<MutationCtx, "db">
+): Promise<string> {
+  for (let attempt = 0; attempt < INVITE_CODE_GENERATION_ATTEMPTS; attempt++) {
+    const inviteCode = generateInviteCode();
+    if (!(await findCommunityByInviteCode(ctx, inviteCode))) {
+      return inviteCode;
+    }
+  }
+
+  throw new ConvexError({
+    code: "INVITE_CODE_GENERATION_FAILED",
+    message: "Could not generate a unique invite code. Please try again.",
+  });
 }
 
 async function resolveUser(ctx: any, userId?: Id<"users">) {
@@ -57,7 +93,8 @@ export const createCommunity = mutation({
       throw new Error("Name must be 3-30 characters");
     }
 
-    const inviteCode = args.type === "private" ? generateInviteCode() : undefined;
+    const inviteCode =
+      args.type === "private" ? await generateUniqueInviteCode(ctx) : undefined;
 
     const communityId = await ctx.db.insert("communities", {
       name,
@@ -238,6 +275,94 @@ export const getPublicCommunities = query({
   },
 });
 
+export const getCommunityByInviteCode = query({
+  args: {
+    inviteCode: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      name: v.string(),
+      memberCount: v.number(),
+      isAlreadyMember: v.boolean(),
+    }),
+    v.null()
+  ),
+  handler: async (ctx, args) => {
+    const user = await requireCurrentUser(ctx);
+    const community = await findCommunityByInviteCode(ctx, args.inviteCode);
+    if (!community) return null;
+
+    const [members, membership] = await Promise.all([
+      ctx.db
+        .query("communityMembers")
+        .withIndex("by_community", (q) =>
+          q.eq("communityId", community._id)
+        )
+        .collect(),
+      ctx.db
+        .query("communityMembers")
+        .withIndex("by_community_user", (q) =>
+          q.eq("communityId", community._id).eq("userId", user._id)
+        )
+        .first(),
+    ]);
+
+    return {
+      name: community.name,
+      memberCount: members.length,
+      isAlreadyMember: Boolean(membership),
+    };
+  },
+});
+
+export const regenerateInviteCode = mutation({
+  args: {
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+  },
+  returns: v.object({
+    inviteCode: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const user = await requireOwnedUser(ctx, args.userId);
+    const community = await ctx.db.get(args.communityId);
+
+    if (!community) {
+      throw new ConvexError({
+        code: "COMMUNITY_NOT_FOUND",
+        message: "Community not found.",
+      });
+    }
+    const membership = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community_user", (q) =>
+        q.eq("communityId", community._id).eq("userId", user._id)
+      )
+      .first();
+
+    if (
+      !membership ||
+      (membership.role !== "owner" && membership.role !== "admin")
+    ) {
+      throw new ConvexError({
+        code: "FORBIDDEN",
+        message: "Only community owners and admins can regenerate invite codes.",
+      });
+    }
+    if (community.type !== "private") {
+      throw new ConvexError({
+        code: "INVITE_CODE_NOT_SUPPORTED",
+        message: "Invite codes are only available for private communities.",
+      });
+    }
+
+    const inviteCode = await generateUniqueInviteCode(ctx);
+    await ctx.db.patch(community._id, { inviteCode });
+
+    return { inviteCode };
+  },
+});
+
 export const joinPublicCommunity = mutation({
   args: {
     communityId: v.id("communities"),
@@ -290,15 +415,14 @@ export const joinByInviteCode = mutation({
   handler: async (ctx, args) => {
     const user = await resolveUser(ctx, args.userId);
 
-    const code = args.inviteCode.trim().toUpperCase();
-    if (!code) throw new Error("Invite code is required");
+    const community = await findCommunityByInviteCode(ctx, args.inviteCode);
 
-    const community = await ctx.db
-      .query("communities")
-      .withIndex("by_inviteCode", (q) => q.eq("inviteCode", code))
-      .first();
-
-    if (!community) throw new Error("Invalid invite code");
+    if (!community) {
+      throw new ConvexError({
+        code: "INVALID_INVITE_CODE",
+        message: "The invite code is invalid or no longer active.",
+      });
+    }
 
     const existing = await ctx.db
       .query("communityMembers")
@@ -307,7 +431,12 @@ export const joinByInviteCode = mutation({
       )
       .first();
 
-    if (existing) throw new Error("Already a member");
+    if (existing) {
+      throw new ConvexError({
+        code: "ALREADY_A_MEMBER",
+        message: "You are already a member of this community.",
+      });
+    }
 
     await ctx.db.insert("communityMembers", {
       communityId: community._id,
