@@ -143,7 +143,7 @@ export function CreateCommunityModal({
                 <Text className="text-sm text-textSecondary mb-2">
                   Name your community (3-30 characters)
                 </Text>
-                <View className="bg-gray-50 rounded-xl border border-[#E2E8F0] px-3 py-2">
+                <View className="bg-sand-50 rounded-xl border border-[#E9DFD3] px-3 py-2">
                   <TextInput
                     value={name}
                     onChangeText={setName}
@@ -171,7 +171,7 @@ export function CreateCommunityModal({
                 <Text className="text-sm text-textSecondary mt-4 mb-2">
                   Visibility
                 </Text>
-                <View className="flex-row bg-gray-100 rounded-xl p-1">
+                <View className="flex-row bg-sand-50 rounded-xl p-1">
                   {(["public", "private"] as CommunityType[]).map((option) => {
                     const isActive = type === option;
                     const isDisabled = option === "private" && !PRIVATE_ENABLED;
@@ -195,7 +195,7 @@ export function CreateCommunityModal({
                           {option === "public" ? "Public" : "Private"}
                         </Text>
                         <Text
-                          className="text-[12px] text-textSecondary text-center mt-1"
+                          className="text-xs text-textSecondary text-center mt-1"
                           numberOfLines={2}
                         >
                           {option === "public"
@@ -219,9 +219,9 @@ export function CreateCommunityModal({
                   <Text className="text-xs text-red-500 mt-2">{error}</Text>
                 ) : null}
 
-                <View className="flex-row mt-5 space-x-3">
+                <View className="flex-row mt-5 gap-3">
                   <Pressable
-                    className="flex-1 rounded-xl border border-[#E2E8F0] px-4 py-3 bg-white"
+                    className="flex-1 rounded-xl border border-[#E9DFD3] px-4 py-3 bg-white"
                     onPress={handleClose}
                     disabled={loading}
                   >

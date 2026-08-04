@@ -206,7 +206,7 @@ export function JoinCommunityModal({
               </Pressable>
             </View>
 
-            <View className="flex-row bg-gray-100 rounded-xl p-1 mb-4">
+            <View className="flex-row bg-sand-50 rounded-xl p-1 mb-4">
               {(["browse", "code"] as JoinMode[]).map((option) => {
                 const isActive = mode === option;
                 const isDisabled =
@@ -257,7 +257,7 @@ export function JoinCommunityModal({
                   <ScrollView style={{ maxHeight: 320 }}>
                     {availableCommunities.map((community, index) => (
                       <View key={community._id}>
-                        {index > 0 ? <View className="h-px bg-gray-100" /> : null}
+                        {index > 0 ? <View className="h-px bg-sand-50" /> : null}
                         {renderCommunityRow(community)}
                       </View>
                     ))}
@@ -273,7 +273,7 @@ export function JoinCommunityModal({
                 <Text className="text-sm text-textSecondary mb-2">
                   Enter an invite code to join a private community.
                 </Text>
-                <View className="bg-gray-50 rounded-xl border border-[#E2E8F0] px-3 py-2">
+                <View className="bg-sand-50 rounded-xl border border-[#E9DFD3] px-3 py-2">
                   <TextInput
                     value={inviteCode}
                     onChangeText={(text) => setInviteCode(text.toUpperCase())}
@@ -292,9 +292,9 @@ export function JoinCommunityModal({
               <Text className="text-xs text-red-500 mt-2">{error}</Text>
             ) : null}
 
-            <View className="flex-row mt-5 space-x-3">
+            <View className="flex-row mt-5 gap-3">
               <Pressable
-                className="flex-1 rounded-xl border border-[#E2E8F0] px-4 py-3 bg-white"
+                className="flex-1 rounded-xl border border-[#E9DFD3] px-4 py-3 bg-white"
                 onPress={onClose}
                 disabled={isBusy}
               >

@@ -46,7 +46,7 @@ export function BookmarkRow({
           {truncate(verse.translationEnglish, 120)}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#A0AEC0" />
+      <Ionicons name="chevron-forward" size={18} color="#B8A894" />
     </Pressable>
   );
 }

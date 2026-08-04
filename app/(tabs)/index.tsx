@@ -15,6 +15,7 @@ import { useTodayReading } from "@/lib/hooks/useTodayReading";
 import { impact } from "@/lib/haptics";
 import { Id } from "@/convex/_generated/dataModel";
 import { BucketPickerModal } from "@/components/bookmarks";
+import { FoundationFooter } from "@/components/common";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
 import { clearBadge } from "@/lib/notifications";
@@ -363,6 +364,8 @@ export default function TodayScreen() {
           disabled={!interactionsEnabled}
         />
       )}
+
+      <FoundationFooter className="pt-0 pb-1" />
 
       <SaveSnackbar
         visible={snackbar.visible}

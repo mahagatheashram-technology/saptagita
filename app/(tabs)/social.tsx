@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Text, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useConvex, useQuery } from "convex/react";
 import { usePathname } from "expo-router";
@@ -12,6 +12,8 @@ import {
   TodayReadersStat,
 } from "@/components/social";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
+import { FoundationFooter } from "@/components/common";
+import { type } from "@/lib/typography";
 
 export default function SocialScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -56,10 +58,10 @@ export default function SocialScreen() {
   if (userError) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
-        <Text className="text-[17px] font-semibold text-textPrimary mb-2">
+        <Text className={`${type.title} text-textPrimary mb-2`}>
           Could not load your account
         </Text>
-        <Text className="text-[15px] text-textSecondary text-center">
+        <Text className={`${type.bodySm} text-textSecondary text-center`}>
           {String(userError?.message ?? userError)}
         </Text>
       </SafeAreaView>
@@ -69,8 +71,8 @@ export default function SocialScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background">
       <View className="px-5 pt-3 pb-1">
-        <Text className="text-[25px] font-bold text-secondary">Social</Text>
-        <Text className="text-[15px] text-textSecondary mt-1">
+        <Text className={`${type.display} text-secondary`}>Social</Text>
+        <Text className={`${type.bodySm} text-textSecondary mt-1`}>
           Climb the global streak leaderboard or compete inside your community.
         </Text>
       </View>
@@ -92,9 +94,9 @@ export default function SocialScreen() {
 
       <View className="flex-1">
         {isActiveCommunityLoading ? (
-          <View className="flex-1 items-center justify-center">
+          <View className="flex-1 items-center justify-center py-10">
             <ActivityIndicator size="large" color="#FF6B35" />
-            <Text className="text-[15px] text-textSecondary mt-2">
+            <Text className={`${type.bodySm} text-textSecondary mt-2`}>
               Loading communities...
             </Text>
           </View>
@@ -106,19 +108,7 @@ export default function SocialScreen() {
         )}
       </View>
 
-      {/* Foundation branding footer */}
-      <View className="items-center py-1">
-        <View className="flex-row items-center">
-          <Image
-            source={require("@/assets/images/mahagathe-foundation-logo.png")}
-            style={{ width: 17, height: 17, marginRight: 6 }}
-            resizeMode="contain"
-          />
-          <Text className="text-[11px] text-textSecondary/40 tracking-[0.5px]">
-            A Mahagathe Foundation Initiative
-          </Text>
-        </View>
-      </View>
+      <FoundationFooter />
 
       <CreateCommunityModal
         visible={showCreateModal}

@@ -1,4 +1,5 @@
 import { View, Text } from "react-native";
+import { sand, status } from "@/constants/Colors";
 
 interface ReadingCalendarProps {
   readDates: string[];
@@ -18,8 +19,18 @@ const CELL_SIZE = 22;
 const CELL_GAP = 4;
 const LABEL_WIDTH = CELL_SIZE + CELL_GAP;
 const WEEKS_SHOWN = 12;
-const PERFECT_GREEN = "#16A34A";
-const READ_YELLOW = "#FACC15";
+
+// Reading-state encoding. These are intentionally NOT part of the app's warm
+// palette and must not be retinted to match it. An earlier version used gold
+// for "perfect" and green for "read at least one", which readers misread; the
+// app moved to a universal traffic-light scale instead:
+//   yellow = started (some of today's 7 read)
+//   green  = complete (all 7 read)
+// `StreakStatsCard`'s "Perfect" box mirrors PERFECT_GREEN — keep them in sync.
+const PERFECT_GREEN = status.complete; // #16A34A
+const READ_YELLOW = status.partial; // #FACC15
+const MISSED_GREY = status.missed; // #CBD5E1
+const TODAY_RING = status.today; // #F97316
 
 // First day rendered by the 12-week grid (the Sunday WEEKS_SHOWN-1 weeks back).
 function getCalendarStartDate(): Date {
@@ -74,9 +85,9 @@ export function ReadingCalendar({
   });
 
   return (
-    <View className="bg-surface rounded-xl p-4 shadow-sm">
+    <View className="bg-surface rounded-2xl p-4 shadow-sm">
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-base font-semibold text-secondary">
+        <Text className="text-lg font-semibold text-secondary">
           Reading Calendar
         </Text>
         <Text className="text-xs text-textSecondary">Last 12 weeks</Text>
@@ -103,14 +114,14 @@ export function ReadingCalendar({
                 const isToday = day.localDate === todayString;
 
                 const backgroundColor = day.isFuture
-                  ? "#F8FAFC"
+                  ? sand[50]
                   : day.isPerfect
                   ? PERFECT_GREEN
                   : day.isRead
                   ? READ_YELLOW
-                  : "#CBD5E1";
+                  : MISSED_GREY;
 
-                const borderColor = isToday ? "#F97316" : "transparent";
+                const borderColor = isToday ? TODAY_RING : "transparent";
                 const textColor =
                   day.isPerfect
                     ? "#FFFFFF"
@@ -161,8 +172,8 @@ export function ReadingCalendar({
       <View className="flex-row items-center mt-3" style={{ columnGap: 12 }}>
         <LegendSwatch color={PERFECT_GREEN} label="All 7 read" />
         <LegendSwatch color={READ_YELLOW} label="Started" />
-        <LegendSwatch color="#CBD5E1" label="Missed" />
-        <LegendSwatch color="#F97316" label="Today" outlined />
+        <LegendSwatch color={MISSED_GREY} label="Missed" />
+        <LegendSwatch color={TODAY_RING} label="Today" outlined />
       </View>
     </View>
   );

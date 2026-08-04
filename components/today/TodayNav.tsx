@@ -1,5 +1,6 @@
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { type } from "@/lib/typography";
 
 interface TodayNavProps {
   canPrev: boolean;
@@ -26,7 +27,7 @@ export function TodayNav({
           <Pressable
             onPress={onPrev}
             disabled={disabled || !canPrev}
-            className="flex-1 flex-row items-center px-2 py-2 rounded-full active:bg-gray-100"
+            className="flex-1 flex-row items-center px-2 py-2 rounded-full active:bg-sand-50"
             style={{ opacity: disabled || !canPrev ? 0.4 : 1 }}
           >
             <Ionicons name="chevron-back" size={18} color="#1A365D" />
@@ -54,20 +55,8 @@ export function TodayNav({
           </Pressable>
         </View>
 
-        <Text className="text-xs text-textSecondary mt-2 text-center">
+        <Text className={`${type.caption} text-textSecondary mt-2 text-center`}>
           Swipe ← back · → forward · tap a dot to jump
-        </Text>
-      </View>
-
-      {/* Subtle foundation branding */}
-      <View className="flex-row items-center justify-center mt-1">
-        <Image
-          source={require("@/assets/images/mahagathe-foundation-logo.png")}
-          style={{ width: 14, height: 14, marginRight: 5 }}
-          resizeMode="contain"
-        />
-        <Text className="text-[9px] text-textSecondary/30 tracking-[0.5px]">
-          Mahagathe Foundation
         </Text>
       </View>
     </View>

@@ -130,7 +130,7 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
   return (
     <View className="flex-1 px-5 pt-2">
       <View className="bg-surface rounded-2xl p-4 shadow-sm">
-        <Text className="text-base font-semibold text-secondary mb-1">
+        <Text className="text-lg font-semibold text-secondary mb-1">
           Jump to a verse
         </Text>
         <Text className="text-sm text-textSecondary mb-4">
@@ -153,7 +153,7 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
                 key={c.chapter}
                 onPress={() => setChapter(c.chapter)}
                 className={`w-10 h-10 rounded-full items-center justify-center ${
-                  selected ? "bg-primary" : "bg-gray-100"
+                  selected ? "bg-primary" : "bg-sand-50"
                 }`}
               >
                 <Text
@@ -187,7 +187,7 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
                 key={v}
                 onPress={() => setVerse(v)}
                 className={`min-w-10 h-10 px-2 rounded-full items-center justify-center ${
-                  selected ? "bg-primary" : "bg-gray-100"
+                  selected ? "bg-primary" : "bg-sand-50"
                 }`}
               >
                 <Text

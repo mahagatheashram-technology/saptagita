@@ -54,7 +54,11 @@ export function CardStack({
   const canPrev = viewIndex > 0;
   const canNext = viewIndex < verses.length; // forward always available while reading
 
-  const cardWidth = Math.min(screenWidth - 32, 720);
+  // Must match the `px-5` (20dp) gutter of the screen container in
+  // app/(tabs)/index.tsx. It was screenWidth - 32, which made the card 4dp
+  // wider than its own parent on each side and left it visibly out of line
+  // with the header above it.
+  const cardWidth = Math.min(screenWidth - 40, 720);
   const maxCardHeight = Math.max(240, screenHeight - 260);
 
   const isWeb = Platform.OS === "web";
@@ -89,7 +93,7 @@ export function CardStack({
               <View className="flex-row items-center">
                 <Pressable
                   onPress={onSave}
-                  className="w-9 h-9 rounded-xl items-center justify-center active:bg-gray-100"
+                  className="w-9 h-9 rounded-xl items-center justify-center active:bg-sand-50"
                 >
                   <Ionicons
                     name={isSaved ? "bookmark" : "bookmark-outline"}
@@ -99,7 +103,7 @@ export function CardStack({
                 </Pressable>
                 <Pressable
                   onPress={onShare}
-                  className="w-9 h-9 rounded-xl items-center justify-center active:bg-gray-100 ml-1"
+                  className="w-9 h-9 rounded-xl items-center justify-center active:bg-sand-50 ml-1"
                 >
                   <Ionicons name="share-outline" size={20} color="#5F5E5A" />
                 </Pressable>
@@ -118,13 +122,13 @@ export function CardStack({
             >
               {verse.transliteration}
             </Text>
-            <View className="h-px bg-gray-200 my-4" />
+            <View className="h-px bg-sand-100 my-4" />
             <Text className="text-base text-textPrimary" style={translationTextStyle}>
               {verse.translationEnglish}
             </Text>
           </ScrollView>
 
-          <View className="flex-row items-center justify-between px-6 py-4 border-t border-gray-100">
+          <View className="flex-row items-center justify-between px-6 py-4 border-t border-sand-100">
             <Pressable
               onPress={onPrev}
               disabled={!canPrev}
@@ -162,6 +166,7 @@ export function CardStack({
         onSave={onSave}
         onShare={onShare}
         cardWidth={cardWidth}
+        maxCardHeight={maxCardHeight}
         interactionsEnabled={interactionsEnabled}
         microDemoNonce={microDemoNonce}
       />

@@ -12,8 +12,8 @@ export function AccountSection({
   isDeleting,
 }: AccountSectionProps) {
   return (
-    <View className="bg-surface rounded-xl p-4 shadow-sm">
-      <Text className="text-base font-semibold text-secondary mb-3">Account</Text>
+    <View className="bg-surface rounded-2xl p-4 shadow-sm">
+      <Text className="text-lg font-semibold text-secondary mb-3">Account</Text>
 
       <Pressable
         onPress={onSignOut}

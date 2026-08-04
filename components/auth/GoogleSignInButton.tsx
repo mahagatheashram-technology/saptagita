@@ -96,7 +96,7 @@ export function GoogleSignInButton({
       ) : (
         <>
           <Ionicons name="logo-google" size={20} color="#4285F4" />
-          <Text className="text-[#2F3B4E] font-semibold ml-2 text-[16px]">
+          <Text className="text-[#2F3B4E] font-semibold ml-2 text-base">
             Continue with Google
           </Text>
         </>

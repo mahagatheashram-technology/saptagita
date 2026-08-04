@@ -57,7 +57,7 @@ export function BucketCard({
               event.stopPropagation();
               onMenuPress();
             }}
-            className="w-9 h-9 rounded-full bg-gray-100 items-center justify-center active:opacity-80"
+            className="w-9 h-9 rounded-full bg-sand-50 items-center justify-center active:opacity-80"
             hitSlop={8}
           >
             <Ionicons name="ellipsis-horizontal" size={18} color="#718096" />

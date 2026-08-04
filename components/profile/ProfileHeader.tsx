@@ -73,7 +73,7 @@ export function ProfileHeader({
   };
 
   return (
-    <View className="bg-surface rounded-xl p-4 shadow-sm">
+    <View className="bg-surface rounded-2xl p-4 shadow-sm">
       <View className="flex-row items-center">
         {avatarUrl ? (
           <Image
@@ -81,7 +81,7 @@ export function ProfileHeader({
             className="h-12 w-12 rounded-full"
           />
         ) : (
-          <View className="h-12 w-12 rounded-full bg-[#E2E8F0] items-center justify-center">
+          <View className="h-12 w-12 rounded-full bg-[#E9DFD3] items-center justify-center">
             <Text className="text-textPrimary font-semibold">{initials}</Text>
           </View>
         )}
@@ -136,12 +136,12 @@ export function ProfileHeader({
                 value={draftName}
                 onChangeText={setDraftName}
                 placeholder="Display name"
-                className="border border-[#E2E8F0] rounded-lg px-3 py-2 text-base text-textPrimary"
+                className="border border-[#E9DFD3] rounded-lg px-3 py-2 text-base text-textPrimary"
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={handleSave}
               />
-              <View className="flex-row justify-end mt-3 space-x-3">
+              <View className="flex-row justify-end mt-3 gap-3">
                 <Pressable
                   onPress={() => setIsEditing(false)}
                   className="px-3 py-2 rounded-lg"

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -16,6 +15,7 @@ import BottomSheet from "@gorhom/bottom-sheet";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { BucketCard, BucketPickerModal } from "@/components/bookmarks";
+import { FoundationFooter } from "@/components/common";
 import {
   ReadVerseDetailSheet,
   ReadVerseRow,
@@ -272,7 +272,7 @@ export default function BookmarksScreen() {
       </View>
 
       <View className="px-5 pb-2">
-        <View className="flex-row bg-gray-100 rounded-full p-1">
+        <View className="flex-row bg-sand-50 rounded-full p-1">
           {(
             [
               { key: "bookmarks", label: "Bookmarks" },
@@ -339,7 +339,7 @@ export default function BookmarksScreen() {
                     key={emoji}
                     onPress={() => setNewBucketIcon(emoji)}
                     className={`px-3 py-2 rounded-full ${
-                      newBucketIcon === emoji ? "bg-primary/10" : "bg-gray-100"
+                      newBucketIcon === emoji ? "bg-primary/10" : "bg-sand-50"
                     }`}
                   >
                     <Text className="text-lg">{emoji}</Text>
@@ -410,7 +410,7 @@ export default function BookmarksScreen() {
                   <Text className="text-sm text-textSecondary mb-2">
                     Read {totalReadVerses} / {totalVerses} verses
                   </Text>
-                  <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <View className="h-2 bg-sand-100 rounded-full overflow-hidden">
                     <View
                       className="h-2 bg-primary"
                       style={{ width: `${progressPct}%` }}
@@ -473,19 +473,7 @@ export default function BookmarksScreen() {
         />
       )}
 
-      {/* Foundation branding footer */}
-      <View className="items-center py-2 pb-1">
-        <View className="flex-row items-center">
-          <Image
-            source={require("@/assets/images/mahagathe-foundation-logo.png")}
-            style={{ width: 16, height: 16, marginRight: 6 }}
-            resizeMode="contain"
-          />
-          <Text className="text-[10px] text-textSecondary/40 tracking-[0.5px]">
-            A Mahagathe Foundation Initiative
-          </Text>
-        </View>
-      </View>
+      <FoundationFooter />
 
       <Modal
         visible={Boolean(renamingId)}
@@ -528,7 +516,7 @@ export default function BookmarksScreen() {
                   key={emoji}
                   onPress={() => setRenameIcon(emoji)}
                   className={`px-3 py-2 rounded-full ${
-                    renameIcon === emoji ? "bg-primary/10" : "bg-gray-100"
+                    renameIcon === emoji ? "bg-primary/10" : "bg-sand-50"
                   }`}
                 >
                   <Text className="text-lg">{emoji}</Text>
@@ -539,7 +527,7 @@ export default function BookmarksScreen() {
             <View className="flex-row justify-end mt-4">
               <Pressable
                 onPress={closeRenameEditor}
-                className="px-4 py-2 rounded-xl bg-gray-100 active:opacity-80"
+                className="px-4 py-2 rounded-xl bg-sand-50 active:opacity-80"
               >
                 <Text className="text-textSecondary font-medium text-sm">
                   Cancel

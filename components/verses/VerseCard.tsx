@@ -76,7 +76,7 @@ export function VerseCard({
       </Text>
 
       {/* Divider */}
-      <View className="h-px bg-gray-200 my-4" />
+      <View className="h-px bg-sand-100 my-4" />
 
       {/* English Translation */}
       <Text className="text-base text-textPrimary" style={translationTextStyle}>

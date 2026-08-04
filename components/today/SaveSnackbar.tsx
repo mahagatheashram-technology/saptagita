@@ -30,7 +30,7 @@ export function SaveSnackbar({
           <Ionicons
             name={removed ? "bookmark-outline" : "checkmark-circle"}
             size={18}
-            color={removed ? "#CBD5E0" : "#7FD7A8"}
+            color={removed ? "#D6C3AE" : "#7FD7A8"}
           />
           <Text className="text-white text-sm ml-2">
             {removed ? "Removed from Default" : "Saved to Default"}

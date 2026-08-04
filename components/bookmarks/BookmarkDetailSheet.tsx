@@ -78,7 +78,7 @@ export const BookmarkDetailSheet = forwardRef<
       onClose={handleClose}
       backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: "#FFFFFF" }}
-      handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
+      handleIndicatorStyle={{ backgroundColor: "#D6C3AE" }}
     >
       <BottomSheetView className="flex-1 px-4">
         {!verse ? (
@@ -130,7 +130,7 @@ export const BookmarkDetailSheet = forwardRef<
             </View>
 
             {/* Action buttons */}
-            <View className="space-y-2">
+            <View className="gap-2">
               <SheetButton
                 icon="folder-open-outline"
                 label="Add / remove buckets"
@@ -166,13 +166,13 @@ function SheetButton({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center px-3 py-3 rounded-xl active:bg-gray-50"
+      className="flex-row items-center px-3 py-3 rounded-xl active:bg-sand-50"
     >
       <View className="w-9 h-9 rounded-full bg-primary/10 items-center justify-center mr-3">
         <Ionicons name={icon} size={18} color="#FF6B35" />
       </View>
       <Text className="text-base text-textPrimary flex-1">{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color="#CBD5E0" />
+      <Ionicons name="chevron-forward" size={18} color="#D6C3AE" />
     </Pressable>
   );
 }
