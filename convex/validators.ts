@@ -20,6 +20,7 @@ export const userValidator = v.object({
   avatarUrl: v.string(),
   timezone: v.string(),
   createdAt: v.number(),
+  discoverable: v.optional(v.boolean()),
 });
 
 export const userStateValidator = v.object({

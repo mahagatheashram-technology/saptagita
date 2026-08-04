@@ -366,11 +366,13 @@ const protectedExports = {
     getAccountDeletionStatus: "requireIdentity",
     getUserByAuthId: "requireIdentity",
     getUserState: "requireOwnedUser",
+    searchUsersByDisplayName: "requireCurrentUser",
     markTodayGestureCoachSeen: "requireOwnedUser",
     updateReminderTime: "requireOwnedUser",
     updateScriptPreference: "requireOwnedUser",
     resetReadingProgress: "requireOwnedUser",
     updateDisplayName: "requireOwnedUser",
+    updateDiscoverability: "requireOwnedUser",
     deleteAccount: "requireIdentity",
   },
   "convex/bookmarks.ts": {
