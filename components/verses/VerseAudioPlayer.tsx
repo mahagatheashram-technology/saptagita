@@ -114,7 +114,7 @@ function CompactPlayer({
 }
 
 // ---------------------------------------------------------------------------
-// Full — used in BookmarkDetailSheet and ActionDrawer
+// Full — used in BookmarkDetailSheet and ReadVerseDetailSheet
 // ---------------------------------------------------------------------------
 function FullPlayer({
   isPlaying,

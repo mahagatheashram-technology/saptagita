@@ -15,10 +15,13 @@ function StatBox({
   label,
   value,
   tone,
+  note,
 }: {
   label: string;
   value: number;
   tone?: "primary" | "complete";
+  /** Small qualifier under the value, e.g. the period a stat is counted over. */
+  note?: string;
 }) {
   const isPrimary = tone === "primary";
   const isComplete = tone === "complete";
@@ -46,6 +49,9 @@ function StatBox({
       <Text className="text-lg font-bold text-textPrimary">
         {value} days
       </Text>
+      {note ? (
+        <Text className="text-[10px] text-textSecondary/70 mt-0.5">{note}</Text>
+      ) : null}
     </View>
   );
 }
@@ -63,7 +69,14 @@ export function StreakStatsCard({
       <View className="flex-row gap-2">
         <StatBox label="🔥 Current" value={currentStreak} tone="primary" />
         <StatBox label="🏆 Longest" value={longestStreak} />
-        <StatBox label="⭐ Perfect" value={perfectDays} tone="complete" />
+        {/* Counted over all time, unlike the calendar below, which paints only
+            the last 12 weeks. The note makes that difference explicit. */}
+        <StatBox
+          label="⭐ Perfect"
+          value={perfectDays}
+          tone="complete"
+          note="All-time"
+        />
       </View>
     </View>
   );
