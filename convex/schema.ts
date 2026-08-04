@@ -17,8 +17,10 @@ export default defineSchema({
     avatarUrl: v.string(),
     timezone: v.string(),
     createdAt: v.number(),
+    discoverable: v.optional(v.boolean()),
   })
-    .index("byAuthId", ["authId"]),
+    .index("byAuthId", ["authId"])
+    .searchIndex("search_display_name", { searchField: "displayName" }),
   // A durable marker prevents the normal Clerk -> Convex sync from recreating
   // app data if Clerk identity deletion needs to be retried.
   accountDeletionRequests: defineTable({

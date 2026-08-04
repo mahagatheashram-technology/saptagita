@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import {
   assertIdentitySubject,
   isLegacyAlphaAuthEnabled,
+  requireCurrentUser,
   requireIdentity,
   requireOwnedUser,
 } from "./auth";
@@ -15,6 +16,10 @@ import { deleteRankedStreak, insertRankedStreak } from "./streakRanking";
 import { decrementDailyReaderCount } from "./dailyReaders";
 
 export const ACCOUNT_DELETION_PENDING_ERROR = "ACCOUNT_DELETION_PENDING";
+
+function containsEmailAddress(value: string): boolean {
+  return /[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+/i.test(value);
+}
 
 async function hashAuthId(authId: string): Promise<string> {
   const bytes = new TextEncoder().encode(authId);
@@ -245,6 +250,63 @@ export const getUserState = query({
   },
 });
 
+export const searchUsersByDisplayName = query({
+  args: { query: v.string() },
+  returns: v.array(
+    v.object({
+      userId: v.id("users"),
+      displayName: v.string(),
+      avatarUrl: v.union(v.string(), v.null()),
+      currentStreak: v.number(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const currentUser = await requireCurrentUser(ctx);
+    const searchQuery = args.query.trim();
+
+    // Short or email-shaped input must never enumerate users or reveal whether
+    // an email identity has an account.
+    if (searchQuery.length < 3 || containsEmailAddress(searchQuery)) {
+      return [];
+    }
+
+    const users = await ctx.db
+      .query("users")
+      .withSearchIndex("search_display_name", (q) =>
+        q.search("displayName", searchQuery)
+      )
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("discoverable"), false),
+          q.neq(q.field("_id"), currentUser._id)
+        )
+      )
+      .take(10);
+
+    // A display name that itself contains an email address is not safe to
+    // expose, even though email is not part of the search index or response.
+    const safeUsers = users.filter(
+      (user) => !containsEmailAddress(user.displayName)
+    );
+
+    return await Promise.all(
+      safeUsers.map(async (user) => {
+        const streak = await ctx.db
+          .query("streaks")
+          .withIndex("byUser", (q) => q.eq("userId", user._id))
+          .first();
+
+        return {
+          userId: user._id,
+          displayName: user.displayName,
+          avatarUrl: user.avatarUrl || null,
+          currentStreak: streak?.currentStreak ?? 0,
+        };
+      })
+    );
+  },
+});
+
 export const markTodayGestureCoachSeen = mutation({
   args: { userId: v.id("users") },
   returns: v.object({ todayGestureCoachSeenAt: v.number() }),
@@ -354,6 +416,17 @@ export const updateDisplayName = mutation({
 
     await ctx.db.patch(args.userId, { displayName: args.displayName });
     return { displayName: args.displayName };
+  },
+});
+
+export const updateDiscoverability = mutation({
+  args: { userId: v.id("users"), discoverable: v.boolean() },
+  returns: v.object({ discoverable: v.boolean() }),
+  handler: async (ctx, args) => {
+    await requireOwnedUser(ctx, args.userId);
+
+    await ctx.db.patch(args.userId, { discoverable: args.discoverable });
+    return { discoverable: args.discoverable };
   },
 });
 
