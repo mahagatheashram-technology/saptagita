@@ -562,3 +562,86 @@ export const getCommunityLeaderboard = query({
     };
   },
 });
+
+async function usersShareCommunity(
+  ctx: any,
+  currentUserId: any,
+  targetUserId: any,
+): Promise<boolean> {
+  const [currentUserMemberships, targetUserMemberships] = await Promise.all([
+    ctx.db
+      .query("communityMembers")
+      .withIndex("by_user", (q: any) => q.eq("userId", currentUserId))
+      .collect(),
+    ctx.db
+      .query("communityMembers")
+      .withIndex("by_user", (q: any) => q.eq("userId", targetUserId))
+      .collect(),
+  ]);
+  const currentUserCommunityIds = new Set(
+    currentUserMemberships.map((membership: any) =>
+      String(membership.communityId),
+    ),
+  );
+
+  return targetUserMemberships.some((membership: any) =>
+    currentUserCommunityIds.has(String(membership.communityId)),
+  );
+}
+
+export const getStreakSummary = query({
+  args: { userId: v.id("users") },
+  returns: v.union(
+    v.object({
+      displayName: v.string(),
+      avatarUrl: v.union(v.string(), v.null()),
+      currentStreak: v.number(),
+      longestStreak: v.number(),
+      perfectDays: v.number(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const currentUser = await requireCurrentUser(ctx);
+    const globalTop50 = await getGlobalLeaderboardEntries(
+      ctx,
+      GLOBAL_LEADERBOARD_DETAIL_LIMIT,
+    );
+    const isGloballyVisible = globalTop50.some(
+      (entry) => String(entry.userId) === String(args.userId),
+    );
+    if (
+      !isGloballyVisible &&
+      !(await usersShareCommunity(ctx, currentUser._id, args.userId))
+    ) {
+      return null;
+    }
+
+    const targetUser = await ctx.db.get(args.userId);
+    if (!targetUser) return null;
+
+    const [streak, { completedSets }] = await Promise.all([
+      ctx.db
+        .query("streaks")
+        .withIndex("byUser", (q) => q.eq("userId", args.userId))
+        .first(),
+      getCompletionStats(ctx, args.userId),
+    ]);
+    const lastReadLocalDate =
+      streak?.lastReadLocalDate ?? streak?.lastCompletedLocalDate ?? "";
+
+    return {
+      displayName: targetUser.displayName ?? "Anonymous",
+      avatarUrl: targetUser.avatarUrl ?? null,
+      currentStreak: getActiveCurrentStreak(
+        streak?.currentStreak ?? 0,
+        lastReadLocalDate,
+        getTodayDateString(targetUser.timezone || "UTC"),
+      ),
+      longestStreak: streak?.longestStreak ?? 0,
+      perfectDays: new Set(
+        completedSets.map((set: any) => set.localDate),
+      ).size,
+    };
+  },
+});
