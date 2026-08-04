@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BottomSheet from "@gorhom/bottom-sheet";
 import { useConvex, useQuery } from "convex/react";
 import { usePathname } from "expo-router";
 import { api } from "@/convex/_generated/api";
@@ -10,7 +11,10 @@ import {
   CreateCommunityModal,
   JoinCommunityModal,
   TodayReadersStat,
+  UserSearchBox,
+  UserStatsSheet,
 } from "@/components/social";
+import { Id } from "@/convex/_generated/dataModel";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { FoundationFooter } from "@/components/common";
 import { type } from "@/lib/typography";
@@ -19,6 +23,23 @@ export default function SocialScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [todayReaderCount, setTodayReaderCount] = useState<number | null>(null);
+  const [viewedUser, setViewedUser] = useState<{
+    userId: Id<"users">;
+    displayName: string;
+    avatarUrl: string | null;
+  } | null>(null);
+  const statsSheetRef = useRef<BottomSheet>(null);
+
+  const openUserStats = (user: {
+    userId: Id<"users">;
+    displayName: string;
+    avatarUrl: string | null;
+  }) => {
+    setViewedUser(user);
+    // Snap on the next frame so the sheet renders the freshly-selected reader
+    // before it animates open.
+    requestAnimationFrame(() => statsSheetRef.current?.snapToIndex(0));
+  };
   const convex = useConvex();
   const pathname = usePathname();
   const { user, error: userError } = useCurrentUser();
@@ -79,6 +100,8 @@ export default function SocialScreen() {
 
       <TodayReadersStat count={todayReaderCount} />
 
+      <UserSearchBox onSelectUser={openUserStats} />
+
       <LeaderboardHeader
         userId={user?._id ?? null}
         activeCommunityName={activeCommunityName}
@@ -104,6 +127,7 @@ export default function SocialScreen() {
           <LeaderboardList
             communityId={activeCommunityId}
             currentUserId={user?._id ?? null}
+            onSelectUser={openUserStats}
           />
         )}
       </View>
@@ -125,6 +149,13 @@ export default function SocialScreen() {
         visible={showJoinModal}
         onClose={() => setShowJoinModal(false)}
         userId={user?._id ?? null}
+      />
+
+      <UserStatsSheet
+        ref={statsSheetRef}
+        userId={viewedUser?.userId ?? null}
+        fallbackName={viewedUser?.displayName}
+        fallbackAvatarUrl={viewedUser?.avatarUrl}
       />
     </SafeAreaView>
   );

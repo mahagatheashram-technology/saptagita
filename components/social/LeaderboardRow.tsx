@@ -1,4 +1,4 @@
-import { Image, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import { getInitials } from "./leaderboardPresentation";
 import { type } from "@/lib/typography";
 
@@ -10,6 +10,8 @@ interface LeaderboardRowProps {
   isCurrentUser?: boolean;
   /** Denser vertical rhythm for the 5-row preview on the Social tab. */
   compact?: boolean;
+  /** Opens this reader's stats. Rows are inert when omitted. */
+  onPress?: () => void;
 }
 
 // Medal tints for the top three. The rank pill keeps its shape at every
@@ -31,15 +33,23 @@ export function LeaderboardRow({
   currentStreak,
   isCurrentUser,
   compact = false,
+  onPress,
 }: LeaderboardRowProps) {
   const initials = getInitials(displayName || "User");
   const streakLabel = currentStreak === 1 ? "day" : "days";
   const medal = MEDAL_TINTS[rank];
   const avatarSize = compact ? "h-9 w-9" : "h-10 w-10";
 
+  const Container = onPress ? Pressable : View;
+
   return (
-    <View
-      className={`flex-row items-center rounded-2xl px-4 ${
+    <Container
+      onPress={onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={
+        onPress ? `${displayName || "Anonymous"}, view stats` : undefined
+      }
+      className={`flex-row items-center rounded-2xl px-4 ${onPress ? "active:opacity-80" : ""} ${
         compact ? "py-2.5 mb-2" : "py-3 mb-3"
       } ${
         isCurrentUser
@@ -99,6 +109,6 @@ export function LeaderboardRow({
           {currentStreak} {streakLabel}
         </Text>
       </View>
-    </View>
+    </Container>
   );
 }

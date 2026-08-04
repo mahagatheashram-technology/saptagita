@@ -250,6 +250,7 @@ export default function ProfileScreen() {
           userId={user._id}
           reminderTime={userState?.reminderTime}
           scriptPreference={userState?.scriptPreference}
+          discoverable={user.discoverable}
         />
 
         <View className="h-4" />

@@ -1,4 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
+import { shareText } from "@/lib/shareText";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
@@ -145,7 +147,20 @@ export function CreateCommunityModal({
                   </Text>
                 </View>
                 <Pressable
-                  className="mt-4 rounded-xl bg-secondary px-4 py-3"
+                  className="mt-3 flex-row items-center justify-center rounded-xl bg-primary px-4 py-3 active:opacity-80"
+                  onPress={() =>
+                    shareText(
+                      `Join me on Sapta Gita. Open the app, tap Social \u2192 Join Community, and enter invite code ${inviteCode}.`
+                    )
+                  }
+                >
+                  <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-semibold text-center ml-2">
+                    Share invite code
+                  </Text>
+                </Pressable>
+                <Pressable
+                  className="mt-2 rounded-xl bg-secondary px-4 py-3"
                   onPress={handleClose}
                 >
                   <Text className="text-white font-semibold text-center">

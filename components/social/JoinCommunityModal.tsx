@@ -33,7 +33,9 @@ const SELECTED_SEGMENT_STYLE = {
 } as const;
 
 type JoinMode = "browse" | "code";
-const INVITE_CODE_ENABLED = false;
+// Enabled now that the backend generates collision-safe codes, normalises
+// input, and can preview a code before committing to the join.
+const INVITE_CODE_ENABLED = true;
 
 interface JoinCommunityModalProps {
   visible: boolean;
@@ -101,8 +103,21 @@ export function JoinCommunityModal({
   const isBusy = Boolean(joiningCommunityId) || joiningCode;
   const showInviteCode = mode === "code" && INVITE_CODE_ENABLED;
 
-  const trimmedCode = inviteCode.trim().toUpperCase();
-  const canSubmitCode = trimmedCode.length > 0 && !isBusy;
+  const trimmedCode = inviteCode.replace(/\s+/g, "").toUpperCase();
+  // Preview the code before joining, so the user confirms which community they
+  // are about to enter instead of finding out afterwards.
+  const codePreview = useQuery(
+    api.communities.getCommunityByInviteCode,
+    showInviteCode && trimmedCode.length >= 6 ? { inviteCode: trimmedCode } : "skip"
+  );
+  const isPreviewLoading =
+    showInviteCode && trimmedCode.length >= 6 && codePreview === undefined;
+  const canSubmitCode =
+    trimmedCode.length > 0 &&
+    !isBusy &&
+    !isPreviewLoading &&
+    codePreview !== null &&
+    !codePreview?.isAlreadyMember;
 
   const handleJoinPublic = async (communityId: Id<"communities">) => {
     if (!userId) {
@@ -301,6 +316,30 @@ export function JoinCommunityModal({
                     returnKeyType="done"
                   />
                 </View>
+
+                {isPreviewLoading ? (
+                  <View className="flex-row items-center mt-3">
+                    <ActivityIndicator size="small" color="#FF6B35" />
+                    <Text className="text-sm text-textSecondary ml-2">
+                      Checking code...
+                    </Text>
+                  </View>
+                ) : codePreview === null && trimmedCode.length >= 6 ? (
+                  <Text className="text-sm text-textSecondary mt-3">
+                    No community matches that code.
+                  </Text>
+                ) : codePreview ? (
+                  <View className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                    <Text className="text-base font-semibold text-secondary">
+                      {codePreview.name}
+                    </Text>
+                    <Text className="text-xs text-textSecondary mt-0.5">
+                      {codePreview.memberCount}{" "}
+                      {codePreview.memberCount === 1 ? "member" : "members"}
+                      {codePreview.isAlreadyMember ? " · You're already in" : ""}
+                    </Text>
+                  </View>
+                ) : null}
               </>
             )}
 

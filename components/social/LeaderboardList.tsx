@@ -21,12 +21,29 @@ export interface LeaderboardEntry {
 interface LeaderboardListProps {
   communityId: Id<"communities"> | null;
   currentUserId?: Id<"users"> | null;
+  /** Opens a reader's stats sheet. Rows stay inert when omitted. */
+  onSelectUser?: (user: {
+    userId: Id<"users">;
+    displayName: string;
+    avatarUrl: string | null;
+  }) => void;
 }
 
 export function LeaderboardList({
   communityId,
   currentUserId,
+  onSelectUser,
 }: LeaderboardListProps) {
+
+  const selectHandler = (entry: LeaderboardEntry) =>
+    onSelectUser
+      ? () =>
+          onSelectUser({
+            userId: entry.userId,
+            displayName: entry.displayName,
+            avatarUrl: entry.avatarUrl ?? null,
+          })
+      : undefined;
   const insets = useSafeAreaInsets();
   const convex = useConvex();
   const isGlobal = communityId === null;
@@ -121,6 +138,7 @@ export function LeaderboardList({
             currentStreak={item.currentStreak}
             isCurrentUser={item.userId === resolvedCurrentUserId}
             compact
+            onPress={selectHandler(item)}
           />
         ))}
 
@@ -132,6 +150,7 @@ export function LeaderboardList({
             currentStreak={pinnedUser.currentStreak}
             isCurrentUser
             compact
+            onPress={selectHandler(pinnedUser)}
           />
         ) : null}
 
@@ -160,6 +179,7 @@ export function LeaderboardList({
             avatarUrl={item.avatarUrl}
             currentStreak={item.currentStreak}
             isCurrentUser={item.userId === resolvedCurrentUserId}
+            onPress={selectHandler(item)}
           />
         )}
         ListHeaderComponent={<View className="pb-2" />}
@@ -182,6 +202,7 @@ export function LeaderboardList({
             avatarUrl={pinnedUser.avatarUrl}
             currentStreak={pinnedUser.currentStreak}
             isCurrentUser
+            onPress={selectHandler(pinnedUser)}
           />
         </View>
       ) : null}

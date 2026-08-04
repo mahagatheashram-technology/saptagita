@@ -6,3 +6,5 @@ export { CommunityDropdown } from "./CommunityDropdown";
 export { CreateCommunityModal } from "./CreateCommunityModal";
 export { JoinCommunityModal } from "./JoinCommunityModal";
 export { TodayReadersStat } from "./TodayReadersStat";
+export { UserStatsSheet } from "./UserStatsSheet";
+export { UserSearchBox } from "./UserSearchBox";
