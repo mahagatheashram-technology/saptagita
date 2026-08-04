@@ -26,6 +26,17 @@ import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useReadHistory } from "@/lib/hooks/useReadHistory";
 import { getUserFacingErrorMessage } from "@/lib/userFacingError";
 
+// Selected-segment styling. Deliberately a plain style object rather than a
+// conditional `shadow-sm` class — see the comment at its use site.
+const SELECTED_SEGMENT_STYLE = {
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#D6C3AE",
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
+
 const BUCKET_ICONS = [
   "📁",
   "⭐️",
@@ -283,9 +294,19 @@ export default function BookmarksScreen() {
             <Pressable
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2 rounded-full items-center ${
-                activeTab === tab.key ? "bg-white shadow-sm" : ""
-              }`}
+              // The selected pill is styled through `style`, not a conditional
+              // className. Adding `shadow-sm` only when selected made NativeWind
+              // introduce a CSS variable *after* the initial render, which
+              // triggers its dev-only "upgrade" warning. That warning calls
+              // stringify(originalProps), which deep-walks props with
+              // Object.entries() and enumerates React internals — including
+              // React Navigation's context object, whose getters throw by
+              // design. Result: "Couldn't find a navigation context" on every
+              // sub-tab press, in dev only. Keep this className static.
+              className="flex-1 py-2 rounded-full items-center"
+              style={
+                activeTab === tab.key ? SELECTED_SEGMENT_STYLE : undefined
+              }
             >
               <Text
                 className={`text-sm font-medium ${

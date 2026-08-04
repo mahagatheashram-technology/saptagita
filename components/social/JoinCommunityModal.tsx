@@ -17,6 +17,21 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Selected-segment styling. Deliberately a plain style object rather than a
+// conditional `shadow-sm` class: adding a shadow class only when selected makes
+// NativeWind upgrade the component after its initial render, and its dev-only
+// upgrade warning serializes props with Object.entries(), which enumerates
+// React Navigation's context object and throws "Couldn't find a navigation
+// context". Keep the className static.
+const SELECTED_SEGMENT_STYLE = {
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#D6C3AE",
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
+
 type JoinMode = "browse" | "code";
 const INVITE_CODE_ENABLED = false;
 
@@ -215,8 +230,9 @@ export function JoinCommunityModal({
                   <Pressable
                     key={option}
                     className={`flex-1 px-4 py-2 rounded-xl ${
-                      isActive ? "bg-white shadow-sm" : ""
-                    } ${isDisabled ? "opacity-60" : ""}`}
+                      isDisabled ? "opacity-60" : ""
+                    }`}
+                    style={isActive ? SELECTED_SEGMENT_STYLE : undefined}
                     onPress={() => {
                       if (isDisabled) return;
                       setMode(option);
