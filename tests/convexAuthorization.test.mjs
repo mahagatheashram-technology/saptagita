@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import test from "node:test";
+import "tsx/cjs";
 import {
   assertIdentitySubject,
   LEGACY_ALPHA_AUTH_ENV,
@@ -8,6 +10,9 @@ import {
   requireIdentity,
   requireOwnedUser,
 } from "../convex/auth.ts";
+
+const require = createRequire(import.meta.url);
+const { getStreakSummary } = require("../convex/streaks.ts");
 
 function authContext({ subject, users = [] } = {}) {
   let requestedAuthId = null;
@@ -136,6 +141,224 @@ test("legacy authId arguments cannot impersonate another Clerk subject", () => {
   );
 });
 
+function streakSummaryContext({
+  subject,
+  users,
+  streaks,
+  memberships,
+  dailySets,
+}) {
+  const tables = { users, streaks, communityMembers: memberships, dailySets };
+
+  return {
+    auth: {
+      getUserIdentity: async () =>
+        subject ? { subject, tokenIdentifier: `clerk|${subject}` } : null,
+    },
+    db: {
+      get: async (id) =>
+        Object.values(tables)
+          .flat()
+          .find((document) => document._id === id) ?? null,
+      query: (table) => {
+        const filters = [];
+        let order = null;
+        const indexQuery = {
+          eq(field, value) {
+            filters.push((document) => document[field] === value);
+            return indexQuery;
+          },
+          gt(field, value) {
+            filters.push((document) => document[field] > value);
+            return indexQuery;
+          },
+        };
+        const matchingDocuments = () => {
+          const documents = (tables[table] ?? []).filter((document) =>
+            filters.every((filter) => filter(document)),
+          );
+          if (table === "streaks" && order === "desc") {
+            documents.sort(
+              (a, b) =>
+                b.currentStreak - a.currentStreak ||
+                (b.lastReadLocalDate ?? "").localeCompare(
+                  a.lastReadLocalDate ?? "",
+                ),
+            );
+          }
+          return documents;
+        };
+        const query = {
+          withIndex(_indexName, select) {
+            select(indexQuery);
+            return query;
+          },
+          order(direction) {
+            order = direction;
+            return query;
+          },
+          async take(limit) {
+            return matchingDocuments().slice(0, limit);
+          },
+          async first() {
+            return matchingDocuments()[0] ?? null;
+          },
+          async collect() {
+            return matchingDocuments();
+          },
+        };
+        return query;
+      },
+    },
+  };
+}
+
+const summaryUsers = [
+  {
+    _id: "user-a",
+    authId: "clerk-user-a",
+    displayName: "Caller",
+    avatarUrl: "caller.png",
+    timezone: "UTC",
+  },
+  {
+    _id: "user-b",
+    authId: "clerk-user-b",
+    displayName: "Visible Reader",
+    timezone: "UTC",
+  },
+  {
+    _id: "user-c",
+    authId: "clerk-user-c",
+    displayName: "Private Reader",
+    avatarUrl: "private.png",
+    timezone: "UTC",
+  },
+];
+
+test("streak summary returns only safe all-time stats for a visible target", async () => {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "UTC" });
+  const higherRankedStreaks = Array.from({ length: 50 }, (_, index) => ({
+    _id: `ranked-streak-${index}`,
+    userId: `ranked-user-${index}`,
+    currentStreak: 100 - index,
+    longestStreak: 100 - index,
+    lastCompletedLocalDate: today,
+    lastReadLocalDate: today,
+  }));
+  const result = await getStreakSummary._handler(
+    streakSummaryContext({
+      subject: "clerk-user-a",
+      users: summaryUsers,
+      streaks: [
+        ...higherRankedStreaks,
+        {
+          _id: "streak-b",
+          userId: "user-b",
+          currentStreak: 4,
+          longestStreak: 9,
+          lastCompletedLocalDate: today,
+          lastReadLocalDate: today,
+        },
+      ],
+      memberships: [
+        { _id: "member-a", communityId: "community-1", userId: "user-a" },
+        { _id: "member-b", communityId: "community-1", userId: "user-b" },
+      ],
+      dailySets: [
+        {
+          _id: "set-b-1",
+          userId: "user-b",
+          localDate: "2019-01-01",
+          completedAt: 1,
+        },
+        {
+          _id: "set-b-2",
+          userId: "user-b",
+          localDate: today,
+          completedAt: 2,
+        },
+        {
+          _id: "set-b-incomplete",
+          userId: "user-b",
+          localDate: "2020-01-01",
+          completedAt: 0,
+        },
+      ],
+    }),
+    { userId: "user-b" },
+  );
+
+  assert.deepEqual(result, {
+    displayName: "Visible Reader",
+    avatarUrl: null,
+    currentStreak: 4,
+    longestStreak: 9,
+    perfectDays: 2,
+  });
+});
+
+test("streak summary allows a global top-50 target without a shared community", async () => {
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "UTC" });
+  const result = await getStreakSummary._handler(
+    streakSummaryContext({
+      subject: "clerk-user-a",
+      users: summaryUsers,
+      streaks: [
+        {
+          _id: "streak-c",
+          userId: "user-c",
+          currentStreak: 2,
+          longestStreak: 3,
+          lastCompletedLocalDate: today,
+          lastReadLocalDate: today,
+        },
+      ],
+      memberships: [],
+      dailySets: [],
+    }),
+    { userId: "user-c" },
+  );
+
+  assert.deepEqual(result, {
+    displayName: "Private Reader",
+    avatarUrl: "private.png",
+    currentStreak: 2,
+    longestStreak: 3,
+    perfectDays: 0,
+  });
+});
+
+test("streak summary returns null for a target outside top 50 and communities", async () => {
+  const result = await getStreakSummary._handler(
+    streakSummaryContext({
+      subject: "clerk-user-a",
+      users: summaryUsers,
+      streaks: [],
+      memberships: [],
+      dailySets: [],
+    }),
+    { userId: "user-c" },
+  );
+
+  assert.equal(result, null);
+});
+
+test("streak summary rejects an unauthenticated request", async () => {
+  await assert.rejects(
+    getStreakSummary._handler(
+      streakSummaryContext({
+        users: summaryUsers,
+        streaks: [],
+        memberships: [],
+        dailySets: [],
+      }),
+      { userId: "user-b" },
+    ),
+    assertConvexCode("UNAUTHENTICATED"),
+  );
+});
+
 const protectedExports = {
   "convex/users.ts": {
     getOrCreateUser: "requireIdentity",
@@ -176,6 +399,7 @@ const protectedExports = {
   "convex/streaks.ts": {
     getStreak: "requireOwnedUser",
     getStreakStats: "requireOwnedUser",
+    getStreakSummary: "requireCurrentUser",
     checkAndUpdateStreak: "requireOwnedUser",
     getGlobalLeaderboard: "requireCurrentUser",
     getGlobalLeaderboardTop50: "requireCurrentUser",
