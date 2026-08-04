@@ -44,7 +44,7 @@ export function AuthHeader({
         {title}
       </Text>
 
-      <Text className="text-[15px] leading-6 text-textSecondary text-center px-4">
+      <Text className="text-base leading-6 text-textSecondary text-center px-4">
         {subtitle}
       </Text>
     </View>

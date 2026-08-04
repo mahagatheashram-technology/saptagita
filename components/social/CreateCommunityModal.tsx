@@ -14,6 +14,21 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Selected-segment styling. Deliberately a plain style object rather than a
+// conditional `shadow-sm` class: adding a shadow class only when selected makes
+// NativeWind upgrade the component after its initial render, and its dev-only
+// upgrade warning serializes props with Object.entries(), which enumerates
+// React Navigation's context object and throws "Couldn't find a navigation
+// context". Keep the className static.
+const SELECTED_SEGMENT_STYLE = {
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#D6C3AE",
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
+
 type CommunityType = "public" | "private";
 const PRIVATE_ENABLED = false;
 
@@ -143,7 +158,7 @@ export function CreateCommunityModal({
                 <Text className="text-sm text-textSecondary mb-2">
                   Name your community (3-30 characters)
                 </Text>
-                <View className="bg-gray-50 rounded-xl border border-[#E2E8F0] px-3 py-2">
+                <View className="bg-sand-50 rounded-xl border border-[#E9DFD3] px-3 py-2">
                   <TextInput
                     value={name}
                     onChangeText={setName}
@@ -171,7 +186,7 @@ export function CreateCommunityModal({
                 <Text className="text-sm text-textSecondary mt-4 mb-2">
                   Visibility
                 </Text>
-                <View className="flex-row bg-gray-100 rounded-xl p-1">
+                <View className="flex-row bg-sand-50 rounded-xl p-1">
                   {(["public", "private"] as CommunityType[]).map((option) => {
                     const isActive = type === option;
                     const isDisabled = option === "private" && !PRIVATE_ENABLED;
@@ -184,8 +199,9 @@ export function CreateCommunityModal({
                         }}
                         disabled={isDisabled}
                         className={`flex-1 px-4 py-2 rounded-xl ${
-                          isActive ? "bg-white shadow-sm" : ""
-                        } ${isDisabled ? "opacity-60" : ""}`}
+                          isDisabled ? "opacity-60" : ""
+                        }`}
+                        style={isActive ? SELECTED_SEGMENT_STYLE : undefined}
                       >
                         <Text
                           className={`text-sm font-semibold text-center ${
@@ -195,7 +211,7 @@ export function CreateCommunityModal({
                           {option === "public" ? "Public" : "Private"}
                         </Text>
                         <Text
-                          className="text-[12px] text-textSecondary text-center mt-1"
+                          className="text-xs text-textSecondary text-center mt-1"
                           numberOfLines={2}
                         >
                           {option === "public"
@@ -219,9 +235,9 @@ export function CreateCommunityModal({
                   <Text className="text-xs text-red-500 mt-2">{error}</Text>
                 ) : null}
 
-                <View className="flex-row mt-5 space-x-3">
+                <View className="flex-row mt-5 gap-3">
                   <Pressable
-                    className="flex-1 rounded-xl border border-[#E2E8F0] px-4 py-3 bg-white"
+                    className="flex-1 rounded-xl border border-[#E9DFD3] px-4 py-3 bg-white"
                     onPress={handleClose}
                     disabled={loading}
                   >

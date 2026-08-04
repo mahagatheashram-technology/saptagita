@@ -67,6 +67,14 @@ const calendarSource = await readFile(
   new URL("../components/profile/ReadingCalendar.tsx", import.meta.url),
   "utf8",
 );
+const colorsSource = await readFile(
+  new URL("../constants/Colors.ts", import.meta.url),
+  "utf8",
+);
+const streakStatsSource = await readFile(
+  new URL("../components/profile/StreakStatsCard.tsx", import.meta.url),
+  "utf8",
+);
 const previewFixturesSource = await readFile(
   new URL("../convex/previewFixtures.ts", import.meta.url),
   "utf8",
@@ -259,16 +267,30 @@ test("today reader backfill is paginated and idempotent with live reads", () => 
 });
 
 test("social fits the main leaderboard without shrinking current-user treatment", () => {
-  assert.match(socialScreenSource, /text-\[25px\][^>]*>Social</);
-  assert.match(todayReadersSource, /size=\{18\}/);
-  assert.match(todayReadersSource, /text-\[19px\]/);
-  assert.match(leaderboardRowSource, /text-\[15px\]/);
-  assert.match(leaderboardRowSource, /text-\[13px\]/);
-  assert.match(leaderboardRowSource, /min-w-\[36px\]/);
+  // The screen and its rows now draw from the shared type scale in
+  // lib/typography.ts instead of hand-rolled pixel sizes, so this guards the
+  // density properties themselves rather than specific px literals.
+  assert.match(socialScreenSource, /\$\{type\.display\}[^>]*>Social</);
+  assert.match(todayReadersSource, /\$\{type\.title\}/);
+  assert.match(leaderboardRowSource, /\$\{type\.body\} font-semibold/);
+  assert.match(leaderboardRowSource, /\$\{type\.bodySm\} font-semibold text-primary/);
+  // Rank pill keeps a floor width and single-line rank at every position.
+  assert.match(leaderboardRowSource, /min-w-\[28px\]/);
   assert.match(leaderboardRowSource, /numberOfLines=\{1\}/);
-  assert.match(leaderboardRowSource, /compact \? "py-2 mb-1\.5"/);
-  assert.match(leaderboardRowSource, /compact \? "h-9 w-9"/);
-  assert.match(leaderboardListSource, /flex-1 px-5 pt-3/);
+  // Compact mode stays denser than the full row.
+  assert.match(leaderboardRowSource, /compact\s*\?\s*"py-2\.5 mb-2"/);
+  assert.match(leaderboardRowSource, /compact \? "h-9 w-9" : "h-10 w-10"/);
+  // Current-user treatment is preserved: tinted, bordered, and labelled.
+  assert.match(leaderboardRowSource, /isCurrentUser[\s\S]*bg-primary\/10 border border-primary\/30/);
+  assert.match(leaderboardRowSource, />\s*You\s*</);
+  assert.match(leaderboardListSource, /px-5 pt-3/);
+});
+
+test("leaderboard ranks render one consistent pill, not medal emoji", () => {
+  // Android renders 🥇/🥈/🥉 with their own numeral inside, which made ranks
+  // 1-3 read as a different component from the rest of the list.
+  assert.doesNotMatch(leaderboardRowSource, /🥇|🥈|🥉/);
+  assert.match(leaderboardRowSource, /MEDAL_TINTS/);
 });
 
 test("leaderboard initials ignore numeric fixture suffixes", () => {
@@ -278,10 +300,25 @@ test("leaderboard initials ignore numeric fixture suffixes", () => {
 });
 
 test("calendar distinguishes started and perfect days", () => {
-  assert.match(calendarSource, /const PERFECT_GREEN = "#16A34A"/);
-  assert.match(calendarSource, /const READ_YELLOW = "#FACC15"/);
+  // The hexes moved behind named status tokens, so assert the binding *and*
+  // the value the token resolves to. Gold-for-perfect confused readers; the
+  // universal yellow=started / green=complete encoding must not regress, and
+  // these colours are deliberately excluded from the warm palette sweep.
+  assert.match(calendarSource, /const PERFECT_GREEN = status\.complete/);
+  assert.match(calendarSource, /const READ_YELLOW = status\.partial/);
+  assert.match(colorsSource, /complete:\s*'#16A34A'/);
+  assert.match(colorsSource, /partial:\s*'#FACC15'/);
   assert.match(calendarSource, /label="All 7 read"/);
   assert.match(calendarSource, /label="Started"/);
+});
+
+test("the Perfect stat matches the calendar's complete colour", () => {
+  // "Perfect" and a green calendar day mean the same thing (all 7 read). The
+  // stat box used to render gold, directly above a legend where yellow means
+  // "Started" — i.e. the opposite of what the box was reporting.
+  assert.match(streakStatsSource, /tone="complete"/);
+  assert.match(streakStatsSource, /text-status-complete/);
+  assert.doesNotMatch(streakStatsSource, /tone="gold"|#FDE68A|#B45309/);
 });
 
 test("preview fixtures are isolated and reconciliation-safe", () => {

@@ -239,8 +239,8 @@ export function SettingsSection({
   };
 
   return (
-    <View className="bg-surface rounded-xl p-4 shadow-sm">
-      <Text className="text-base font-semibold text-secondary mb-3">Settings</Text>
+    <View className="bg-surface rounded-2xl p-4 shadow-sm">
+      <Text className="text-lg font-semibold text-secondary mb-3">Settings</Text>
 
       <Pressable
         onPress={handleTimePress}
@@ -255,7 +255,7 @@ export function SettingsSection({
         <Ionicons name="chevron-forward" size={18} color="#718096" />
       </Pressable>
 
-      <View className="h-px bg-[#EDF2F7]" />
+      <View className="h-px bg-[#F0E8DE]" />
 
       <View className="flex-row items-center justify-between py-3">
         <View>
@@ -268,12 +268,12 @@ export function SettingsSection({
           value={remindersEnabled}
           onValueChange={handleToggleReminders}
           disabled={isLoadingPreference || isWeb}
-          thumbColor={remindersEnabled ? "#FF6B35" : "#CBD5E0"}
-          trackColor={{ false: "#E2E8F0", true: "#FBD38D" }}
+          thumbColor={remindersEnabled ? "#FF6B35" : "#D6C3AE"}
+          trackColor={{ false: "#E9DFD3", true: "#FBD38D" }}
         />
       </View>
 
-      <View className="h-px bg-[#EDF2F7]" />
+      <View className="h-px bg-[#F0E8DE]" />
 
       <View className="py-3">
         <View className="mb-3">
@@ -334,7 +334,7 @@ export function SettingsSection({
         </View>
       </View>
 
-      <View className="h-px bg-[#EDF2F7]" />
+      <View className="h-px bg-[#F0E8DE]" />
 
       <Pressable
         onPress={handleResetProgress}
@@ -352,8 +352,8 @@ export function SettingsSection({
       {showPicker && Platform.OS === "ios" ? (
         <Modal transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
           <View className="flex-1 items-center justify-center bg-black/40 px-6">
-            <View className="bg-surface rounded-xl p-4 w-full">
-              <Text className="text-base font-semibold text-secondary mb-3">
+            <View className="bg-surface rounded-2xl p-4 w-full">
+              <Text className="text-lg font-semibold text-secondary mb-3">
                 Select reminder time
               </Text>
               <View style={{ backgroundColor: "#FFFFFF", borderRadius: 12 }}>

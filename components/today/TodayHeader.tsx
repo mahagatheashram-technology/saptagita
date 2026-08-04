@@ -57,7 +57,7 @@ export function TodayHeader({
 
         <View className="flex-row items-center">
           {/* Script toggle (global preference) */}
-          <View className="flex-row bg-gray-100 rounded-full p-0.5 mr-2">
+          <View className="flex-row bg-sand-50 rounded-full p-0.5 mr-2">
             {SCRIPT_OPTIONS.map((opt) => {
               const selected = activeScript === opt.value;
               return (

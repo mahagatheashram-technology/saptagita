@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { LeaderboardEntry, LeaderboardRow } from "@/components/social";
+import { type } from "@/lib/typography";
 
 export default function LeaderboardScreen() {
   const convex = useConvex();
@@ -49,8 +50,8 @@ export default function LeaderboardScreen() {
           <Ionicons name="chevron-back" size={25} color="#1A365D" />
         </Pressable>
         <View>
-          <Text className="text-[21px] font-bold text-secondary">Top 50</Text>
-          <Text className="text-[13px] text-textSecondary">Global streak leaderboard</Text>
+          <Text className={`${type.display} text-secondary`}>Top 50</Text>
+          <Text className={`${type.meta} text-textSecondary`}>Global streak leaderboard</Text>
         </View>
       </View>
 
@@ -60,7 +61,7 @@ export default function LeaderboardScreen() {
         </View>
       ) : error ? (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-[15px] text-textSecondary text-center">{error}</Text>
+          <Text className={`${type.bodySm} text-textSecondary text-center`}>{error}</Text>
         </View>
       ) : (
         <FlatList
@@ -77,7 +78,7 @@ export default function LeaderboardScreen() {
           )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
           ListEmptyComponent={
-            <Text className="text-[15px] text-textSecondary text-center mt-12">
+            <Text className={`${type.bodySm} text-textSecondary text-center mt-12`}>
               No active streaks yet.
             </Text>
           }

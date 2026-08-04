@@ -6,6 +6,8 @@ import { useConvex, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { LeaderboardRow } from "./LeaderboardRow";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { type } from "@/lib/typography";
 
 export interface LeaderboardEntry {
   userId: Id<"users">;
@@ -77,7 +79,9 @@ export function LeaderboardList({
     return (
       <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#FF6B35" />
-        <Text className="text-[15px] text-textSecondary mt-3">Loading leaderboard...</Text>
+        <Text className={`${type.bodySm} text-textSecondary mt-3`}>
+          Loading leaderboard...
+        </Text>
       </View>
     );
   }
@@ -85,10 +89,10 @@ export function LeaderboardList({
   if (isEmpty) {
     return (
       <View className="flex-1 items-center justify-center px-6">
-        <Text className="text-[17px] font-semibold text-textPrimary text-center">
+        <Text className={`${type.title} text-textPrimary text-center`}>
           No one has started a streak yet.
         </Text>
-        <Text className="text-[15px] text-textSecondary mt-1 text-center">
+        <Text className={`${type.bodySm} text-textSecondary mt-1 text-center`}>
           Be the first!
         </Text>
       </View>
@@ -101,8 +105,13 @@ export function LeaderboardList({
     : false;
   const pinnedUser = !isCurrentUserInVisibleList ? currentUser : null;
   if (isGlobal) {
+    // Deliberately NOT flex-1. The global view is a fixed 5-row preview, so
+    // stretching it to fill the screen left ~35% of the tab empty and pushed
+    // the page footer into the middle of the viewport. Sizing to content lets
+    // the footer sit directly beneath the list. (Community mode below still
+    // uses flex-1 — that list scrolls, so filling the space is correct there.)
     return (
-      <View className="flex-1 px-5 pt-3">
+      <View className="px-5 pt-3">
         {entries.map((item) => (
           <LeaderboardRow
             key={item.userId}
@@ -115,13 +124,6 @@ export function LeaderboardList({
           />
         ))}
 
-        <Pressable
-          onPress={() => router.push("/leaderboard")}
-          className="rounded-xl border border-primary/30 bg-primary/5 py-2.5 items-center mb-2 active:opacity-70"
-        >
-          <Text className="text-[15px] font-semibold text-primary">View Top 50</Text>
-        </Pressable>
-
         {pinnedUser ? (
           <LeaderboardRow
             rank={pinnedUser.rank}
@@ -132,6 +134,16 @@ export function LeaderboardList({
             compact
           />
         ) : null}
+
+        <Pressable
+          onPress={() => router.push("/leaderboard")}
+          className="flex-row items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 py-3 mt-1 active:opacity-70"
+        >
+          <Text className={`${type.bodySm} font-semibold text-primary`}>
+            View Top 50
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="#FF6B35" />
+        </Pressable>
       </View>
     );
   }

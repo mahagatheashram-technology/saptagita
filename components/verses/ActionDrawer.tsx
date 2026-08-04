@@ -80,11 +80,11 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
         onClose={handleClose}
         containerStyle={{ zIndex: 50, elevation: 50 }}
         backgroundStyle={{ backgroundColor: "#FFFFFF" }}
-        handleIndicatorStyle={{ backgroundColor: "#CBD5E0" }}
+        handleIndicatorStyle={{ backgroundColor: "#D6C3AE" }}
       >
         <BottomSheetView className="flex-1 px-4">
           {/* Header */}
-          <View className="items-center pb-4 border-b border-gray-100">
+          <View className="items-center pb-4 border-b border-sand-100">
             <Text className="text-lg font-semibold text-secondary">
               Chapter {chapterNumber} • Verse {verseNumber}
             </Text>
@@ -154,7 +154,7 @@ export const ActionDrawer = forwardRef<BottomSheet, ActionDrawerProps>(
           {/* Cancel button */}
           <Pressable
             onPress={handleClose}
-            className="py-3 items-center border-t border-gray-100"
+            className="py-3 items-center border-t border-sand-100"
           >
             <Text className="text-textSecondary font-medium">Cancel</Text>
           </Pressable>
@@ -214,7 +214,7 @@ function ActionButton({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center py-3 px-2 rounded-xl active:bg-gray-50"
+      className="flex-row items-center py-3 px-2 rounded-xl active:bg-sand-50"
     >
       <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
         <Ionicons name={icon} size={20} color="#FF6B35" />
@@ -225,7 +225,7 @@ function ActionButton({
         </Text>
         <Text className="text-sm text-textSecondary">{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#CBD5E0" />
+      <Ionicons name="chevron-forward" size={20} color="#D6C3AE" />
     </Pressable>
   );
 }

@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 import { Id } from "@/convex/_generated/dataModel";
 import { CommunityDropdown } from "./CommunityDropdown";
+import { type } from "@/lib/typography";
 
 interface LeaderboardHeaderProps {
   userId?: Id<"users"> | null;
@@ -31,8 +32,10 @@ export function LeaderboardHeader({
           onPressJoin={onPressJoin}
         />
       </View>
-      <Text className="text-[21px] font-semibold text-secondary mt-1">{viewTitle}</Text>
-      <Text className="text-[15px] text-textSecondary mt-0.5">{viewSubtitle}</Text>
+      <Text className={`${type.title} text-secondary mt-2`}>{viewTitle}</Text>
+      <Text className={`${type.bodySm} text-textSecondary mt-0.5`}>
+        {viewSubtitle}
+      </Text>
     </View>
   );
 }

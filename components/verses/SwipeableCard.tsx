@@ -43,6 +43,8 @@ interface SwipeableCardProps {
   onSave: () => void;
   onShare: () => void;
   cardWidth: number;
+  /** Ceiling for the card; below this it shrinks to fit its verse. */
+  maxCardHeight: number;
   interactionsEnabled?: boolean;
   microDemoNonce?: number;
 }
@@ -59,6 +61,7 @@ export function SwipeableCard({
   onSave,
   onShare,
   cardWidth,
+  maxCardHeight,
   interactionsEnabled = true,
   microDemoNonce = 0,
 }: SwipeableCardProps) {
@@ -167,7 +170,11 @@ export function SwipeableCard({
         style={[
           {
             width: cardWidth,
-            flex: 1,
+            // Hug the verse instead of `flex: 1`. Stretching the card to fill
+            // the column meant a short verse left a large blank area of white
+            // below the audio player while a long one looked correct — which
+            // is why the spacing read as arbitrary rather than simply roomy.
+            maxHeight: maxCardHeight,
             alignSelf: "center",
             padding: cardPadding,
             borderWidth: 1,
@@ -202,7 +209,9 @@ export function SwipeableCard({
         </Animated.View>
 
         <ScrollView
-          style={{ flex: 1 }}
+          // No flex here either: the ScrollView sizes to its content so the
+          // card can shrink, and only starts scrolling once maxCardHeight
+          // clamps it.
           showsVerticalScrollIndicator={false}
           nestedScrollEnabled
           contentContainerStyle={{ paddingBottom: 2 }}
@@ -228,7 +237,7 @@ export function SwipeableCard({
                 hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel={isSaved ? "Remove bookmark" : "Save verse"}
-                className="w-10 h-10 rounded-xl items-center justify-center active:bg-gray-100"
+                className="w-10 h-10 rounded-xl items-center justify-center active:bg-sand-50"
               >
                 <Ionicons
                   name={isSaved ? "bookmark" : "bookmark-outline"}
@@ -242,7 +251,7 @@ export function SwipeableCard({
                 hitSlop={6}
                 accessibilityRole="button"
                 accessibilityLabel="Share verse"
-                className="w-10 h-10 rounded-xl items-center justify-center active:bg-gray-100"
+                className="w-10 h-10 rounded-xl items-center justify-center active:bg-sand-50"
               >
                 <Ionicons name="share-outline" size={21} color="#5F5E5A" />
               </Pressable>
@@ -265,7 +274,7 @@ export function SwipeableCard({
             {verse.transliteration}
           </Text>
 
-          <View className="h-px bg-gray-200 my-4" />
+          <View className="h-px bg-sand-100 my-4" />
 
           {/* Translation */}
           <Text className="text-base text-textPrimary" style={translationTextStyle}>

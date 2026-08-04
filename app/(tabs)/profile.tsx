@@ -1,5 +1,6 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, Pressable, ScrollView, Alert, Image } from "react-native";
+import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { FoundationFooter } from "@/components/common";
 import { useAuth, useSession } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
@@ -216,17 +217,9 @@ export default function ProfileScreen() {
         className="px-5 py-4"
         contentContainerStyle={{ paddingBottom: 24 }}
       >
-        {/* Compact foundation brand bar */}
-        <View className="flex-row items-center justify-center py-2 mb-2">
-          <Image
-            source={require("@/assets/images/mahagathe-foundation-logo.png")}
-            style={{ width: 20, height: 20, marginRight: 6 }}
-            resizeMode="contain"
-          />
-          <Text className="text-[11px] text-textSecondary/50 tracking-[0.5px]">
-            A Mahagathe Foundation Initiative
-          </Text>
-        </View>
+        {/* Brand bar sits above the profile card by design — the foundation
+            attribution should be the first thing seen on this screen. */}
+        <FoundationFooter variant="top" className="mb-2" />
 
         <ProfileHeader
           displayName={displayName || user.displayName}
