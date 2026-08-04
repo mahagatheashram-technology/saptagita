@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import {
   AboutSection,
   AccountSection,
-  getCalendarWindowStart,
   ProfileHeader,
   ReadingCalendar,
   SettingsSection,
@@ -50,12 +49,11 @@ export default function ProfileScreen() {
   const deleteAccount = useMutation(api.users.deleteAccount);
   const updateDisplayName = useMutation(api.users.updateDisplayName);
 
-  // Count Perfect days only within the window the calendar renders, so the stat
-  // and the visible orange dots always agree.
-  const calendarWindowStart = getCalendarWindowStart(user?.timezone);
-  const visiblePerfectDays = (readingHistory?.perfectDates ?? []).filter(
-    (date) => date >= calendarWindowStart
-  ).length;
+  // "Perfect" is an all-time achievement count, deliberately NOT scoped to the
+  // 12 weeks the calendar paints. It previously used the calendar window so the
+  // two would agree; the card now carries an "All-time" tag instead, so the
+  // difference is explicit rather than hidden.
+  const perfectDays = streakStats?.perfectDays ?? 0;
 
   useEffect(() => {
     if (user?.displayName) {
@@ -235,7 +233,7 @@ export default function ProfileScreen() {
         <StreakStatsCard
           currentStreak={streakStats?.currentStreak ?? 0}
           longestStreak={streakStats?.longestStreak ?? 0}
-          perfectDays={visiblePerfectDays}
+          perfectDays={perfectDays}
         />
 
         <View className="h-4" />
