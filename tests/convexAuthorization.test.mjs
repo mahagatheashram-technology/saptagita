@@ -421,6 +421,9 @@ const protectedExports = {
     regenerateInviteCode: "requireOwnedUser",
     joinPublicCommunity: "resolveUser",
     joinByInviteCode: "resolveUser",
+    deleteCommunity: "requireOwnedUser",
+    transferOwnership: "requireOwnedUser",
+    getCommunityMembers: "requireOwnedUser",
     leaveCommunity: "resolveUser",
   },
 };

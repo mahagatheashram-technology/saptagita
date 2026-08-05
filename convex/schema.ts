@@ -137,5 +137,7 @@ export default defineSchema({
   activeCommunity: defineTable({
     userId: v.id("users"),
     communityId: v.id("communities"),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_community", ["communityId"]),
 });
