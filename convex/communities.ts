@@ -451,6 +451,182 @@ export const joinByInviteCode = mutation({
   },
 });
 
+export const deleteCommunity = mutation({
+  args: {
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    removedMemberCount: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const user = await requireOwnedUser(ctx, args.userId);
+    const community = await ctx.db.get(args.communityId);
+
+    if (!community) {
+      throw new ConvexError({
+        code: "COMMUNITY_NOT_FOUND",
+        message: "Community not found.",
+      });
+    }
+
+    const ownerMembership = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community_user", (q) =>
+        q.eq("communityId", community._id).eq("userId", user._id)
+      )
+      .first();
+
+    if (!ownerMembership || ownerMembership.role !== "owner") {
+      throw new ConvexError({
+        code: "NOT_COMMUNITY_OWNER",
+        message: "Only the community owner can delete this community.",
+      });
+    }
+
+    const [memberships, activeRecords] = await Promise.all([
+      ctx.db
+        .query("communityMembers")
+        .withIndex("by_community", (q) =>
+          q.eq("communityId", community._id)
+        )
+        .collect(),
+      ctx.db
+        .query("activeCommunity")
+        .withIndex("by_community", (q) =>
+          q.eq("communityId", community._id)
+        )
+        .collect(),
+    ]);
+
+    await Promise.all([
+      ...memberships.map((membership) => ctx.db.delete(membership._id)),
+      ...activeRecords.map((activeRecord) => ctx.db.delete(activeRecord._id)),
+    ]);
+    await ctx.db.delete(community._id);
+
+    return { success: true, removedMemberCount: memberships.length };
+  },
+});
+
+export const transferOwnership = mutation({
+  args: {
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    newOwnerUserId: v.id("users"),
+  },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const user = await requireOwnedUser(ctx, args.userId);
+    const community = await ctx.db.get(args.communityId);
+
+    if (!community) {
+      throw new ConvexError({
+        code: "COMMUNITY_NOT_FOUND",
+        message: "Community not found.",
+      });
+    }
+
+    const ownerMembership = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community_user", (q) =>
+        q.eq("communityId", community._id).eq("userId", user._id)
+      )
+      .first();
+
+    if (!ownerMembership || ownerMembership.role !== "owner") {
+      throw new ConvexError({
+        code: "NOT_COMMUNITY_OWNER",
+        message: "Only the current owner can transfer community ownership.",
+      });
+    }
+
+    const newOwnerMembership = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community_user", (q) =>
+        q
+          .eq("communityId", community._id)
+          .eq("userId", args.newOwnerUserId)
+      )
+      .first();
+
+    if (!newOwnerMembership) {
+      throw new ConvexError({
+        code: "NOT_A_MEMBER",
+        message: "The new owner must already be a community member.",
+      });
+    }
+
+    if (newOwnerMembership._id !== ownerMembership._id) {
+      await ctx.db.patch(ownerMembership._id, { role: "admin" });
+      await ctx.db.patch(newOwnerMembership._id, { role: "owner" });
+    }
+
+    return { success: true };
+  },
+});
+
+export const getCommunityMembers = query({
+  args: {
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+  },
+  returns: v.array(
+    v.object({
+      userId: v.id("users"),
+      displayName: v.string(),
+      avatarUrl: v.string(),
+      role: v.union(
+        v.literal("owner"),
+        v.literal("admin"),
+        v.literal("member")
+      ),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const user = await requireOwnedUser(ctx, args.userId);
+    const callerMembership = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community_user", (q) =>
+        q.eq("communityId", args.communityId).eq("userId", user._id)
+      )
+      .first();
+
+    if (!callerMembership) {
+      throw new ConvexError({
+        code: "NOT_A_MEMBER",
+        message: "You must be a community member to view its members.",
+      });
+    }
+
+    const memberships = await ctx.db
+      .query("communityMembers")
+      .withIndex("by_community", (q) =>
+        q.eq("communityId", args.communityId)
+      )
+      .take(50);
+
+    const members = await Promise.all(
+      memberships.map(async (membership) => {
+        const member = await ctx.db.get(membership.userId);
+        if (!member) return null;
+
+        return {
+          userId: member._id,
+          displayName: member.displayName,
+          avatarUrl: member.avatarUrl,
+          role: membership.role,
+        };
+      })
+    );
+
+    return members.filter(
+      (member): member is NonNullable<typeof member> => Boolean(member)
+    );
+  },
+});
+
 export const leaveCommunity = mutation({
   args: {
     communityId: v.id("communities"),
