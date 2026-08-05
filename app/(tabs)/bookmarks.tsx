@@ -286,13 +286,8 @@ export default function BookmarksScreen() {
       Math.min(count + READ_PAGE_SIZE, readItems.length)
     );
   };
-  const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
-  const isReadVerseSavedToDefault = Boolean(
-    defaultBucketId &&
-      selectedReadVerseBuckets?.some(
-        (bucketId) => String(bucketId) === String(defaultBucketId)
-      )
-  );
+  // Saved to ANY collection — see the note in app/(tabs)/index.tsx.
+  const isReadVerseSaved = (selectedReadVerseBuckets?.length ?? 0) > 0;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -517,7 +512,7 @@ export default function BookmarksScreen() {
           <ReadVerseDetailSheet
             ref={readDetailSheetRef}
             verse={selectedReadVerse}
-            isSavedToDefault={isReadVerseSavedToDefault}
+            isSavedToDefault={isReadVerseSaved}
             onAddToBucket={handleAddToBucket}
             onQuickBookmark={handleQuickBookmark}
             onLogReadToday={handleLogReadToday}
