@@ -47,17 +47,13 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
     pending ? { chapter: pending.chapter, verse: pending.verse } : "skip"
   );
 
-  const buckets = useQuery(api.bookmarks.getUserBuckets, { userId });
-  const defaultBucketId =
-    buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
+
   const verseBuckets = useQuery(
     api.bookmarks.getVerseBuckets,
     loadedVerse?._id ? { userId, verseId: loadedVerse._id } : "skip"
   );
-  const isSavedToDefault = Boolean(
-    defaultBucketId &&
-      verseBuckets?.some((id) => String(id) === String(defaultBucketId))
-  );
+  // Saved to ANY collection — see the note in app/(tabs)/index.tsx.
+  const isSavedToDefault = (verseBuckets?.length ?? 0) > 0;
 
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
 

@@ -49,6 +49,34 @@ export function CommunityDropdown({
     hasUser ? { userId: userId! } : "skip"
   );
   const setActiveCommunity = useMutation(api.communities.setActiveCommunity);
+  const leaveCommunity = useMutation(api.communities.leaveCommunity);
+
+  // Members had no way out at all — leaveCommunity existed on the backend with
+  // nothing calling it. Owners are handled separately: the backend refuses to
+  // let them leave, and deleting/transferring is not built yet.
+  const confirmLeave = (community: Community) => {
+    Alert.alert(
+      `Leave ${community.name}?`,
+      "You'll stop appearing on this community's leaderboard. You can rejoin later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await leaveCommunity({
+                communityId: community._id,
+                userId: userId ?? undefined,
+              });
+            } catch (error: any) {
+              Alert.alert("Could not leave", String(error?.message ?? error));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const activeLabel = useMemo(() => {
     if (!hasUser) return "Global";
@@ -102,6 +130,21 @@ export function CommunityDropdown({
         ) : (
           <Ionicons name="ellipse-outline" size={20} color="#D6C3AE" />
         )}
+
+        {community.role !== "owner" ? (
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              confirmLeave(community);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Leave ${community.name}`}
+            className="ml-3 w-8 h-8 rounded-full items-center justify-center active:opacity-70"
+          >
+            <Ionicons name="exit-outline" size={18} color="#8C7B68" />
+          </Pressable>
+        ) : null}
       </Pressable>
     );
   };
