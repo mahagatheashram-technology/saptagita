@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -216,7 +217,9 @@ export function JoinCommunityModal({
       >
         <View className="flex-1 bg-black/40 justify-end">
           <Pressable className="flex-1" onPress={onClose} />
-          <View
+          <Pressable
+            onPress={Keyboard.dismiss}
+            accessible={false}
             className="bg-white rounded-t-3xl"
             style={{
               paddingTop: 18,
@@ -375,7 +378,7 @@ export function JoinCommunityModal({
                 </Pressable>
               ) : null}
             </View>
-          </View>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>

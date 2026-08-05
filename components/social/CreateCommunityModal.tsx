@@ -6,6 +6,7 @@ import { useMutation } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -32,7 +33,11 @@ const SELECTED_SEGMENT_STYLE = {
 } as const;
 
 type CommunityType = "public" | "private";
-const PRIVATE_ENABLED = false;
+// Private communities generate the invite code that the join-by-code flow
+// consumes. Enabled alongside INVITE_CODE_ENABLED in JoinCommunityModal —
+// leaving this false makes codes impossible to create, so the two must move
+// together.
+const PRIVATE_ENABLED = true;
 
 interface CreateCommunityModalProps {
   visible: boolean;
@@ -114,9 +119,13 @@ export function CreateCommunityModal({
         className="flex-1"
       >
         <View className="flex-1 bg-black/40 justify-end">
+          {/* Tapping the dimmed area above the sheet closes it; tapping the
+              sheet body itself just dismisses the keyboard. */}
           <Pressable className="flex-1" onPress={handleClose} />
 
-          <View
+          <Pressable
+            onPress={Keyboard.dismiss}
+            accessible={false}
             className="bg-white rounded-t-3xl"
             style={{
               paddingTop: 18,
@@ -280,7 +289,7 @@ export function CreateCommunityModal({
                 </View>
               </>
             )}
-          </View>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>

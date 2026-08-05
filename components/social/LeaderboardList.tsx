@@ -183,6 +183,8 @@ export function LeaderboardList({
           />
         )}
         ListHeaderComponent={<View className="pb-2" />}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingBottom: (pinnedUser ? 140 : 80) + insets.bottom,

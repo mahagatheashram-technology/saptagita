@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   Text,
   TextInput,
@@ -92,13 +93,17 @@ export function UserSearchBox({ onSelectUser }: UserSearchBoxProps) {
           {results.map((user) => (
             <Pressable
               key={user.userId}
-              onPress={() =>
+              onPress={() => {
+                // Drop the keyboard first — the stats sheet snaps to a
+                // percentage of screen height, so an open keyboard leaves it
+                // rendered underneath.
+                Keyboard.dismiss();
                 onSelectUser({
                   userId: user.userId,
                   displayName: user.displayName,
                   avatarUrl: user.avatarUrl,
-                })
-              }
+                });
+              }}
               className="flex-row items-center bg-surface rounded-2xl px-4 py-2.5 mb-2 shadow-sm active:opacity-80"
             >
               <View className="h-9 w-9 rounded-full bg-sand-200 items-center justify-center mr-3">

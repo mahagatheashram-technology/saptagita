@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Keyboard, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useConvex, useQuery } from "convex/react";
@@ -35,6 +35,9 @@ export default function SocialScreen() {
     displayName: string;
     avatarUrl: string | null;
   }) => {
+    // Any route into the sheet drops the keyboard first: the sheet snaps to a
+    // percentage of screen height, so an open keyboard would cover it.
+    Keyboard.dismiss();
     setViewedUser(user);
     // Snap on the next frame so the sheet renders the freshly-selected reader
     // before it animates open.
