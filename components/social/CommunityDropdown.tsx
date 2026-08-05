@@ -1,6 +1,7 @@
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Ionicons } from "@expo/vector-icons";
+import { TransferOwnershipModal } from "./TransferOwnershipModal";
 import { useUser } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
@@ -50,6 +51,8 @@ export function CommunityDropdown({
   );
   const setActiveCommunity = useMutation(api.communities.setActiveCommunity);
   const leaveCommunity = useMutation(api.communities.leaveCommunity);
+  const deleteCommunity = useMutation(api.communities.deleteCommunity);
+  const [transferTarget, setTransferTarget] = useState<Community | null>(null);
 
   // Members had no way out at all — leaveCommunity existed on the backend with
   // nothing calling it. Owners are handled separately: the backend refuses to
@@ -103,6 +106,56 @@ export function CommunityDropdown({
     }
   };
 
+  // An owner can't leave — the backend refuses. Their exits are handing the
+  // community over or deleting it outright.
+  const openOwnerActions = (community: Community) => {
+    Alert.alert(community.name, "You own this community.", [
+      {
+        text: "Transfer ownership",
+        onPress: () => {
+          setIsOpen(false);
+          setTransferTarget(community);
+        },
+      },
+      {
+        text: "Delete community",
+        style: "destructive",
+        onPress: () => confirmDelete(community),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const confirmDelete = (community: Community) => {
+    const otherMembers = Math.max(0, (community.memberCount ?? 1) - 1);
+    Alert.alert(
+      `Delete ${community.name}?`,
+      otherMembers > 0
+        ? `This removes the community for you and ${otherMembers} other ${
+            otherMembers === 1 ? "member" : "members"
+          }. Its leaderboard and invite code stop working. This can't be undone.`
+        : "This community will be removed permanently. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!userId) return;
+            try {
+              await deleteCommunity({ communityId: community._id, userId });
+            } catch (error: any) {
+              Alert.alert(
+                "Could not delete",
+                String(error?.data?.message ?? error?.message ?? error)
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderCommunity = (community: Community) => {
     const isActive = activeCommunity?._id === community._id;
     const isPending = pendingSelection === community._id;
@@ -131,20 +184,34 @@ export function CommunityDropdown({
           <Ionicons name="ellipse-outline" size={20} color="#D6C3AE" />
         )}
 
-        {community.role !== "owner" ? (
-          <Pressable
-            onPress={(event) => {
-              event.stopPropagation();
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            if (community.role === "owner") {
+              openOwnerActions(community);
+            } else {
               confirmLeave(community);
-            }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`Leave ${community.name}`}
-            className="ml-3 w-8 h-8 rounded-full items-center justify-center active:opacity-70"
-          >
-            <Ionicons name="exit-outline" size={18} color="#8C7B68" />
-          </Pressable>
-        ) : null}
+            }
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={
+            community.role === "owner"
+              ? `Manage ${community.name}`
+              : `Leave ${community.name}`
+          }
+          className="ml-3 w-8 h-8 rounded-full items-center justify-center active:opacity-70"
+        >
+          <Ionicons
+            name={
+              community.role === "owner"
+                ? "ellipsis-horizontal"
+                : "exit-outline"
+            }
+            size={18}
+            color="#8C7B68"
+          />
+        </Pressable>
       </Pressable>
     );
   };
@@ -277,6 +344,15 @@ export function CommunityDropdown({
           </View>
         </View>
       ) : null}
+
+      <TransferOwnershipModal
+        visible={transferTarget !== null}
+        onClose={() => setTransferTarget(null)}
+        communityId={transferTarget?._id ?? null}
+        communityName={transferTarget?.name ?? ""}
+        userId={userId ?? null}
+        onTransferred={() => setTransferTarget(null)}
+      />
     </View>
   );
 }

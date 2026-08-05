@@ -47,8 +47,8 @@ test("Android release identity and permissions remain production-safe", () => {
   );
   assert.ok(
     Number.isInteger(publicConfig.android.versionCode) &&
-      publicConfig.android.versionCode >= 5,
-    "Android versionCode must be newer than the uploaded versionCode 4 artifact",
+      publicConfig.android.versionCode >= 6,
+    "Android versionCode must be newer than the versionCode 5 artifact in closed testing",
   );
   assert.deepEqual(publicConfig.android.permissions, [
     "android.permission.MODIFY_AUDIO_SETTINGS",
