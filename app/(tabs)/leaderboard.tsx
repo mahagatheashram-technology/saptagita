@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { LeaderboardEntry, LeaderboardRow } from "@/components/social";
+import BottomSheet from "@gorhom/bottom-sheet";
+import { Id } from "@/convex/_generated/dataModel";
+import {
+  LeaderboardEntry,
+  LeaderboardRow,
+  UserStatsSheet,
+} from "@/components/social";
 import { type } from "@/lib/typography";
 
 export default function LeaderboardScreen() {
@@ -13,6 +19,21 @@ export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewedUser, setViewedUser] = useState<{
+    userId: Id<"users">;
+    displayName: string;
+    avatarUrl: string | null;
+  } | null>(null);
+  const statsSheetRef = useRef<BottomSheet>(null);
+
+  const openUserStats = (entry: LeaderboardEntry) => {
+    setViewedUser({
+      userId: entry.userId,
+      displayName: entry.displayName,
+      avatarUrl: entry.avatarUrl ?? null,
+    });
+    requestAnimationFrame(() => statsSheetRef.current?.snapToIndex(0));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +95,7 @@ export default function LeaderboardScreen() {
               avatarUrl={item.avatarUrl}
               currentStreak={item.currentStreak}
               isCurrentUser={item.userId === currentUserId}
+              onPress={() => openUserStats(item)}
             />
           )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
@@ -84,6 +106,13 @@ export default function LeaderboardScreen() {
           }
         />
       )}
+
+      <UserStatsSheet
+        ref={statsSheetRef}
+        userId={viewedUser?.userId ?? null}
+        fallbackName={viewedUser?.displayName}
+        fallbackAvatarUrl={viewedUser?.avatarUrl}
+      />
     </SafeAreaView>
   );
 }

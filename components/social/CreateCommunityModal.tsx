@@ -1,9 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
+import { shareText } from "@/lib/shareText";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -30,7 +33,11 @@ const SELECTED_SEGMENT_STYLE = {
 } as const;
 
 type CommunityType = "public" | "private";
-const PRIVATE_ENABLED = false;
+// Private communities generate the invite code that the join-by-code flow
+// consumes. Enabled alongside INVITE_CODE_ENABLED in JoinCommunityModal —
+// leaving this false makes codes impossible to create, so the two must move
+// together.
+const PRIVATE_ENABLED = true;
 
 interface CreateCommunityModalProps {
   visible: boolean;
@@ -112,9 +119,13 @@ export function CreateCommunityModal({
         className="flex-1"
       >
         <View className="flex-1 bg-black/40 justify-end">
+          {/* Tapping the dimmed area above the sheet closes it; tapping the
+              sheet body itself just dismisses the keyboard. */}
           <Pressable className="flex-1" onPress={handleClose} />
 
-          <View
+          <Pressable
+            onPress={Keyboard.dismiss}
+            accessible={false}
             className="bg-white rounded-t-3xl"
             style={{
               paddingTop: 18,
@@ -145,7 +156,20 @@ export function CreateCommunityModal({
                   </Text>
                 </View>
                 <Pressable
-                  className="mt-4 rounded-xl bg-secondary px-4 py-3"
+                  className="mt-3 flex-row items-center justify-center rounded-xl bg-primary px-4 py-3 active:opacity-80"
+                  onPress={() =>
+                    shareText(
+                      `Join me on Sapta Gita. Open the app, tap Social \u2192 Join Community, and enter invite code ${inviteCode}.`
+                    )
+                  }
+                >
+                  <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-semibold text-center ml-2">
+                    Share invite code
+                  </Text>
+                </Pressable>
+                <Pressable
+                  className="mt-2 rounded-xl bg-secondary px-4 py-3"
                   onPress={handleClose}
                 >
                   <Text className="text-white font-semibold text-center">
@@ -265,7 +289,7 @@ export function CreateCommunityModal({
                 </View>
               </>
             )}
-          </View>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>

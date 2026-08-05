@@ -12,6 +12,8 @@ interface ConvexUser {
   avatarUrl: string;
   timezone: string;
   createdAt: number;
+  /** Absent on accounts created before the field existed — treat as true. */
+  discoverable?: boolean;
 }
 
 interface UseCurrentUserOptions {

@@ -25,6 +25,8 @@ interface SettingsSectionProps {
   userId: Id<"users">;
   reminderTime?: string | null;
   scriptPreference?: ScriptPreference | null;
+  /** Absent means discoverable — existing accounts opt in by default. */
+  discoverable?: boolean | null;
 }
 
 const DEFAULT_REMINDER_TIME = "20:00"; // 8:00 PM
@@ -62,6 +64,7 @@ export function SettingsSection({
   userId,
   reminderTime,
   scriptPreference,
+  discoverable,
 }: SettingsSectionProps) {
   const [showPicker, setShowPicker] = useState(false);
   const [localReminderTime, setLocalReminderTime] = useState(reminderTime ?? null);
@@ -76,6 +79,34 @@ export function SettingsSection({
   const updateReminderTime = useMutation(api.users.updateReminderTime);
   const updateScriptPreference = useMutation(api.users.updateScriptPreference);
   const resetReadingProgress = useMutation(api.users.resetReadingProgress);
+  const updateDiscoverability = useMutation(api.users.updateDiscoverability);
+
+  // Mirror the toggle locally so it responds immediately; `discoverable`
+  // arrives as undefined for accounts that predate the field, which means
+  // discoverable.
+  const [isDiscoverable, setIsDiscoverable] = useState(discoverable !== false);
+  const [isSavingDiscoverable, setIsSavingDiscoverable] = useState(false);
+
+  useEffect(() => {
+    setIsDiscoverable(discoverable !== false);
+  }, [discoverable]);
+
+  const handleToggleDiscoverable = async (next: boolean) => {
+    const previous = isDiscoverable;
+    setIsDiscoverable(next);
+    setIsSavingDiscoverable(true);
+    try {
+      await updateDiscoverability({ userId, discoverable: next });
+    } catch (error) {
+      setIsDiscoverable(previous);
+      Alert.alert(
+        "Could not update",
+        "We couldn't save that setting. Check your connection and try again."
+      );
+    } finally {
+      setIsSavingDiscoverable(false);
+    }
+  };
   const isWeb = Platform.OS === "web";
   const todayProgress = useQuery(api.dailySets.getTodayProgress, { userId });
   const completedLocalDate = todayProgress?.isComplete
@@ -269,6 +300,30 @@ export function SettingsSection({
           onValueChange={handleToggleReminders}
           disabled={isLoadingPreference || isWeb}
           thumbColor={remindersEnabled ? "#FF6B35" : "#D6C3AE"}
+          trackColor={{ false: "#E9DFD3", true: "#FBD38D" }}
+        />
+      </View>
+
+      <View className="h-px bg-[#F0E8DE]" />
+
+      {/* Opt-out of name search. Absent means discoverable, so existing
+          accounts keep working without a migration. */}
+      <View className="flex-row items-center justify-between py-3">
+        <View className="flex-1 pr-3">
+          <Text className="text-sm text-textSecondary">Find me by name</Text>
+          <Text className="text-base font-semibold text-textPrimary">
+            {isDiscoverable ? "Discoverable" : "Hidden"}
+          </Text>
+          <Text className="text-xs text-textSecondary/70 mt-0.5">
+            Lets other readers find you in search. Your streak is already shown
+            on leaderboards either way.
+          </Text>
+        </View>
+        <Switch
+          value={isDiscoverable}
+          onValueChange={handleToggleDiscoverable}
+          disabled={isSavingDiscoverable}
+          thumbColor={isDiscoverable ? "#FF6B35" : "#D6C3AE"}
           trackColor={{ false: "#E9DFD3", true: "#FBD38D" }}
         />
       </View>
