@@ -8,3 +8,4 @@ export { JoinCommunityModal } from "./JoinCommunityModal";
 export { TodayReadersStat } from "./TodayReadersStat";
 export { UserStatsSheet } from "./UserStatsSheet";
 export { UserSearchBox } from "./UserSearchBox";
+export { TransferOwnershipModal } from "./TransferOwnershipModal";
