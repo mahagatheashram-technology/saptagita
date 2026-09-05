@@ -1,19 +1,20 @@
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Ionicons } from "@expo/vector-icons";
+import { TransferOwnershipModal } from "./TransferOwnershipModal";
 import { useUser } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Dimensions,
+  useWindowDimensions,
   Modal,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { Alert } from "@/lib/alert";
 
 type Community = {
   _id: Id<"communities">;
@@ -54,6 +55,35 @@ export function CommunityDropdown({
   );
   const setActiveCommunity = useMutation(api.communities.setActiveCommunity);
 
+  const leaveCommunity = useMutation(api.communities.leaveCommunity);
+  const deleteCommunity = useMutation(api.communities.deleteCommunity);
+  const [transferTarget, setTransferTarget] = useState<Community | null>(null);
+
+  // Owners must transfer ownership or delete; members may leave.
+  const confirmLeave = (community: Community) => {
+    Alert.alert(
+      `Leave ${community.name}?`,
+      "You'll stop appearing on this community's leaderboard. You can rejoin later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await leaveCommunity({
+                communityId: community._id,
+                userId: userId ?? undefined,
+              });
+            } catch (error: any) {
+              Alert.alert("Could not leave", String(error?.message ?? error));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const activeLabel = useMemo(() => {
     if (!hasUser) return "Global";
     if (activeCommunity === undefined) return "Loading...";
@@ -77,6 +107,56 @@ export function CommunityDropdown({
       setIsOpen(false);
       setPendingSelection(null);
     }
+  };
+
+  // An owner can't leave — the backend refuses. Their exits are handing the
+  // community over or deleting it outright.
+  const openOwnerActions = (community: Community) => {
+    Alert.alert(community.name, "You own this community.", [
+      {
+        text: "Transfer ownership",
+        onPress: () => {
+          setIsOpen(false);
+          setTransferTarget(community);
+        },
+      },
+      {
+        text: "Delete community",
+        style: "destructive",
+        onPress: () => confirmDelete(community),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
+  const confirmDelete = (community: Community) => {
+    const otherMembers = Math.max(0, (community.memberCount ?? 1) - 1);
+    Alert.alert(
+      `Delete ${community.name}?`,
+      otherMembers > 0
+        ? `This removes the community for you and ${otherMembers} other ${
+            otherMembers === 1 ? "member" : "members"
+          }. Its leaderboard and invite code stop working. This can't be undone.`
+        : "This community will be removed permanently. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!userId) return;
+            try {
+              await deleteCommunity({ communityId: community._id, userId });
+            } catch (error: any) {
+              Alert.alert(
+                "Could not delete",
+                String(error?.data?.message ?? error?.message ?? error)
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderCommunity = (community: Community) => {
@@ -106,6 +186,35 @@ export function CommunityDropdown({
         ) : (
           <Ionicons name="ellipse-outline" size={20} color="#D6C3AE" />
         )}
+
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            if (community.role === "owner") {
+              openOwnerActions(community);
+            } else {
+              confirmLeave(community);
+            }
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={
+            community.role === "owner"
+              ? `Manage ${community.name}`
+              : `Leave ${community.name}`
+          }
+          className="ml-3 w-8 h-8 rounded-full items-center justify-center active:opacity-70"
+        >
+          <Ionicons
+            name={
+              community.role === "owner"
+                ? "ellipsis-horizontal"
+                : "exit-outline"
+            }
+            size={18}
+            color="#8C7B68"
+          />
+        </Pressable>
       </Pressable>
     );
   };
@@ -127,10 +236,11 @@ export function CommunityDropdown({
     });
   };
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const panelWidth = Math.min(320, screenWidth - 32);
   const panelLeft = Math.max(16, Math.min(anchor.x, screenWidth - panelWidth - 16));
-  const panelTop = anchor.y + anchor.height + 8;
+  const panelTop = Math.max(16, Math.min(anchor.y + anchor.height + 8, screenHeight - 160));
+  const panelHeight = Math.max(100, Math.min(400, screenHeight - panelTop - 16));
 
   return (
     <View className="relative">
@@ -174,7 +284,7 @@ export function CommunityDropdown({
                   </Text>
                 </View>
               ) : (
-                <ScrollView style={{ maxHeight: 320 }}>
+                <ScrollView style={{ maxHeight: panelHeight }}>
                   <Pressable
                     className="flex-row items-center justify-between px-4 py-3"
                     onPress={() => handleSelect(null)}
@@ -262,6 +372,14 @@ export function CommunityDropdown({
           </View>
         </View>
       </Modal>
+      <TransferOwnershipModal
+        visible={transferTarget !== null}
+        onClose={() => setTransferTarget(null)}
+        communityId={transferTarget?._id ?? null}
+        communityName={transferTarget?.name ?? ""}
+        userId={userId ?? null}
+        onTransferred={() => setTransferTarget(null)}
+      />
     </View>
   );
 }

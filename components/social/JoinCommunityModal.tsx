@@ -5,7 +5,6 @@ import { useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -16,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Selected-segment styling. Deliberately a plain style object rather than a

@@ -1,5 +1,6 @@
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, Pressable, ScrollView, Alert } from "react-native";
+import { View, Text, Pressable, ScrollView, } from "react-native";
+import { Alert } from "@/lib/alert";
 import { FoundationFooter } from "@/components/common";
 import { useAuth, useSession } from "@clerk/clerk-expo";
 import { useMutation, useQuery } from "convex/react";

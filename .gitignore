@@ -48,3 +48,7 @@ yarn-error.*
 
 # Raw downloaded audio source (app bundles from assets/audio/ instead)
 Bhagavad_Gita_Audio/
+
+# Local browser verification artifacts
+.playwright-cli/
+output/playwright/

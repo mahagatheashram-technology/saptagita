@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ActivityIndicator, Alert, Text, TouchableOpacity } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useSSO } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import * as AuthSession from "expo-auth-session";

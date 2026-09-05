@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { VerseAudioPlayer } from "./VerseAudioPlayer";
 import { SwipeableCard } from "./SwipeableCard";
 import { Verse } from "./VerseCard";
 import { getDisplayVerseText, ScriptPreference } from "@/lib/verseText";
@@ -20,7 +21,7 @@ interface CardStackProps {
   verses: Verse[];
   viewIndex: number; // which verse is on screen
   frontier: number; // first unread verse (read count)
-  isSaved: boolean; // is the viewed verse saved to default
+  isSaved: boolean; // is the viewed verse saved to any collection
   onPrev: () => void;
   onNext: () => void;
   onSave: () => void;
@@ -93,6 +94,9 @@ export function CardStack({
               <View className="flex-row items-center">
                 <Pressable
                   onPress={onSave}
+                  disabled={!interactionsEnabled}
+                  accessibilityRole="button"
+                  accessibilityLabel={isSaved ? "Saved verse; toggle Default collection" : "Save verse to Default"}
                   className="w-9 h-9 rounded-xl items-center justify-center active:bg-sand-50"
                 >
                   <Ionicons
@@ -103,6 +107,9 @@ export function CardStack({
                 </Pressable>
                 <Pressable
                   onPress={onShare}
+                  disabled={!interactionsEnabled}
+                  accessibilityRole="button"
+                  accessibilityLabel="Share verse"
                   className="w-9 h-9 rounded-xl items-center justify-center active:bg-sand-50 ml-1"
                 >
                   <Ionicons name="share-outline" size={20} color="#5F5E5A" />
@@ -126,18 +133,26 @@ export function CardStack({
             <Text className="text-base text-textPrimary" style={translationTextStyle}>
               {verse.translationEnglish}
             </Text>
+            <View className="mt-4">
+              <VerseAudioPlayer
+                key={verse._id}
+                chapterNumber={verse.chapterNumber}
+                verseNumber={verse.verseNumber}
+                variant="full"
+              />
+            </View>
           </ScrollView>
 
           <View className="flex-row items-center justify-between px-6 py-4 border-t border-sand-100">
             <Pressable
               onPress={onPrev}
-              disabled={!canPrev}
+              disabled={!canPrev || !interactionsEnabled}
               className="pr-3 py-2"
               style={{ opacity: canPrev ? 1 : 0.4 }}
             >
               <Text className="text-textSecondary font-medium">← Previous</Text>
             </Pressable>
-            <Pressable onPress={onNext} className="pl-3 py-2">
+            <Pressable onPress={onNext} disabled={!interactionsEnabled} className="pl-3 py-2">
               <Text className="text-primary font-semibold">
                 {isReviewing ? "Next →" : "Mark as read →"}
               </Text>

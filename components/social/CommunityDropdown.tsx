@@ -7,12 +7,12 @@ import { useMutation, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { Alert } from "@/lib/alert";
 
 type Community = {
   _id: Id<"communities">;

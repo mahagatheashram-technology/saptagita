@@ -6,10 +6,10 @@ import {
   Pressable,
   Modal,
   TextInput,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Alert } from "@/lib/alert";
 import { Ionicons } from "@expo/vector-icons";
 
 interface ProfileHeaderProps {

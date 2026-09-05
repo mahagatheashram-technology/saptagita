@@ -3,11 +3,11 @@ import {
   View,
   Text,
   Pressable,
-  Alert,
   Modal,
   Platform,
   Switch,
 } from "react-native";
+import { Alert } from "@/lib/alert";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";

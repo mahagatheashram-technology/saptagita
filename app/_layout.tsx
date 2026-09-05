@@ -244,7 +244,8 @@ function NotificationEffects() {
 function AuthStack({ onRetryAuth }: { onRetryAuth: () => void }) {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
-  const isAuthRoute = pathname === "/sign-in";
+  const isCallbackRoute = pathname === "/sso-callback";
+  const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up" || isCallbackRoute;
   const [loadTimedOut, setLoadTimedOut] = useState(false);
 
   useEffect(() => {
@@ -296,7 +297,7 @@ function AuthStack({ onRetryAuth }: { onRetryAuth: () => void }) {
     return <Redirect href="/sign-in" />;
   }
 
-  if (isSignedIn && isAuthRoute) {
+  if (isSignedIn && isAuthRoute && !isCallbackRoute) {
     return <Redirect href="/" />;
   }
 
@@ -305,6 +306,8 @@ function AuthStack({ onRetryAuth }: { onRetryAuth: () => void }) {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="modal" options={{ presentation: "modal" }} />
       <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+      <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+      <Stack.Screen name="sso-callback" options={{ headerShown: false }} />
     </Stack>
   );
 }

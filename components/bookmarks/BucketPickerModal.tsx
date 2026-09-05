@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";

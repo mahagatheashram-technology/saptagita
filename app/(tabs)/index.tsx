@@ -1,4 +1,5 @@
-import { View, Text, ActivityIndicator, Alert, Pressable, Platform } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, Platform } from "react-native";
+import { Alert } from "@/lib/alert";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";

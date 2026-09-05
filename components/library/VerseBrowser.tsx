@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";

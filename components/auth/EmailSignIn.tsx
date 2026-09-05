@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, Text, TextInput, View } from "react-native";
+import { Alert } from "@/lib/alert";
 import { useSignIn, useSignUp } from "@clerk/clerk-expo";
 
 type FlowMode = "signin" | "signup";
