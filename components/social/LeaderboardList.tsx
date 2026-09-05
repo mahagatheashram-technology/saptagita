@@ -19,6 +19,8 @@ export interface LeaderboardEntry {
 }
 
 interface LeaderboardListProps {
+  /** Render bounded rows in the parent page scroll, without a nested list. */
+  embedded?: boolean;
   communityId: Id<"communities"> | null;
   currentUserId?: Id<"users"> | null;
   /** Opens a reader's stats sheet. Rows stay inert when omitted. */
@@ -30,6 +32,7 @@ interface LeaderboardListProps {
 }
 
 export function LeaderboardList({
+  embedded = false,
   communityId,
   currentUserId,
   onSelectUser,
@@ -121,12 +124,9 @@ export function LeaderboardList({
     ? entries.some((entry) => entry.userId === resolvedCurrentUserId)
     : false;
   const pinnedUser = !isCurrentUserInVisibleList ? currentUser : null;
-  if (isGlobal) {
-    // Deliberately NOT flex-1. The global view is a fixed 5-row preview, so
-    // stretching it to fill the screen left ~35% of the tab empty and pushed
-    // the page footer into the middle of the viewport. Sizing to content lets
-    // the footer sit directly beneath the list. (Community mode below still
-    // uses flex-1 — that list scrolls, so filling the space is correct there.)
+  if (isGlobal || embedded) {
+    // Web Social owns the page scroll. Both queries are bounded (5 / 50 rows),
+    // so community rows can also flow without nesting a virtualized scroller.
     return (
       <View className="px-5 pt-3">
         {entries.map((item) => (
@@ -137,7 +137,7 @@ export function LeaderboardList({
             avatarUrl={item.avatarUrl}
             currentStreak={item.currentStreak}
             isCurrentUser={item.userId === resolvedCurrentUserId}
-            compact
+            compact={isGlobal}
             onPress={selectHandler(item)}
           />
         ))}
@@ -149,20 +149,22 @@ export function LeaderboardList({
             avatarUrl={pinnedUser.avatarUrl}
             currentStreak={pinnedUser.currentStreak}
             isCurrentUser
-            compact
+            compact={isGlobal}
             onPress={selectHandler(pinnedUser)}
           />
         ) : null}
 
-        <Pressable
-          onPress={() => router.push("/leaderboard")}
-          className="flex-row items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 py-3 mt-1 active:opacity-70"
-        >
-          <Text className={`${type.bodySm} font-semibold text-primary`}>
-            View Top 50
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color="#FF6B35" />
-        </Pressable>
+        {isGlobal ? (
+          <Pressable
+            onPress={() => router.push("/leaderboard")}
+            className="flex-row items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 py-3 mt-1 active:opacity-70"
+          >
+            <Text className={`${type.bodySm} font-semibold text-primary`}>
+              View Top 50
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#FF6B35" />
+          </Pressable>
+        ) : null}
       </View>
     );
   }

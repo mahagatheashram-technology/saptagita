@@ -15,6 +15,13 @@
 - Replaced no-op React Native Web alerts with an accessible HTML modal dialog. Existing named actions, errors, confirmations, cancellation, and nested dialogs now work in browsers. Native builds still use React Native Alert.
 - Added a web-only Google redirect flow using Clerk's installed `authenticateWithRedirect` API, `/sso-callback`, and a completion screen for additional signup requirements. Native Google SSO remains separate.
 - Added a centered, scrollable web sign-in layout and consistent light background / safe-area viewport settings.
+- Made the complete Social page scroll on web, including its header, reader count,
+  search, leaderboard, Top 50 action, and foundation footer. Community leaderboard
+  rows render inside the page scroll instead of creating a nested scroll region.
+- Replaced the bookmark-only web bottom sheet with a stable, scrollable modal.
+  Selecting a saved verse now keeps that verse mounted while the detail view opens,
+  and the content and actions remain accessible above the browser and tab bars.
+  The native bookmark sheet and the already-working Read-tab sheet are unchanged.
 
 Clerk API reference for the installed SDK generation: https://clerk.com/docs/guides/development/custom-flows/authentication/legacy/oauth-connections
 
@@ -34,6 +41,8 @@ The current production Convex URL in project configuration is `https://quick-tig
 - TypeScript `--noEmit` passes.
 - All 100 tests pass (94 existing plus six dialog tests covering cancellation, action selection, duplicate callbacks, nested queues, and server rendering).
 - Production web export passes, with 18 static routes.
+- Production web export passes after the Social and bookmark-detail fixes; the
+  generated web bundle contains the web-only bookmark modal.
 - Chromium isolated-dialog check: owner menu opens, delete requires a second confirmation, Escape cancels without invoking the action and restores focus.
 - Chromium mobile viewport (390 × 844): sign-in layout renders with no console errors when local assets are served through a browser-only route interception on an allowed-domain test origin. No DNS or hosting configuration was changed. Empty-email validation opens the real web dialog; no verification email was sent.
 - Real-account Google/email sign-in, reading/streak synchronization, audio on iPhone Safari, saved collections, user search, and community lifecycle flows still require end-to-end acceptance on a configured preview environment.
