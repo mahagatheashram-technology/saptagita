@@ -104,7 +104,7 @@ export function CommunityDropdown({
         ) : isActive ? (
           <Ionicons name="checkmark-circle" size={20} color="#38A169" />
         ) : (
-          <Ionicons name="ellipse-outline" size={20} color="#CBD5E0" />
+          <Ionicons name="ellipse-outline" size={20} color="#D6C3AE" />
         )}
       </Pressable>
     );
@@ -136,13 +136,13 @@ export function CommunityDropdown({
     <View className="relative">
       <View ref={triggerRef} collapsable={false}>
         <Pressable
-          className="flex-row items-center justify-between rounded-full px-4 py-2 bg-white border border-[#E2E8F0] shadow-sm"
+          className="flex-row items-center justify-between rounded-full px-4 py-2 bg-white border border-[#E9DFD3] shadow-sm"
           onPress={openDropdown}
         >
           <Text className="text-sm font-semibold text-secondary">
             {activeLabel}
           </Text>
-          <Ionicons name="chevron-down" size={16} color="#4A5568" />
+          <Ionicons name="chevron-down" size={16} color="#8C7B68" />
         </Pressable>
       </View>
 
@@ -165,7 +165,7 @@ export function CommunityDropdown({
               width: panelWidth,
             }}
           >
-            <View className="bg-white rounded-2xl border border-[#E2E8F0] shadow-xl overflow-hidden">
+            <View className="bg-white rounded-2xl border border-[#E9DFD3] shadow-xl overflow-hidden">
               {isLoading ? (
                 <View className="px-4 py-6 items-center justify-center">
                   <ActivityIndicator color="#FF6B35" />
@@ -193,11 +193,11 @@ export function CommunityDropdown({
                     ) : isGlobalActive ? (
                       <Ionicons name="checkmark-circle" size={20} color="#38A169" />
                     ) : (
-                      <Ionicons name="ellipse-outline" size={20} color="#CBD5E0" />
+                      <Ionicons name="ellipse-outline" size={20} color="#D6C3AE" />
                     )}
                   </Pressable>
 
-                  <View className="h-px bg-gray-100" />
+                  <View className="h-px bg-sand-50" />
 
                   {communities && communities.length > 0 ? (
                     communities.map(renderCommunity)
@@ -207,7 +207,7 @@ export function CommunityDropdown({
                     </Text>
                   )}
 
-                  <View className="h-px bg-gray-100" />
+                  <View className="h-px bg-sand-50" />
 
                   <Pressable
                     className="flex-row items-center px-4 py-3"
@@ -245,13 +245,13 @@ export function CommunityDropdown({
                     </Text>
                   </Pressable>
 
-                  <View className="h-px bg-gray-100" />
+                  <View className="h-px bg-sand-50" />
 
                   <Pressable
                     className="flex-row items-center px-4 py-3"
                     onPress={() => setIsOpen(false)}
                   >
-                    <Ionicons name="close-circle-outline" size={18} color="#A0AEC0" />
+                    <Ionicons name="close-circle-outline" size={18} color="#B8A894" />
                     <Text className="text-base font-semibold text-textSecondary ml-2">
                       Close
                     </Text>

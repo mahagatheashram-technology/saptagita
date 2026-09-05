@@ -17,8 +17,25 @@ export default defineSchema({
     avatarUrl: v.string(),
     timezone: v.string(),
     createdAt: v.number(),
+    discoverable: v.optional(v.boolean()),
   })
-    .index("byAuthId", ["authId"]),
+    .index("byAuthId", ["authId"])
+    .searchIndex("search_display_name", { searchField: "displayName" }),
+  // A durable marker prevents the normal Clerk -> Convex sync from recreating
+  // app data if Clerk identity deletion needs to be retried.
+  accountDeletionRequests: defineTable({
+    // Keep only a one-way digest, not the raw Clerk user ID.
+    authIdHash: v.string(),
+    requestedAt: v.number(),
+    appDataDeletedAt: v.number(),
+  }).index("by_auth_id_hash", ["authIdHash"]),
+  systemMetadata: defineTable({
+    key: v.string(),
+    ready: v.boolean(),
+    completedAt: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    maxNodeSize: v.optional(v.number()),
+  }).index("by_key", ["key"]),
   userState: defineTable({
     userId: v.id("users"),
     mode: v.string(), // "sequential" | "random" | etc.
@@ -31,8 +48,16 @@ export default defineSchema({
     ),
     sequenceInitialized: v.optional(v.boolean()),
     todayGestureCoachSeenAt: v.optional(v.number()),
+    lastReaderCountedLocalDate: v.optional(v.string()),
   })
     .index("byUser", ["userId"]),
+  dailyReaderCounts: defineTable({
+    localDate: v.string(),
+    shard: v.number(),
+    count: v.number(),
+  })
+    .index("by_date", ["localDate"])
+    .index("by_date_shard", ["localDate", "shard"]),
   dailySets: defineTable({
     userId: v.id("users"),
     localDate: v.string(), // YYYY-MM-DD format
@@ -41,7 +66,8 @@ export default defineSchema({
     completedAt: v.union(v.number(), v.null()),
   })
     .index("byUser", ["userId"])
-    .index("byUserAndDate", ["userId", "localDate"]),
+    .index("byUserAndDate", ["userId", "localDate"])
+    .index("byUserAndCompletedAt", ["userId", "completedAt"]),
   readEvents: defineTable({
     userId: v.id("users"),
     dailySetId: v.id("dailySets"),
@@ -50,7 +76,10 @@ export default defineSchema({
     kind: v.optional(v.union(v.literal("sequence"), v.literal("reread"))),
   })
     .index("by_user", ["userId"])
-    .index("by_dailySet", ["dailySetId"]),
+    .index("by_user_kind", ["userId", "kind"])
+    .index("by_dailySet", ["dailySetId"])
+    .index("by_dailySet_kind", ["dailySetId", "kind"])
+    .index("by_dailySet_verse_kind", ["dailySetId", "verseId", "kind"]),
   streaks: defineTable({
     userId: v.id("users"),
     currentStreak: v.number(),
@@ -59,7 +88,15 @@ export default defineSchema({
     lastReadLocalDate: v.optional(v.string()),
     updatedAt: v.number(),
   })
-    .index("byUser", ["userId"]),
+    .index("byUser", ["userId"])
+    .index("byCurrentStreakAndLastCompletedDate", [
+      "currentStreak",
+      "lastCompletedLocalDate",
+    ])
+    .index("byCurrentStreakAndLastReadDate", [
+      "currentStreak",
+      "lastReadLocalDate",
+    ]),
   bookmarkBuckets: defineTable({
     userId: v.id("users"),
     name: v.string(),
@@ -100,5 +137,7 @@ export default defineSchema({
   activeCommunity: defineTable({
     userId: v.id("users"),
     communityId: v.id("communities"),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_community", ["communityId"]),
 });

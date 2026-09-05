@@ -1,4 +1,5 @@
-import { View, Text, Image, ScrollView } from "react-native";
+import { View, Text, ScrollView } from "react-native";
+import { FoundationFooter } from "@/components/common";
 import { useEffect } from "react";
 import Animated, {
   useSharedValue,
@@ -149,16 +150,8 @@ export function CompletionScreen({
       </Animated.View>
 
       {/* Bottom: foundation branding (secondary) */}
-      <Animated.View style={textAnimatedStyle} className="items-center">
-        <Image
-          source={require("@/assets/images/mahagathe-foundation-logo.png")}
-          style={{ width: 44, height: 44, marginBottom: 6 }}
-          resizeMode="contain"
-        />
-        <Text className="text-sm font-semibold text-secondary">Sapta Gita</Text>
-        <Text className="text-xs text-textSecondary/60 tracking-[0.5px] mt-1">
-          A Mahagathe Foundation Initiative
-        </Text>
+      <Animated.View style={textAnimatedStyle}>
+        <FoundationFooter variant="hero" />
       </Animated.View>
     </ScrollView>
   );

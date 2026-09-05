@@ -181,7 +181,7 @@ export function BucketPickerModal({
         className={`flex-row items-center justify-between px-3 py-3 rounded-xl border ${
           isSelected
             ? "bg-[#ECF8F1] border-[#B7E3CA]"
-            : "bg-white border-[#E2E8F0]"
+            : "bg-white border-[#E9DFD3]"
         }`}
         onPress={() => handleToggle(item._id)}
       >
@@ -212,7 +212,7 @@ export function BucketPickerModal({
         </View>
         <View
           className={`flex-row items-center px-2.5 py-1 rounded-full ${
-            isSelected ? "bg-[#2F855A]/15" : "bg-gray-100"
+            isSelected ? "bg-[#2F855A]/15" : "bg-sand-50"
           }`}
         >
           <Ionicons
@@ -293,7 +293,7 @@ export function BucketPickerModal({
               <Text className="text-sm text-textSecondary mb-2">
                 Create new bucket
               </Text>
-              <View className="flex-row items-center bg-gray-50 rounded-xl px-3 py-2">
+              <View className="flex-row items-center bg-sand-50 rounded-xl px-3 py-2">
                 <View style={{ marginRight: 8 }}>
                   <Text className="text-xl">{newBucketIcon}</Text>
                 </View>
@@ -301,7 +301,7 @@ export function BucketPickerModal({
                   value={newBucketName}
                   onChangeText={setNewBucketName}
                   placeholder="Type bucket name"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor="#B8A894"
                   className="flex-1 text-base text-textPrimary"
                   returnKeyType="done"
                   onSubmitEditing={() => {
@@ -327,20 +327,20 @@ export function BucketPickerModal({
                 >
                   <Text
                     className={`font-medium text-sm ${
-                      canCreateBucket ? "text-white" : "text-gray-500"
+                      canCreateBucket ? "text-white" : "text-sand-600"
                     }`}
                   >
                     Add
                   </Text>
                 </Pressable>
               </View>
-              <View className="flex-row mt-2 space-x-2">
+              <View className="flex-row mt-2 gap-2">
                 {["📁", "⭐️", "📚", "🙏", "❤️", "✨"].map((emoji) => (
                   <Pressable
                     key={emoji}
                     onPress={() => setNewBucketIcon(emoji)}
                     className={`px-3 py-2 rounded-full ${
-                      newBucketIcon === emoji ? "bg-primary/10" : "bg-gray-100"
+                      newBucketIcon === emoji ? "bg-primary/10" : "bg-sand-50"
                     }`}
                   >
                     <Text className="text-lg text-center">{emoji}</Text>

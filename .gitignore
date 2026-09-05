@@ -43,8 +43,8 @@ yarn-error.*
 /ios
 /android
 
-# Claude Code agent state
+# Claude Code agent state (worktrees, local settings)
 .claude/
 
-# Raw downloaded audio source (app bundles from assets/audio/)
+# Raw downloaded audio source (app bundles from assets/audio/ instead)
 Bhagavad_Gita_Audio/

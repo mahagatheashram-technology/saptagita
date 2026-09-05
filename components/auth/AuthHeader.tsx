@@ -27,9 +27,9 @@ export function AuthHeader({
         }}
       >
         <Image
-          source={require("../../assets/images/favicon.png")}
-          className="w-16 h-16 rounded-2xl"
-          resizeMode="contain"
+          source={require("../../assets/images/icon.png")}
+          className="w-14 h-14 rounded-2xl"
+          resizeMode="cover"
         />
       </View>
 
@@ -44,7 +44,7 @@ export function AuthHeader({
         {title}
       </Text>
 
-      <Text className="text-[15px] leading-6 text-textSecondary text-center px-4">
+      <Text className="text-base leading-6 text-textSecondary text-center px-4">
         {subtitle}
       </Text>
     </View>

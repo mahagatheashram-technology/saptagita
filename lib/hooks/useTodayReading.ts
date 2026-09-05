@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useCallback, useEffect, useState } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { reconcileDailyReminder } from "@/lib/notifications";
 
 export function useTodayReading(userId: Id<"users"> | null) {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -118,6 +119,14 @@ export function useTodayReading(userId: Id<"users"> | null) {
           currentStreak: result.streakUpdate.currentStreak,
           longestStreak: result.streakUpdate.longestStreak,
           isNewRecord: result.streakUpdate.isNewRecord,
+        });
+      }
+
+      if (result?.isComplete) {
+        reconcileDailyReminder({
+          completedLocalDate: result.completedLocalDate,
+        }).catch((error) => {
+          console.log("Failed to reconcile reminder after completion", error);
         });
       }
     } catch (error) {

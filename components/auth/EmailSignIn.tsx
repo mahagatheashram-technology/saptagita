@@ -215,7 +215,7 @@ export function EmailSignIn() {
       {/* Email input — shown until code is sent */}
       {!pendingCode && (
         <View>
-          <Text className="text-xs font-semibold text-[#7A8798] mb-2">
+          <Text className="text-xs font-semibold text-[#8C7B68] mb-2">
             Email address
           </Text>
           <TextInput
@@ -228,7 +228,7 @@ export function EmailSignIn() {
               }
             }}
             placeholder="you@example.com"
-            placeholderTextColor="#A0AEC0"
+            placeholderTextColor="#B8A894"
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -249,21 +249,21 @@ export function EmailSignIn() {
       {/* Code input — shown after code is sent */}
       {pendingCode && (
         <View>
-          <Text className="text-sm text-[#7A8798] leading-5 mb-3">
+          <Text className="text-sm text-[#8C7B68] leading-5 mb-3">
             We sent a 6-digit code to{" "}
             <Text className="font-semibold text-[#2D3748]">
               {pendingAttempt?.email || email.trim().toLowerCase()}
             </Text>
             . Enter it below.
           </Text>
-          <Text className="text-xs font-semibold text-[#7A8798] mb-2">
+          <Text className="text-xs font-semibold text-[#8C7B68] mb-2">
             Verification code
           </Text>
           <TextInput
             value={code}
             onChangeText={setCode}
             placeholder="123456"
-            placeholderTextColor="#A0AEC0"
+            placeholderTextColor="#B8A894"
             keyboardType="number-pad"
             autoFocus
             className="border rounded-xl bg-white"
@@ -286,8 +286,8 @@ export function EmailSignIn() {
         }`}
       >
         <Text
-          className={`font-semibold text-[15px] ${
-            isSubmitting ? "text-[#7A8798]" : "text-white"
+          className={`font-semibold text-sm ${
+            isSubmitting ? "text-[#8C7B68]" : "text-white"
           }`}
         >
           {isSubmitting

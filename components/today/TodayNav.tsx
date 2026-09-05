@@ -1,5 +1,6 @@
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { type } from "@/lib/typography";
 
 interface TodayNavProps {
   canPrev: boolean;
@@ -22,15 +23,18 @@ export function TodayNav({
         className="rounded-2xl px-4 py-3"
         style={{ backgroundColor: "rgba(255, 255, 255, 0.86)" }}
       >
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-stretch">
           <Pressable
             onPress={onPrev}
             disabled={disabled || !canPrev}
-            className="flex-row items-center px-3 py-2 rounded-full active:bg-gray-100"
+            className="flex-1 flex-row items-center px-2 py-2 rounded-full active:bg-sand-50"
             style={{ opacity: disabled || !canPrev ? 0.4 : 1 }}
           >
             <Ionicons name="chevron-back" size={18} color="#1A365D" />
-            <Text className="text-secondary ml-1 text-sm font-medium">
+            <Text
+              className="text-secondary ml-1 text-sm font-medium flex-shrink"
+              numberOfLines={2}
+            >
               Previous
             </Text>
           </Pressable>
@@ -38,30 +42,21 @@ export function TodayNav({
           <Pressable
             onPress={onNext}
             disabled={disabled}
-            className="flex-row items-center px-4 py-2 rounded-full bg-primary active:opacity-80"
+            className="flex-1 flex-row items-center justify-center px-2 py-2 rounded-full bg-primary active:opacity-80 ml-2"
             style={{ opacity: disabled ? 0.5 : 1 }}
           >
-            <Text className="text-white mr-1 text-sm font-semibold">
+            <Text
+              className="text-white mr-1 text-sm font-semibold text-center flex-shrink"
+              numberOfLines={2}
+            >
               {isReviewing ? "Next" : "Mark as read"}
             </Text>
             <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
           </Pressable>
         </View>
 
-        <Text className="text-xs text-textSecondary mt-2 text-center">
+        <Text className={`${type.caption} text-textSecondary mt-2 text-center`}>
           Swipe ← back · → forward · tap a dot to jump
-        </Text>
-      </View>
-
-      {/* Subtle foundation branding */}
-      <View className="flex-row items-center justify-center mt-1">
-        <Image
-          source={require("@/assets/images/mahagathe-foundation-logo.png")}
-          style={{ width: 14, height: 14, marginRight: 5 }}
-          resizeMode="contain"
-        />
-        <Text className="text-[9px] text-textSecondary/30 tracking-[0.5px]">
-          Mahagathe Foundation
         </Text>
       </View>
     </View>

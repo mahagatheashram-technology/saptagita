@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
-  Image,
   Modal,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import BottomSheet from "@gorhom/bottom-sheet";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { BucketCard, BucketPickerModal } from "@/components/bookmarks";
+import { BucketCard, BucketPickerModal, EmojiPicker } from "@/components/bookmarks";
+import { FoundationFooter } from "@/components/common";
 import {
   ReadVerseDetailSheet,
   ReadVerseRow,
@@ -26,18 +27,19 @@ import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useReadHistory } from "@/lib/hooks/useReadHistory";
 import { getUserFacingErrorMessage } from "@/lib/userFacingError";
 
-const BUCKET_ICONS = [
-  "📁",
-  "⭐️",
-  "📚",
-  "🙏",
-  "❤️",
-  "✨",
-  "🧘‍♂️",
-  "📝",
-  "🌱",
-  "🎯",
-];
+// Selected-segment styling. Deliberately a plain style object rather than a
+// conditional `shadow-sm` class — see the comment at its use site.
+const SELECTED_SEGMENT_STYLE = {
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#D6C3AE",
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
+
+/** Rows revealed per page in the Read tab. */
+const READ_PAGE_SIZE = 10;
 
 export default function BookmarksScreen() {
   const router = useRouter();
@@ -48,6 +50,13 @@ export default function BookmarksScreen() {
   const [activeTab, setActiveTab] = useState<"bookmarks" | "read" | "explore">(
     "bookmarks"
   );
+  // Read history arrives as one payload, but rendering all of it at once means
+  // hundreds of rows on a mature account. Reveal a page at a time as the user
+  // scrolls. (The payload itself is still whole — trimming that needs a
+  // paginated Convex query, which is a separate change.)
+  const [visibleReadCount, setVisibleReadCount] = useState(READ_PAGE_SIZE);
+  const isRevealingRef = useRef(false);
+  const [showCreateBucket, setShowCreateBucket] = useState(false);
   const [selectedReadVerse, setSelectedReadVerse] = useState<any | null>(null);
   const [showBucketPicker, setShowBucketPicker] = useState(false);
 
@@ -74,6 +83,16 @@ export default function BookmarksScreen() {
     }
   }, [userId, ensureDefaultBucket]);
 
+  // Release the reveal latch once the new rows have committed, and start from
+  // the first page again whenever the user leaves and re-enters the Read tab.
+  useEffect(() => {
+    isRevealingRef.current = false;
+  }, [visibleReadCount]);
+
+  useEffect(() => {
+    if (activeTab !== "read") setVisibleReadCount(READ_PAGE_SIZE);
+  }, [activeTab]);
+
   const buckets = useQuery(
     api.bookmarks.getUserBuckets,
     userId ? { userId } : "skip"
@@ -99,6 +118,7 @@ export default function BookmarksScreen() {
       await createBucket({ userId, name, icon: newBucketIcon });
       setNewBucketName("");
       setNewBucketIcon("📁");
+      setShowCreateBucket(false);
     } catch (error: any) {
       Alert.alert("Could not create bucket", getUserFacingErrorMessage(error));
     }
@@ -253,14 +273,21 @@ export default function BookmarksScreen() {
     ? Math.min(100, Math.round((totalReadVerses / totalVerses) * 100))
     : 0;
   const readItems = readHistory?.items ?? [];
+  const visibleReadItems = readItems.slice(0, visibleReadCount);
+  const hasMoreReadItems = visibleReadCount < readItems.length;
   const isReadLoading = activeTab === "read" && !readHistory;
-  const defaultBucketId = buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
-  const isReadVerseSavedToDefault = Boolean(
-    defaultBucketId &&
-      selectedReadVerseBuckets?.some(
-        (bucketId) => String(bucketId) === String(defaultBucketId)
-      )
-  );
+
+  const revealMoreReadItems = () => {
+    // onEndReached can fire several times per scroll gesture; the ref keeps a
+    // single gesture from skipping pages.
+    if (!hasMoreReadItems || isRevealingRef.current) return;
+    isRevealingRef.current = true;
+    setVisibleReadCount((count) =>
+      Math.min(count + READ_PAGE_SIZE, readItems.length)
+    );
+  };
+  // Saved to ANY collection — see the note in app/(tabs)/index.tsx.
+  const isReadVerseSaved = (selectedReadVerseBuckets?.length ?? 0) > 0;
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -272,7 +299,7 @@ export default function BookmarksScreen() {
       </View>
 
       <View className="px-5 pb-2">
-        <View className="flex-row bg-gray-100 rounded-full p-1">
+        <View className="flex-row bg-sand-50 rounded-full p-1">
           {(
             [
               { key: "bookmarks", label: "Bookmarks" },
@@ -283,9 +310,19 @@ export default function BookmarksScreen() {
             <Pressable
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
-              className={`flex-1 py-2 rounded-full items-center ${
-                activeTab === tab.key ? "bg-white shadow-sm" : ""
-              }`}
+              // The selected pill is styled through `style`, not a conditional
+              // className. Adding `shadow-sm` only when selected made NativeWind
+              // introduce a CSS variable *after* the initial render, which
+              // triggers its dev-only "upgrade" warning. That warning calls
+              // stringify(originalProps), which deep-walks props with
+              // Object.entries() and enumerates React internals — including
+              // React Navigation's context object, whose getters throw by
+              // design. Result: "Couldn't find a navigation context" on every
+              // sub-tab press, in dev only. Keep this className static.
+              className="flex-1 py-2 rounded-full items-center"
+              style={
+                activeTab === tab.key ? SELECTED_SEGMENT_STYLE : undefined
+              }
             >
               <Text
                 className={`text-sm font-medium ${
@@ -303,50 +340,61 @@ export default function BookmarksScreen() {
 
       {activeTab === "bookmarks" ? (
         <>
+          {/* The create form used to sit here permanently, taking the top of
+              the screen for an action most visits never use. It now opens on
+              demand and the bucket list gets the space back. */}
           <View className="px-5 py-2">
-            <View className="bg-surface rounded-2xl px-4 py-3 shadow-sm">
-              <View className="flex-row items-center">
-                <View className="mr-3">
-                  <Text className="text-2xl">{newBucketIcon}</Text>
+            {showCreateBucket ? (
+              <View className="bg-surface rounded-2xl px-4 py-3 shadow-sm">
+                <View className="flex-row items-center">
+                  <View className="mr-3">
+                    <Text className="text-2xl">{newBucketIcon}</Text>
+                  </View>
+                  <TextInput
+                    value={newBucketName}
+                    onChangeText={setNewBucketName}
+                    placeholder="New bucket name"
+                    className="flex-1 text-base text-textPrimary"
+                    returnKeyType="done"
+                    autoFocus
+                    onSubmitEditing={handleCreate}
+                    style={{ paddingVertical: 10 }}
+                  />
+                  <Pressable
+                    onPress={handleCreate}
+                    className="ml-3 px-4 py-2 rounded-full bg-primary active:opacity-80"
+                  >
+                    <Text className="text-white font-semibold text-sm">Add</Text>
+                  </Pressable>
                 </View>
-                <TextInput
-                  value={newBucketName}
-                  onChangeText={setNewBucketName}
-                  placeholder="New bucket name"
-                  className="flex-1 text-base text-textPrimary"
-                  returnKeyType="done"
-                  onSubmitEditing={handleCreate}
-                  style={{ paddingVertical: 10 }}
+
+                <EmojiPicker
+                  selected={newBucketIcon}
+                  onSelect={setNewBucketIcon}
                 />
+
                 <Pressable
-                  onPress={handleCreate}
-                  className="ml-3 px-3 py-2 rounded-xl bg-primary active:opacity-80"
+                  onPress={() => {
+                    setShowCreateBucket(false);
+                    setNewBucketName("");
+                    setNewBucketIcon("📁");
+                  }}
+                  className="items-center pt-1"
                 >
-                  <Text className="text-white font-medium text-sm">Add</Text>
+                  <Text className="text-sm text-textSecondary">Cancel</Text>
                 </Pressable>
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingVertical: 4,
-                  gap: 8,
-                  paddingRight: 4,
-                }}
+            ) : (
+              <Pressable
+                onPress={() => setShowCreateBucket(true)}
+                className="flex-row items-center justify-center rounded-2xl border border-primary/30 bg-primary/5 py-3 active:opacity-70"
               >
-                {BUCKET_ICONS.map((emoji) => (
-                  <Pressable
-                    key={emoji}
-                    onPress={() => setNewBucketIcon(emoji)}
-                    className={`px-3 py-2 rounded-full ${
-                      newBucketIcon === emoji ? "bg-primary/10" : "bg-gray-100"
-                    }`}
-                  >
-                    <Text className="text-lg">{emoji}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+                <Ionicons name="add" size={18} color="#FF6B35" />
+                <Text className="text-sm font-semibold text-primary ml-1">
+                  New bucket
+                </Text>
+              </Pressable>
+            )}
           </View>
 
           <View className="flex-1 px-5 pt-2">
@@ -391,7 +439,9 @@ export default function BookmarksScreen() {
       ) : activeTab === "read" ? (
         <View className="flex-1 px-5 pt-2">
           <FlatList
-            data={readItems}
+            data={visibleReadItems}
+            onEndReached={revealMoreReadItems}
+            onEndReachedThreshold={0.4}
             keyExtractor={(item) => item.verse._id}
             renderItem={({ item }) => {
               const lastRead = formatLastRead(item.lastReadAt);
@@ -404,13 +454,27 @@ export default function BookmarksScreen() {
                 />
               );
             }}
+            ListFooterComponent={
+              hasMoreReadItems ? (
+                <View className="items-center py-5">
+                  <ActivityIndicator size="small" color="#FF6B35" />
+                  <Text className="text-xs text-textSecondary mt-2">
+                    Showing {visibleReadItems.length} of {readItems.length}
+                  </Text>
+                </View>
+              ) : readItems.length > READ_PAGE_SIZE ? (
+                <Text className="text-xs text-textSecondary/70 text-center py-5">
+                  All {readItems.length} verses shown
+                </Text>
+              ) : null
+            }
             ListHeaderComponent={
               <View>
                 <View className="bg-surface rounded-2xl p-4 shadow-sm mb-4">
                   <Text className="text-sm text-textSecondary mb-2">
                     Read {totalReadVerses} / {totalVerses} verses
                   </Text>
-                  <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <View className="h-2 bg-sand-100 rounded-full overflow-hidden">
                     <View
                       className="h-2 bg-primary"
                       style={{ width: `${progressPct}%` }}
@@ -448,7 +512,7 @@ export default function BookmarksScreen() {
           <ReadVerseDetailSheet
             ref={readDetailSheetRef}
             verse={selectedReadVerse}
-            isSavedToDefault={isReadVerseSavedToDefault}
+            isSavedToDefault={isReadVerseSaved}
             onAddToBucket={handleAddToBucket}
             onQuickBookmark={handleQuickBookmark}
             onLogReadToday={handleLogReadToday}
@@ -473,19 +537,7 @@ export default function BookmarksScreen() {
         />
       )}
 
-      {/* Foundation branding footer */}
-      <View className="items-center py-2 pb-1">
-        <View className="flex-row items-center">
-          <Image
-            source={require("@/assets/images/mahagathe-foundation-logo.png")}
-            style={{ width: 16, height: 16, marginRight: 6 }}
-            resizeMode="contain"
-          />
-          <Text className="text-[10px] text-textSecondary/40 tracking-[0.5px]">
-            A Mahagathe Foundation Initiative
-          </Text>
-        </View>
-      </View>
+      <FoundationFooter />
 
       <Modal
         visible={Boolean(renamingId)}
@@ -514,32 +566,12 @@ export default function BookmarksScreen() {
               />
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingVertical: 4,
-                gap: 8,
-                paddingRight: 4,
-              }}
-            >
-              {BUCKET_ICONS.map((emoji) => (
-                <Pressable
-                  key={emoji}
-                  onPress={() => setRenameIcon(emoji)}
-                  className={`px-3 py-2 rounded-full ${
-                    renameIcon === emoji ? "bg-primary/10" : "bg-gray-100"
-                  }`}
-                >
-                  <Text className="text-lg">{emoji}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <EmojiPicker selected={renameIcon} onSelect={setRenameIcon} />
 
             <View className="flex-row justify-end mt-4">
               <Pressable
                 onPress={closeRenameEditor}
-                className="px-4 py-2 rounded-xl bg-gray-100 active:opacity-80"
+                className="px-4 py-2 rounded-xl bg-sand-50 active:opacity-80"
               >
                 <Text className="text-textSecondary font-medium text-sm">
                   Cancel

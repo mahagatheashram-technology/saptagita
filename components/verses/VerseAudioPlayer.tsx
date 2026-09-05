@@ -106,7 +106,7 @@ function CompactPlayer({
       </View>
 
       {/* Time */}
-      <Text className="text-xs" style={{ color: "#A0AEC0", minWidth: 30 }}>
+      <Text className="text-xs" style={{ color: "#B8A894", minWidth: 30 }}>
         {positionMs > 0 ? formatMs(positionMs) : ""}
       </Text>
     </View>
@@ -114,7 +114,7 @@ function CompactPlayer({
 }
 
 // ---------------------------------------------------------------------------
-// Full — used in BookmarkDetailSheet and ActionDrawer
+// Full — used in BookmarkDetailSheet and ReadVerseDetailSheet
 // ---------------------------------------------------------------------------
 function FullPlayer({
   isPlaying,
@@ -182,7 +182,7 @@ function FullPlayer({
         </View>
 
         {/* Time */}
-        <Text className="text-xs ml-1" style={{ color: "#A0AEC0", minWidth: 70, textAlign: "right" }}>
+        <Text className="text-xs ml-1" style={{ color: "#B8A894", minWidth: 70, textAlign: "right" }}>
           {positionMs > 0 || isPlaying
             ? `${formatMs(positionMs)} / ${formatMs(durationMs)}`
             : formatMs(durationMs)}

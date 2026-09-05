@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -24,17 +24,12 @@ export default function BucketDetailScreen() {
   const bucketIdValue = Array.isArray(id) ? id[0] : id;
   const bucketId = bucketIdValue as Id<"bookmarkBuckets">;
 
-  if (!bucketIdValue) {
-    return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <Pressable onPress={() => router.replace("/bookmarks")} className="mb-3">
-          <Text className="text-primary">Go back</Text>
-        </Pressable>
-        <Text className="text-textSecondary">Bucket not found</Text>
-      </SafeAreaView>
-    );
-  }
-
+  // The "bucket not found" bail-out lives below, after every hook has run. It
+  // used to sit here, which skipped the nine hooks that follow. React tracks
+  // hooks by call order, so rendering the short path and then the long path
+  // corrupts its bookkeeping and surfaces as errors elsewhere. Every hook below
+  // already passes "skip" when bucketId is missing, so running them costs
+  // nothing. Do not move this bail-out back up.
   const { user: currentUser, isLoading: isUserLoading } = useCurrentUser();
   const userId = currentUser?._id ?? null;
   const [selectedVerse, setSelectedVerse] = useState<any | null>(null);
@@ -104,18 +99,29 @@ export default function BucketDetailScreen() {
 
   const headerEmoji = useMemo(() => bucket?.icon ?? "📁", [bucket]);
 
+  // Safe to return early here — every hook above has already run.
+  if (!bucketIdValue) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+        <Pressable onPress={() => router.replace("/bookmarks")} className="mb-3">
+          <Text className="text-primary">Go back</Text>
+        </Pressable>
+        <Text className="text-textSecondary">Bucket not found</Text>
+      </SafeAreaView>
+    );
+  }
+
   const emptyHint = bucket?.isDefault
     ? "Swipe left on any verse and tap Bookmark to save it here."
     : "Add verses to this bucket from the Today screen.";
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <Stack.Screen
-        options={{
-          headerShown: false,
-          title: bucket ? bucket.name : "Bucket",
-        }}
-      />
+      {/* No <Stack.Screen> here. Commit 7a26a21 moved this route off the root
+          Stack onto the Tabs navigator, but left the Stack.Screen behind — so
+          it was binding options to a navigator this screen no longer belongs
+          to. The tab layout already sets headerShown: false, and no header is
+          rendered, so the title it set was never visible either. */}
       <View className="flex-row items-center px-4 py-3">
         <Pressable onPress={handleBack} hitSlop={10} className="mr-2">
           <Ionicons name="chevron-back" size={24} color="#1A365D" />

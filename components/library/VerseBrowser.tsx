@@ -47,20 +47,15 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
     pending ? { chapter: pending.chapter, verse: pending.verse } : "skip"
   );
 
-  const buckets = useQuery(api.bookmarks.getUserBuckets, { userId });
-  const defaultBucketId =
-    buckets?.find((bucket) => bucket.isDefault)?._id ?? null;
+
   const verseBuckets = useQuery(
     api.bookmarks.getVerseBuckets,
     loadedVerse?._id ? { userId, verseId: loadedVerse._id } : "skip"
   );
-  const isSavedToDefault = Boolean(
-    defaultBucketId &&
-      verseBuckets?.some((id) => String(id) === String(defaultBucketId))
-  );
+  // Saved to ANY collection — see the note in app/(tabs)/index.tsx.
+  const isSavedToDefault = (verseBuckets?.length ?? 0) > 0;
 
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
-  const logReread = useMutation(api.dailySets.logReread);
 
   // Open the sheet once the requested verse has loaded.
   useEffect(() => {
@@ -114,17 +109,6 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
     }
   };
 
-  const handleLogReadToday = async () => {
-    if (!loadedVerse?._id) return;
-    try {
-      await logReread({ userId, verseId: loadedVerse._id });
-      sheetRef.current?.close();
-      Alert.alert("Logged", "Counted your reading for today.");
-    } catch (error: any) {
-      Alert.alert("Could not log read", String(error?.message ?? error));
-    }
-  };
-
   const chapterTitle = useMemo(
     () => getChapterMeta(chapter)?.title ?? "",
     [chapter]
@@ -142,7 +126,7 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
   return (
     <View className="flex-1 px-5 pt-2">
       <View className="bg-surface rounded-2xl p-4 shadow-sm">
-        <Text className="text-base font-semibold text-secondary mb-1">
+        <Text className="text-lg font-semibold text-secondary mb-1">
           Jump to a verse
         </Text>
         <Text className="text-sm text-textSecondary mb-4">
@@ -165,7 +149,7 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
                 key={c.chapter}
                 onPress={() => setChapter(c.chapter)}
                 className={`w-10 h-10 rounded-full items-center justify-center ${
-                  selected ? "bg-primary" : "bg-gray-100"
+                  selected ? "bg-primary" : "bg-sand-50"
                 }`}
               >
                 <Text
@@ -199,7 +183,7 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
                 key={v}
                 onPress={() => setVerse(v)}
                 className={`min-w-10 h-10 px-2 rounded-full items-center justify-center ${
-                  selected ? "bg-primary" : "bg-gray-100"
+                  selected ? "bg-primary" : "bg-sand-50"
                 }`}
               >
                 <Text
@@ -246,7 +230,6 @@ export function VerseBrowser({ userId, scriptPreference }: VerseBrowserProps) {
         isSavedToDefault={isSavedToDefault}
         onAddToBucket={handleAddToBucket}
         onQuickBookmark={handleQuickBookmark}
-        onLogReadToday={handleLogReadToday}
         scriptPreference={scriptPreference}
       />
 

@@ -45,7 +45,7 @@ export function DharmicSearchBox({ onSearch }: DharmicSearchBoxProps) {
           value={query}
           onChangeText={setQuery}
           placeholder="Type a keyword…"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor="#B8A894"
           className="flex-1 text-base text-textPrimary"
           returnKeyType="search"
           onSubmitEditing={handleSearch}

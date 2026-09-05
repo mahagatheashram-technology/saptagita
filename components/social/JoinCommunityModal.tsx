@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,8 +18,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Selected-segment styling. Deliberately a plain style object rather than a
+// conditional `shadow-sm` class: adding a shadow class only when selected makes
+// NativeWind upgrade the component after its initial render, and its dev-only
+// upgrade warning serializes props with Object.entries(), which enumerates
+// React Navigation's context object and throws "Couldn't find a navigation
+// context". Keep the className static.
+const SELECTED_SEGMENT_STYLE = {
+  backgroundColor: "#FFFFFF",
+  shadowColor: "#D6C3AE",
+  shadowOpacity: 0.2,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+} as const;
+
 type JoinMode = "browse" | "code";
-const INVITE_CODE_ENABLED = false;
+// Enabled now that the backend generates collision-safe codes, normalises
+// input, and can preview a code before committing to the join.
+const INVITE_CODE_ENABLED = true;
 
 interface JoinCommunityModalProps {
   visible: boolean;
@@ -86,8 +104,21 @@ export function JoinCommunityModal({
   const isBusy = Boolean(joiningCommunityId) || joiningCode;
   const showInviteCode = mode === "code" && INVITE_CODE_ENABLED;
 
-  const trimmedCode = inviteCode.trim().toUpperCase();
-  const canSubmitCode = trimmedCode.length > 0 && !isBusy;
+  const trimmedCode = inviteCode.replace(/\s+/g, "").toUpperCase();
+  // Preview the code before joining, so the user confirms which community they
+  // are about to enter instead of finding out afterwards.
+  const codePreview = useQuery(
+    api.communities.getCommunityByInviteCode,
+    showInviteCode && trimmedCode.length >= 6 ? { inviteCode: trimmedCode } : "skip"
+  );
+  const isPreviewLoading =
+    showInviteCode && trimmedCode.length >= 6 && codePreview === undefined;
+  const canSubmitCode =
+    trimmedCode.length > 0 &&
+    !isBusy &&
+    !isPreviewLoading &&
+    codePreview !== null &&
+    !codePreview?.isAlreadyMember;
 
   const handleJoinPublic = async (communityId: Id<"communities">) => {
     if (!userId) {
@@ -186,7 +217,9 @@ export function JoinCommunityModal({
       >
         <View className="flex-1 bg-black/40 justify-end">
           <Pressable className="flex-1" onPress={onClose} />
-          <View
+          <Pressable
+            onPress={Keyboard.dismiss}
+            accessible={false}
             className="bg-white rounded-t-3xl"
             style={{
               paddingTop: 18,
@@ -194,16 +227,19 @@ export function JoinCommunityModal({
               paddingBottom: (insets.bottom || 0) + 18,
             }}
           >
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-semibold text-textPrimary">
+            <View className="flex-row items-start justify-between mb-3 gap-3">
+              <Text
+                className="text-lg font-semibold text-textPrimary flex-1"
+                numberOfLines={2}
+              >
                 Join a Community
               </Text>
-              <Pressable onPress={onClose} hitSlop={10}>
+              <Pressable onPress={onClose} hitSlop={10} className="shrink-0">
                 <Text className="text-base text-textSecondary">Close</Text>
               </Pressable>
             </View>
 
-            <View className="flex-row bg-gray-100 rounded-xl p-1 mb-4">
+            <View className="flex-row bg-sand-50 rounded-xl p-1 mb-4">
               {(["browse", "code"] as JoinMode[]).map((option) => {
                 const isActive = mode === option;
                 const isDisabled =
@@ -212,8 +248,9 @@ export function JoinCommunityModal({
                   <Pressable
                     key={option}
                     className={`flex-1 px-4 py-2 rounded-xl ${
-                      isActive ? "bg-white shadow-sm" : ""
-                    } ${isDisabled ? "opacity-60" : ""}`}
+                      isDisabled ? "opacity-60" : ""
+                    }`}
+                    style={isActive ? SELECTED_SEGMENT_STYLE : undefined}
                     onPress={() => {
                       if (isDisabled) return;
                       setMode(option);
@@ -254,7 +291,7 @@ export function JoinCommunityModal({
                   <ScrollView style={{ maxHeight: 320 }}>
                     {availableCommunities.map((community, index) => (
                       <View key={community._id}>
-                        {index > 0 ? <View className="h-px bg-gray-100" /> : null}
+                        {index > 0 ? <View className="h-px bg-sand-50" /> : null}
                         {renderCommunityRow(community)}
                       </View>
                     ))}
@@ -270,7 +307,7 @@ export function JoinCommunityModal({
                 <Text className="text-sm text-textSecondary mb-2">
                   Enter an invite code to join a private community.
                 </Text>
-                <View className="bg-gray-50 rounded-xl border border-[#E2E8F0] px-3 py-2">
+                <View className="bg-sand-50 rounded-xl border border-[#E9DFD3] px-3 py-2">
                   <TextInput
                     value={inviteCode}
                     onChangeText={(text) => setInviteCode(text.toUpperCase())}
@@ -282,6 +319,30 @@ export function JoinCommunityModal({
                     returnKeyType="done"
                   />
                 </View>
+
+                {isPreviewLoading ? (
+                  <View className="flex-row items-center mt-3">
+                    <ActivityIndicator size="small" color="#FF6B35" />
+                    <Text className="text-sm text-textSecondary ml-2">
+                      Checking code...
+                    </Text>
+                  </View>
+                ) : codePreview === null && trimmedCode.length >= 6 ? (
+                  <Text className="text-sm text-textSecondary mt-3">
+                    No community matches that code.
+                  </Text>
+                ) : codePreview ? (
+                  <View className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                    <Text className="text-base font-semibold text-secondary">
+                      {codePreview.name}
+                    </Text>
+                    <Text className="text-xs text-textSecondary mt-0.5">
+                      {codePreview.memberCount}{" "}
+                      {codePreview.memberCount === 1 ? "member" : "members"}
+                      {codePreview.isAlreadyMember ? " · You're already in" : ""}
+                    </Text>
+                  </View>
+                ) : null}
               </>
             )}
 
@@ -289,9 +350,9 @@ export function JoinCommunityModal({
               <Text className="text-xs text-red-500 mt-2">{error}</Text>
             ) : null}
 
-            <View className="flex-row mt-5 space-x-3">
+            <View className="flex-row mt-5 gap-3">
               <Pressable
-                className="flex-1 rounded-xl border border-[#E2E8F0] px-4 py-3 bg-white"
+                className="flex-1 rounded-xl border border-[#E9DFD3] px-4 py-3 bg-white"
                 onPress={onClose}
                 disabled={isBusy}
               >
@@ -317,7 +378,7 @@ export function JoinCommunityModal({
                 </Pressable>
               ) : null}
             </View>
-          </View>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </Modal>

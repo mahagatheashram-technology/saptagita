@@ -15,6 +15,7 @@ import { useTodayReading } from "@/lib/hooks/useTodayReading";
 import { impact } from "@/lib/haptics";
 import { Id } from "@/convex/_generated/dataModel";
 import { BucketPickerModal } from "@/components/bookmarks";
+import { FoundationFooter } from "@/components/common";
 import { useCurrentUser } from "@/lib/hooks/useCurrentUser";
 import { useAuth } from "@clerk/clerk-expo";
 import { clearBadge } from "@/lib/notifications";
@@ -47,10 +48,6 @@ export default function TodayScreen() {
     api.users.getUserState,
     userId ? { userId } : "skip"
   );
-  const buckets = useQuery(
-    api.bookmarks.getUserBuckets,
-    userId ? { userId } : "skip"
-  );
 
   const {
     verses,
@@ -73,13 +70,11 @@ export default function TodayScreen() {
       ? { userId, verseId: viewedVerse._id as Id<"verses"> }
       : "skip"
   );
-  const defaultBucketId = buckets?.find((b) => b.isDefault)?._id ?? null;
-  const isViewedSaved = Boolean(
-    defaultBucketId &&
-      viewedVerseBuckets?.some(
-        (bucketId) => String(bucketId) === String(defaultBucketId)
-      )
-  );
+  // "Saved" means saved to ANY collection, not just Default. The bucket picker
+  // uses moveBookmark, so filing a verse into another collection removes it
+  // from Default — checking Default alone made the icon go hollow on a verse
+  // the reader had just deliberately filed away.
+  const isViewedSaved = (viewedVerseBuckets?.length ?? 0) > 0;
 
   const ensureDefaultBucket = useMutation(api.bookmarks.ensureDefaultBucket);
   const quickBookmark = useMutation(api.bookmarks.quickBookmark);
@@ -332,7 +327,13 @@ export default function TodayScreen() {
         onScriptChange={handleScriptPreferenceChange}
       />
 
-      <View className="flex-1 px-5" style={isWeb ? { paddingBottom: 96 } : undefined}>
+      <View
+        className="flex-1 px-5"
+        style={[
+          { minHeight: 0 },
+          isWeb ? { paddingBottom: 96 } : undefined,
+        ]}
+      >
         <CardStack
           verses={verses}
           viewIndex={viewIndex}
@@ -357,6 +358,8 @@ export default function TodayScreen() {
           disabled={!interactionsEnabled}
         />
       )}
+
+      <FoundationFooter className="pt-0 pb-1" />
 
       <SaveSnackbar
         visible={snackbar.visible}
